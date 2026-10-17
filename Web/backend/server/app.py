@@ -32,6 +32,7 @@ tracking_lock = asyncio.Lock()
 session_lock = asyncio.Lock()
 active: set[str] = set()
 cancelled: set[str] = set()
+run_ids: dict[str, str] = {}
 CANCELLED_FIELDS: Record = {
     "status": "uploaded",
     "progress": 0,
@@ -39,6 +40,7 @@ CANCELLED_FIELDS: Record = {
     "error": None,
 }
 cache: dict[str, Analysis] = {}
+tasks: set[asyncio.Task[None]] = set()
 
 
 def now() -> str:
@@ -70,19 +72,67 @@ def load_analysis(session: Record) -> Analysis:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-    # A single worker owns jobs; an interrupted process cannot leave a fake running state.
+    # Database leases protect live work on other computers while expired work resumes.
+    if config.HOSTED_MODE:
+        await recover_tracking()
+    recovery = asyncio.create_task(recovery_loop()) if config.HOSTED_MODE else None
     try:
-        for session in await asyncio.to_thread(store.records, "sessions"):
-            if session["status"] in ("queued", "processing"):
-                await asyncio.to_thread(
-                    store.patch,
-                    "sessions",
-                    session["id"],
-                    {"status": "failed", "error": "Analysis was interrupted. Retry this video."},
-                )
-    except Exception:
-        log.exception("Database unavailable at startup")
-    yield
+        yield
+    finally:
+        if recovery:
+            recovery.cancel()
+        for task in list(tasks):
+            task.cancel()
+        await asyncio.gather(*([recovery] if recovery else []), *tasks, return_exceptions=True)
+
+
+async def recover_tracking() -> None:
+    """Claim saved pending jobs only when their database lease has expired."""
+    for session in reversed(await asyncio.to_thread(store.records, "sessions")):
+        identifier = session["id"]
+        if len(active) >= config.MAX_QUEUED_JOBS:
+            break
+        if identifier in active or session["status"] not in ("queued", "processing"):
+            continue
+        run_id = str(uuid4())
+        claimed = await asyncio.to_thread(store.claim_tracking, identifier, run_id)
+        if claimed is not None:
+            active.add(identifier)
+            run_ids[identifier] = run_id
+            schedule_work(identifier)
+
+
+async def recovery_loop() -> None:
+    """Retry expired video jobs after crashes; transient database failures retry later."""
+    while True:
+        await asyncio.sleep(config.TRACKING_HEARTBEAT_SECONDS)
+        try:
+            await recover_tracking()
+        except Exception:
+            log.exception("Pending video recovery could not reach the database")
+
+
+def schedule_work(session_id: str) -> None:
+    """Retain video tasks until completion so shutdown can cancel their heartbeats."""
+    task = asyncio.create_task(work(session_id))
+    tasks.add(task)
+    task.add_done_callback(tasks.discard)
+    task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
+
+
+def tracking_status(session: Record) -> Record:
+    """Expose expired owned work as retryable without mutating another computer’s records."""
+    if (
+        session.get("status") in ("queued", "processing")
+        and session.get("analysisRunId")
+        and session.get("analysisLeaseUntil", 0) <= datetime.now(UTC).timestamp()
+    ):
+        return {
+            **session,
+            "status": "failed",
+            "error": "Analysis stopped responding. Retry this video.",
+        }
+    return session
 
 
 app = FastAPI(title="SportsBuilder", lifespan=lifespan)
@@ -116,7 +166,7 @@ async def home() -> HomeData:
     return {
         "profiles": cast(list[ProfileRecord], values[0]),
         "tools": cast(list[ToolRecord], values[1]),
-        "sessions": cast(list[SessionRecord], values[2]),
+        "sessions": cast(list[SessionRecord], [tracking_status(value) for value in values[2]]),
     }
 
 
@@ -280,9 +330,12 @@ async def upload(
         session_id = str(uuid4())
         preview_key = f"previews/{session_id}.jpg"
         key = f"videos/{session_id}{suffix}"
-        await asyncio.to_thread(
-            lambda: store.put(key, path.read_bytes(), file.content_type or "video/mp4")
-        )
+        try:
+            await asyncio.to_thread(
+                lambda: store.put(key, path.read_bytes(), file.content_type or "video/mp4")
+            )
+        except ValueError as error:
+            raise HTTPException(507, str(error)) from error
         value: Record = {
             "id": session_id,
             "name": (file.filename or "Video")[:160],
@@ -319,15 +372,41 @@ async def work(session_id: str) -> None:
     """
     session = None
     path = None
+    run_id = run_ids.get(session_id)
+    if not run_id:
+        return
+
+    async def heartbeat() -> None:
+        # Vision and model loading run in a separate thread; ownership renews even before the first frame.
+        try:
+            while True:
+                await asyncio.sleep(config.TRACKING_HEARTBEAT_SECONDS)
+                saved = await asyncio.to_thread(store.update_tracking, session_id, run_id, {}, True)
+                if saved is None:
+                    cancelled.add(session_id)
+                    return
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # A disconnected worker must stop publishing rather than assume it still owns the job.
+            cancelled.add(session_id)
+            log.exception("Tracking heartbeat failed")
+
+    heartbeat_task = asyncio.create_task(heartbeat())
     try:
         async with tracking_lock:
             async with session_lock:
                 session = await asyncio.to_thread(record, "sessions", session_id)
                 if session_id not in active or session_id in cancelled:
                     return
-                await asyncio.to_thread(
-                    store.patch, "sessions", session_id, {"status": "processing", "progress": 0.01}
+                saved = await asyncio.to_thread(
+                    store.update_tracking,
+                    session_id,
+                    run_id,
+                    {"status": "processing", "progress": 0.01},
                 )
+                if saved is None:
+                    return
             suffix = Path(session["sourceKey"]).suffix
             with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as h:
                 path = Path(h.name)
@@ -339,7 +418,12 @@ async def work(session_id: str) -> None:
                     return False
                 if value - last[0] > 0.05:
                     last[0] = value
-                    store.patch("sessions", session_id, {"progress": value, "stage": message})
+                    saved = store.update_tracking(
+                        session_id, run_id, {"progress": value, "stage": message}
+                    )
+                    if saved is None:
+                        cancelled.add(session_id)
+                        return False
                 return True
 
             if session_id in cancelled:
@@ -352,7 +436,7 @@ async def work(session_id: str) -> None:
                 # Cancellation and publishing share this lock; a late result cannot revive a stopped job.
                 if session_id not in active or session_id in cancelled:
                     return
-                key = f"analyses/{session_id}.json"
+                key = f"analyses/{session_id}/{run_id}.json"
                 await asyncio.to_thread(
                     store.put,
                     key,
@@ -364,7 +448,9 @@ async def work(session_id: str) -> None:
                     height_cm = athlete.get("heightCm")
                     if height_cm is not None:
                         scale = calibration.from_height(height_cm, reference, analysis["ground"])
-                        await asyncio.to_thread(store.save_height_calibration, session_id, scale)
+                        await asyncio.to_thread(
+                            store.save_height_calibration, session_id, scale, None, run_id
+                        )
                 job_fields: Record = {
                     "status": "complete",
                     "progress": 1,
@@ -374,7 +460,12 @@ async def work(session_id: str) -> None:
                 if reference is not None:
                     job_fields["heightReference"] = reference
                     job_fields["detectedGround"] = analysis["ground"]
-                await asyncio.to_thread(store.patch, "sessions", session_id, job_fields)
+                saved = await asyncio.to_thread(
+                    store.update_tracking, session_id, run_id, job_fields
+                )
+                if saved is None:
+                    await asyncio.to_thread(store.remove, key)
+                    return
             cache[session_id] = analysis
             if len(cache) > 8:
                 cache.pop(next(iter(cache)))
@@ -383,9 +474,9 @@ async def work(session_id: str) -> None:
             log.exception("Tracking failed")
         if session and session_id in active and session_id not in cancelled:
             await asyncio.to_thread(
-                store.patch,
-                "sessions",
+                store.update_tracking,
                 session_id,
+                run_id,
                 {
                     "status": "failed",
                     "error": str(e)
@@ -394,15 +485,13 @@ async def work(session_id: str) -> None:
                 },
             )
     finally:
-        try:
-            if session_id in cancelled:
-                async with session_lock:
-                    await asyncio.to_thread(store.patch, "sessions", session_id, CANCELLED_FIELDS)
-        finally:
-            active.discard(session_id)
-            cancelled.discard(session_id)
-            if path:
-                path.unlink(missing_ok=True)
+        heartbeat_task.cancel()
+        await asyncio.gather(heartbeat_task, return_exceptions=True)
+        active.discard(session_id)
+        cancelled.discard(session_id)
+        run_ids.pop(session_id, None)
+        if path:
+            path.unlink(missing_ok=True)
 
 
 @app.post("/api/sessions/{session_id}/cancel", response_model=None)
@@ -416,7 +505,11 @@ async def cancel_tracking(session_id: str) -> SessionRecord:
         session = await asyncio.to_thread(record, "sessions", session_id)
         if session["status"] not in ("queued", "processing"):
             return cast(SessionRecord, session)
-        saved = await asyncio.to_thread(store.patch, "sessions", session_id, CANCELLED_FIELDS)
+        saved = await asyncio.to_thread(store.cancel_tracking, session_id)
+        if saved is None:
+            raise HTTPException(
+                409, "This video is running in an older app. Stop it there before retrying."
+            )
         if session_id in active:
             cancelled.add(session_id)
         return cast(SessionRecord, saved)
@@ -436,26 +529,32 @@ async def start(session_id: str) -> SessionRecord:
         if session["status"] == "complete":
             return cast(SessionRecord, session)
         if len(active) >= config.MAX_QUEUED_JOBS:
-            raise HTTPException(429, "Three clips are already queued. Wait for one to finish.")
-        active.add(session_id)
-        try:
-            session = await asyncio.to_thread(
-                store.patch,
-                "sessions",
-                session_id,
-                {"status": "queued", "progress": 0, "error": None},
+            raise HTTPException(429, "Five clips are already queued. Wait for one to finish.")
+        run_id = str(uuid4())
+        claimed = await asyncio.to_thread(store.claim_tracking, session_id, run_id)
+        if claimed is None:
+            current = await asyncio.to_thread(record, "sessions", session_id)
+            if current["status"] == "complete":
+                return cast(SessionRecord, current)
+            if current.get("analysisRunId"):
+                if tracking_status(current)["status"] in ("queued", "processing"):
+                    return cast(SessionRecord, current)
+                raise HTTPException(409, "The previous analysis is finishing. Retry in a moment.")
+            raise HTTPException(
+                409, "This video is running in an older app. Stop it there before retrying."
             )
-        except Exception:
-            active.discard(session_id)
-            raise
-        task = asyncio.create_task(work(session_id))
-        task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
+        session = claimed
+        active.add(session_id)
+        run_ids[session_id] = run_id
+        schedule_work(session_id)
         return cast(SessionRecord, session)
 
 
 @app.get("/api/sessions/{session_id}", response_model=None)
 async def session_get(session_id: str) -> SessionRecord:
-    return cast(SessionRecord, await asyncio.to_thread(record, "sessions", session_id))
+    return cast(
+        SessionRecord, tracking_status(await asyncio.to_thread(record, "sessions", session_id))
+    )
 
 
 @app.get("/api/sessions/{session_id}/preview")

@@ -130,3 +130,18 @@ def test_deleted_premade_coach_stays_hidden_but_resolves_for_history(
     monkeypatch.setattr(store, "pool", lambda: pool)
     assert saved["id"] not in {tool["id"] for tool in store.records("tools")}
     assert store.get("tools", saved["id"]) == saved
+
+
+def test_hosted_storage_limit_refuses_new_bytes_without_deleting_existing_objects(monkeypatch):
+    from server import config
+
+    client = MagicMock()
+    client.get_paginator.return_value.paginate.return_value = [
+        {"Contents": [{"Size": 3_999_999_990}]}
+    ]
+    monkeypatch.setattr(store, "s3", lambda: client)
+    monkeypatch.setattr(config, "HOSTED_MODE", True)
+    with pytest.raises(ValueError, match="storage allowance"):
+        store.put("videos/new.mp4", b"x" * 11, "video/mp4")
+    client.put_object.assert_not_called()
+    client.delete_object.assert_not_called()

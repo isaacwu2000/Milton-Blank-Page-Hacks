@@ -80,6 +80,8 @@ class Alignment(TypedDict):
 
 
 class Record(TypedDict, total=False):
+    analysisRunId: str | None
+    analysisLeaseUntil: float
     deletedAt: str
     heightCm: float | None
     id: str

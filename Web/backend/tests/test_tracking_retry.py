@@ -9,6 +9,8 @@ from fastapi.testclient import TestClient
 from server import app as runtime
 from server import store, vision
 
+pytestmark = pytest.mark.usefixtures("tracking_store")
+
 SESSION_ID = "00000000-0000-4000-8000-000000000098"
 
 

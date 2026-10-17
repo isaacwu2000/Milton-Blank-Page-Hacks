@@ -1,0 +1,35 @@
+# Public 48-hour testing deployment
+
+This is an implementation of a temporary public test host, not a production availability guarantee. The user authorized deployment on Daytona for 48 hours, superseding the earlier local-only restriction. No custom domain is selected: the user wants to choose it.
+
+## Shape
+
+One Daytona sandbox runs nginx on port 8000, a single FastAPI process on loopback port 8080, and the Bun agent on loopback port 3001. The fixed React build is served by nginx. Requests to `/api` and `/agent` stay on the same origin. Streaming responses are not buffered; hashed assets are cached, while the app entry point is revalidated. No development server or OAuth proxy runs on the host. Production uses the existing OpenRouter configuration.
+
+The public workspace is intentionally shared. There is no login, per-user profile isolation, or authentication added. Every visitor can see and change the shared testing records and footage. Continue using the existing Neon account, database, and private bucket; signed object URLs are issued through the public app. Do not replace those destinations for deployment testing.
+
+Start with 2 vCPU, 4 GiB RAM and 10 GiB disk. Keep one tracking job running with at most five active/queued jobs. Downloaded model weights persist in the host's private model cache for its lifetime. The API retains loaded models after the first analysis. Measure actual supplied-video performance on the deployed machine; resource counts do not establish equivalence with the developer's computer.
+
+## Recovery and capacity
+
+Saved session status and database leases form the video queue. In production mode, startup and periodic recovery claim only pending jobs whose lease has expired. A live peer's job stays untouched, and stale workers cannot publish results. Legacy running jobs without ownership information require manual retry from the old app. API startup fails when the database cannot be reached, allowing the supervisor to retry. Local mode retains the existing peer-safe startup behavior.
+
+The host supervisor independently restarts failed API, agent and gateway processes with bounded backoff. This recovers application processes while the sandbox is running; it cannot recover a platform outage or expired sandbox. Interrupted AI builds/coaching remain retry actions rather than durable continuations. Graceful shutdown cancels the API's tracked tasks and lease heartbeats.
+
+Hosted object writes are serialized and check current bucket usage before writing. Reject new writes above 4 GB, leaving headroom under Neon's published 5 GB free object allowance for existing/other project use. Existing objects are never deleted to make space. The guard covers this bucket, not other project branches, Postgres compute/storage, or bandwidth. Provider limits remain authoritative; check actual account allowances. The database, OpenRouter and Daytona retain their provider-side billing settings; no app-level spending control is added.
+
+## Deployment and expiry
+
+Run `bun scripts/deploy-daytona.ts` from the repository root after checks. It reads only the existing allowlisted credentials, packages application sources without environment files, installed dependencies, local videos or evidence, and creates a separately labelled hosting sandbox. It never changes the developer's Neon destination. Source SHA-256, Git revision, public URL, sandbox ID and platform expiry are saved in ignored `.sportsbuilder/daytona-host.json`. A second invocation refuses to create a duplicate recorded host.
+
+The platform wall-clock TTL is 2,880 minutes from sandbox creation, including setup time. Auto-stop and auto-pause are disabled during that window. At expiry Daytona destroys this disposable hosting sandbox, ending its running compute charges even if no local agent is connected. Neon footage/records remain. Temporary coach-review sandboxes retain their existing short independent cleanup settings.
+
+A failed setup deletes its hosting sandbox. Inspect the saved state before retrying; remove the state file only after confirming the old host is deleted. Do not automatically recreate an expired host. This would start another billable window without authorization.
+
+At the published rate of $0.0504/vCPU-hour and $0.0162/GiB-hour, 2 vCPU plus 4 GiB for 48 hours is approximately $7.95, plus billable disk, AI, separate review sandboxes and any Neon overage. Credits and provider limits may end availability earlier. No domain purchase or additional hosting account is required.
+
+## Verification
+
+Required local checks: `bun run build`, `bun run test`, and `uv run --directory Web/backend` with `pytest`, `ruff check server tests`, `ruff format --check server tests`, and `ty check`.
+
+Verify the unauthenticated public URL, both health routes, existing Neon records/video playback, upload → queued → real tracking → persisted analysis, responsive browsing while tracking, API process restart, and production OpenRouter coaching/review. Preserve private evidence under ignored `output/daytona-deployment/`, recording the exact revision, source digest, viewport and environment. Record unavailable live checks explicitly rather than substituting synthetic evidence.

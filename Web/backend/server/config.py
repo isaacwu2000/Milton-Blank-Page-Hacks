@@ -1,5 +1,6 @@
 """Nonsecret analysis defaults. Credentials and service endpoints stay in the environment."""
 
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -11,7 +12,9 @@ CONFIDENCE_THRESHOLD = 0.35
 MAX_VIDEO_SECONDS = 30.05
 MAX_VIDEO_DIMENSION = 4096
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
-MAX_QUEUED_JOBS = 3
+MAX_QUEUED_JOBS = 5
+HOSTED_MODE = os.getenv("NODE_ENV") == "production"
+STORAGE_SOFT_LIMIT_BYTES = 4_000_000_000
 DEFAULT_SAMPLE_INTERVAL = 0.1
 MIN_SAMPLE_INTERVAL = 0.05
 MAX_SAMPLE_INTERVAL = 2.0
@@ -25,3 +28,7 @@ HEIGHT_MIN_JOINT_ANGLE = 30
 HEIGHT_FACE_CROWN_SPANS = 6
 HEIGHT_STABLE_SAMPLES = 3
 HEIGHT_MAX_VARIATION = 0.04
+
+# Renew independently of model loading and frame processing.
+TRACKING_LEASE_SECONDS = 60
+TRACKING_HEARTBEAT_SECONDS = 15

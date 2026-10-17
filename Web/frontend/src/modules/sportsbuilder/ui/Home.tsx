@@ -309,8 +309,8 @@ export function Product() {
             <div hidden={view !== "builder"}>
               <Builder
                 initialTool={editingTool}
-                onUse={() => setView("coached")}
                 onClose={() => setBuilder(false)}
+                onUse={() => setView("coached")}
                 onBuilt={() => {
                   reload();
                 }}
