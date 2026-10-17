@@ -44,7 +44,7 @@ export function Empty({
 }) {
   return (
     <div className="empty-state">
-      <Film size={25} strokeWidth={1.4} />
+      <Film size={25} />
       <h3>{title}</h3>
       <p>{children}</p>
     </div>

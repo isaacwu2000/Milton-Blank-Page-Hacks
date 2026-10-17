@@ -371,14 +371,18 @@ export function Workspace({
       setError((e as Error).message);
     }
   }
-  async function saveHeightCalibration() {
-    if (points.length !== 2 || !athleteHeight || calibrationFrameTime === null)
-      return;
+  /** Save a manual correction as soon as both marks identify the same paused frame. */
+  async function saveHeightCalibration(
+    head: [number, number],
+    sole: [number, number],
+    frameTime: number,
+  ) {
+    if (!athleteHeight) return;
     try {
       const converted = scaleFromAthleteHeight(
         athleteHeight,
-        points[0],
-        points[1],
+        head,
+        sole,
         analysis.width,
         analysis.height,
       );
@@ -387,7 +391,7 @@ export function Workspace({
         ground,
         source: "athlete_height_manual",
         heightCm: athleteHeight,
-        frameTime: calibrationFrameTime,
+        frameTime,
       };
       await persist({ calibration });
       setCalibrationMetadata(calibration);
@@ -430,6 +434,12 @@ export function Workspace({
       if (points.length === 0 || points.length === 2)
         setCalibrationFrameTime(time);
       setPoints((current) => (current.length === 2 ? [p] : [...current, p]));
+      if (
+        calibrationMode === "height" &&
+        points.length === 1 &&
+        calibrationFrameTime !== null
+      )
+        void saveHeightCalibration(points[0], p, calibrationFrameTime);
     }
   }
   async function copy() {
@@ -615,16 +625,7 @@ export function Workspace({
                     : `Click two ends of a known distance (${points.length}/2).`}
               </span>
               {calibrationMode === "height" && (
-                <>
-                  <span>Using your {athleteHeight} cm height</span>
-                  <button
-                    className="button"
-                    disabled={points.length !== 2}
-                    onClick={saveHeightCalibration}
-                  >
-                    Apply height scale
-                  </button>
-                </>
+                <span>Using your {athleteHeight} cm height</span>
               )}
               {calibrationMode === "distance" && (
                 <>

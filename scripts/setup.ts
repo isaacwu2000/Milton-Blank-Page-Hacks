@@ -47,8 +47,17 @@ const log = join(state, "setup.log");
 writeFileSync(log, "SportsBuilder setup\n", { mode: 0o600 });
 chmodSync(log, 0o600);
 
-/** Run an installation stage without printing credential-bearing errors to the terminal. */
-async function run(label: string, command: string, args: string[]) {
+/**
+ * Run a setup stage and keep subprocess output in the private log.
+ * Only controlled checks with a publicErrorPrefix may expose their safe stdout diagnostic.
+ * Wait for output streams to close before reporting success or failure.
+ */
+async function run(
+  label: string,
+  command: string,
+  args: string[],
+  publicErrorPrefix?: string,
+) {
   console.log(`• ${label}…`);
   await new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, {
@@ -56,17 +65,31 @@ async function run(label: string, command: string, args: string[]) {
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    child.stdout.on("data", (data: Buffer) => appendFileSync(log, data));
+    let publicOutput = "";
+    child.stdout.on("data", (data: Buffer) => {
+      appendFileSync(log, data);
+      // Only the storage check emits fixed, credential-free public diagnostics.
+      if (publicErrorPrefix)
+        publicOutput = (publicOutput + data.toString()).slice(-8192);
+    });
     child.stderr.on("data", (data: Buffer) => appendFileSync(log, data));
     child.on("error", () =>
       reject(Error(`${label} could not start. Details: ${log}`)),
     );
-    child.on("exit", (code) =>
+    child.on("close", (code) =>
       code === 0
         ? resolve()
         : reject(
             Error(
-              `${label} failed. Fix the problem shown in ${log}, then run ${installer} again.`,
+              `${label} failed. ${
+                publicErrorPrefix
+                  ? (publicOutput
+                      .split(/\r?\n/)
+                      .find((line) => line.startsWith(publicErrorPrefix))
+                      ?.slice(publicErrorPrefix.length) ??
+                    `See ${log} for details.`)
+                  : `Fix the problem shown in ${log}.`
+              } Then run ${installer} again.`,
             ),
           ),
     );
@@ -256,16 +279,21 @@ try {
     "python",
     "scripts/migrate.py",
   ]);
-  await run("Checking private video storage", "uv", [
-    "run",
-    "--project",
-    "Web/backend",
-    "--directory",
-    "Web/backend",
-    "python",
-    "-c",
-    "from server import store; store.s3().head_bucket(Bucket=store.BUCKET)",
-  ]);
+  await run(
+    "Checking private video storage",
+    "uv",
+    [
+      "run",
+      "--project",
+      "Web/backend",
+      "--directory",
+      "Web/backend",
+      "python",
+      "-m",
+      "server.storage_check",
+    ],
+    "SPORTSBUILDER_STORAGE_ERROR: ",
+  );
   await run("Building the app", process.execPath, ["run", "build"]);
   console.log(
     flags.has("--no-start")
