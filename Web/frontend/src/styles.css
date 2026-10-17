@@ -154,6 +154,7 @@ select:focus-visible,
 button:focus-visible,
 a:focus-visible,
 summary:focus-visible,
+svg[role="slider"]:focus-visible,
 svg g:focus-visible {
   outline: none;
 }

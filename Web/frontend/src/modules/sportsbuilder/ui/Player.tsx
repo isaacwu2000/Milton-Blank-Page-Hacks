@@ -746,6 +746,23 @@ export function Chart({
   label: string;
   unit: string;
 }) {
+  const dragging = useRef<number | null>(null);
+  const duration = times.at(-1) ?? 0;
+  const shownTime = Math.max(0, Math.min(duration, time));
+  /** Convert the displayed plot position to recording time, including SVG letterboxing. */
+  function seekAt(element: SVGSVGElement, clientX: number) {
+    const bounds = element.getBoundingClientRect();
+    if (!bounds.width) return;
+    const scale = Math.min(bounds.width / 720, bounds.height / 190) || bounds.width / 720;
+    const left = bounds.left + (bounds.width - 720 * scale) / 2;
+    const fraction = ((clientX - left) / scale - 48) / 640;
+    onTime(Math.max(0, Math.min(duration, fraction * duration)));
+  }
+  function release(element: SVGSVGElement, pointerId: number) {
+    if (dragging.current !== pointerId) return;
+    dragging.current = null;
+    if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
+  }
   const valid = values.filter(
     (v): v is number => v !== null && Number.isFinite(v),
   );
@@ -768,25 +785,46 @@ export function Chart({
       <div className="section-heading">
         <h3>{label}</h3>
         <span className="muted small">
-          <MeasurementUnit unit={unit} /> · click graph to seek
+          <MeasurementUnit unit={unit} /> · drag graph to seek
         </span>
       </div>
       <svg
-        role="img"
-        aria-label={`${label} over time, in ${unit}`}
+        role="slider"
+        aria-label={`${label} seek time`}
+        aria-valuemin={0}
+        aria-valuemax={duration}
+        aria-valuenow={shownTime}
+        aria-valuetext={`${shownTime.toFixed(2)} of ${duration.toFixed(2)} seconds`}
+        tabIndex={0}
+        style={{ touchAction: "pan-y" }}
         viewBox="0 0 720 190"
-        onClick={(e) => {
-          const r = e.currentTarget.getBoundingClientRect();
-          onTime(
-            Math.max(
-              0,
-              Math.min(
-                times.at(-1) || 1,
-                ((((e.clientX - r.left) / r.width) * 720 - 48) / 640) *
-                  (times.at(-1) || 1),
-              ),
-            ),
-          );
+        onPointerDown={(event) => {
+          if (event.button !== 0 || event.isPrimary === false || dragging.current !== null) return;
+          dragging.current = event.pointerId;
+          event.currentTarget.focus();
+          event.currentTarget.setPointerCapture(event.pointerId);
+          seekAt(event.currentTarget, event.clientX);
+        }}
+        onPointerMove={(event) => {
+          if (dragging.current === event.pointerId) seekAt(event.currentTarget, event.clientX);
+        }}
+        onPointerUp={(event) => release(event.currentTarget, event.pointerId)}
+        onPointerCancel={(event) => release(event.currentTarget, event.pointerId)}
+        onLostPointerCapture={(event) => {
+          if (dragging.current === event.pointerId) dragging.current = null;
+        }}
+        onKeyDown={(event) => {
+          let target: number | undefined;
+          if (event.key === "Home") target = 0;
+          if (event.key === "End") target = duration;
+          if (event.key === "ArrowRight" || event.key === "ArrowUp")
+            target = times.find((sample) => sample > shownTime) ?? duration;
+          if (event.key === "ArrowLeft" || event.key === "ArrowDown")
+            target = times.findLast((sample) => sample < shownTime) ?? 0;
+          if (target !== undefined) {
+            event.preventDefault();
+            onTime(target);
+          }
         }}
       >
         {[0, 0.5, 1].map((f) => (
