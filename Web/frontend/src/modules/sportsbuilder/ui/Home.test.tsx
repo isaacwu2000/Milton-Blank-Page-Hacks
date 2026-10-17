@@ -240,7 +240,7 @@ describe("saved workspace loading", () => {
     expect(screen.getByRole("button", { name: "Upload video" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Save profile" })).toBeNull();
   });
-  it("uses a single arrow action for completed videos and retains failure status", async () => {
+  it("makes the whole session row one open action and retains failure status", async () => {
     vi.mocked(api).mockResolvedValueOnce({
       ...saved,
       sessions: [
@@ -263,8 +263,10 @@ describe("saved workspace loading", () => {
     render(<Product />);
     const open = await screen.findByRole("button", { name: "Open jump.mp4" });
     expect(
-      open.closest(".session-row")?.querySelectorAll("button").length,
-    ).toBe(1);
+      screen.getByText("jump.mp4").closest("button"),
+    ).toBe(open);
+    expect(open.querySelector("img")).toBeTruthy();
+    expect(open.querySelectorAll("button").length).toBe(0);
     expect(screen.queryByText("Ready")).toBeNull();
     expect(screen.queryByText(/^\d+ sessions$/)).toBeNull();
     expect(screen.getByText("Failed")).toBeTruthy();

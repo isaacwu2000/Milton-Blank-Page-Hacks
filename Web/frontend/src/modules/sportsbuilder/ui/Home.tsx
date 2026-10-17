@@ -347,7 +347,13 @@ export function Product() {
                           !(s as Session & { reference?: boolean }).reference,
                       )
                       .map((s) => (
-                        <div className="session-row" key={s.id}>
+                        <button
+                          type="button"
+                          className="session-row"
+                          key={s.id}
+                          aria-label={`Open ${s.name}`}
+                          onClick={() => setOpened(s.id)}
+                        >
                           <SessionPreview sessionId={s.id} />
                           <span className="session-copy">
                             <strong>{s.name}</strong>
@@ -363,13 +369,10 @@ export function Product() {
                               {pretty(s.status)}
                             </span>
                           )}
-                          <IconButton
-                            label={`Open ${s.name}`}
-                            onClick={() => setOpened(s.id)}
-                          >
+                          <span className="session-arrow" aria-hidden="true">
                             <ArrowRight size={17} />
-                          </IconButton>
-                        </div>
+                          </span>
+                        </button>
                       ))}
                   </div>
                 ) : (
