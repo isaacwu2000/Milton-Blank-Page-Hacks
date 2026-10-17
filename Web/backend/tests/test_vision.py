@@ -82,9 +82,8 @@ def test_derivatives_use_seconds_and_preserve_gaps():
     assert result[2]["joints"]["right_wrist"]["ax"] == pytest.approx(200)
     assert result[6]["joints"] == {}
     for i in [0, 5, 7, 12]:
-        assert result[i]["joints"]["right_wrist"]["vx"] is None
-    for i in [0, 1, 4, 5, 7, 8, 11, 12]:
-        assert result[i]["joints"]["right_wrist"]["ax"] is None
+        assert result[i]["joints"]["right_wrist"]["vx"] == pytest.approx(20 * i)
+        assert result[i]["joints"]["right_wrist"]["ax"] == pytest.approx(200)
 
 
 def test_low_confidence_is_not_interpolated():
@@ -94,8 +93,10 @@ def test_low_confidence_is_not_interpolated():
     ]
     result = vision.motion_derivatives(frames)
     assert result[3]["joints"]["left_knee"]["vx"] is None
-    assert result[2]["joints"]["left_knee"]["vx"] is None
-    assert result[4]["joints"]["left_knee"]["vx"] is None
+    assert result[2]["joints"]["left_knee"]["vx"] == pytest.approx(10)
+    assert result[4]["joints"]["left_knee"]["vx"] == pytest.approx(10)
+    assert result[2]["joints"]["left_knee"]["ax"] is None
+    assert result[4]["joints"]["left_knee"]["ax"] is None
 
 
 def prediction(confident: list[int]) -> PosePrediction:

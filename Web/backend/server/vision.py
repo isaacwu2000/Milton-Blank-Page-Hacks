@@ -98,14 +98,36 @@ def inspect_video(path: str | Path) -> VideoInfo:
 
 
 def motion_derivatives(frames: list[Frame]) -> list[Frame]:
-    """Smooth and differentiate contiguous confident tracks; never bridge a detection gap."""
+    """Differentiate confident tracks in seconds, including supported one-sided edges.
+
+    Speed needs three consecutive samples; acceleration retains the five-sample
+    minimum. Missing/nonfinite detections and nonincreasing times break tracks.
+    """
     times = np.array([f["time"] for f in frames])
+    timing_valid = []
+    previous_time = -math.inf
+    for time in times:
+        increasing = math.isfinite(time) and time > previous_time
+        timing_valid.append(increasing)
+        if increasing:
+            previous_time = time
     for joint in JOINTS:
-        valid = np.array(
-            [joint in f["joints"] and f["joints"][joint]["confidence"] >= THRESHOLD for f in frames]
-        )
+        valid = []
+        for index, frame in enumerate(frames):
+            point = frame["joints"].get(joint)
+            if point is not None:
+                # Refreshing old analyses must also clear stale or invalid results.
+                point.update(vx=None, vy=None, ax=None, ay=None)
+            valid.append(
+                point is not None
+                and timing_valid[index]
+                and all(math.isfinite(point[key]) for key in ("x", "y", "confidence"))
+                and point["confidence"] >= THRESHOLD
+            )
+        indices = np.flatnonzero(valid)
         segments = np.split(
-            np.flatnonzero(valid), np.where(np.diff(np.flatnonzero(valid)) != 1)[0] + 1
+            indices,
+            np.where((np.diff(indices) != 1) | (np.diff(times[indices]) <= 0))[0] + 1,
         )
         for segment in segments:
             if len(segment) < 3:
@@ -116,21 +138,28 @@ def motion_derivatives(frames: list[Frame]) -> list[Frame]:
                     for i in segment
                 ]
             )
-            if len(segment) >= 5:
+            steps = np.diff(times[segment])
+            # Index-based smoothing assumes equal spacing. Preserve the actual
+            # timestamps on variable-rate clips rather than distorting their motion.
+            if len(segment) >= 5 and np.allclose(steps, steps[0], rtol=1e-3, atol=1e-6):
                 positions = savgol_filter(
                     positions,
                     min(7, len(segment) if len(segment) % 2 else len(segment) - 1),
                     2,
                     axis=0,
                 )
-            velocity = np.gradient(positions, times[segment], axis=0, edge_order=2)
-            acceleration = np.gradient(velocity, times[segment], axis=0, edge_order=2)
+            with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+                velocity = np.gradient(positions, times[segment], axis=0, edge_order=2)
+                acceleration = (
+                    np.gradient(velocity, times[segment], axis=0, edge_order=2)
+                    if len(segment) >= 5
+                    else None
+                )
             for k, i in enumerate(segment):
-                # Segment ends lack symmetric neighbors, so do not imply equally reliable derivatives.
                 p = frames[i]["joints"][joint]
-                if 0 < k < len(segment) - 1:
+                if np.isfinite(velocity[k]).all():
                     p["vx"], p["vy"] = map(float, velocity[k])
-                if 1 < k < len(segment) - 2:
+                if acceleration is not None and np.isfinite(acceleration[k]).all():
                     p["ax"], p["ay"] = map(float, acceleration[k])
     return frames
 
