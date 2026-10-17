@@ -831,7 +831,7 @@ function CoachPanel({
           </div>
         ))}
         <div ref={latestRef} />
-        {drill && <CoachExercises drill={drill} session={session} />}
+        {drill && <CoachExercises drill={drill} />}
       </div>
       {busy && (
         <div className="coach-review-progress">

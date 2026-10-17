@@ -313,7 +313,7 @@ it("restores the question if starting a review never responds and cancels a late
   expect(screen.queryByRole("status")).toBeNull();
 });
 
-it("separates evidence-grounded feedback from a practice checklist without inventing strengths", async () => {
+it("separates evidence-grounded feedback from a suggested exercise steps without inventing strengths", async () => {
   vi.mocked(post).mockResolvedValue({ id: "coach-job" });
   vi.mocked(api).mockResolvedValue({
     status: "complete", reply: "Focus on your reset.",
@@ -329,7 +329,9 @@ it("separates evidence-grounded feedback from a practice checklist without inven
   expect(screen.getByRole("heading", { name: "What to improve" })).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Evidence limits" })).toBeTruthy();
   expect(screen.getByRole("region", { name: "Exercises" })).toBeTruthy();
-  expect(screen.getAllByRole("checkbox")).toHaveLength(2);
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  expect(screen.getByText("Pause for two seconds.")).toBeTruthy();
+  expect(screen.getByText("Reset before the next repetition.")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Mark complete" })).toBeNull();
 });
 
