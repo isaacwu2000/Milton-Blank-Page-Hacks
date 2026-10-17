@@ -288,6 +288,9 @@ small,
   max-width: 1600px;
   margin: auto;
 }
+.home-content.coach-library {
+  max-width: none;
+}
 .page-heading {
   @apply flex items-center justify-between gap-4;
   margin-bottom: 32px;
@@ -614,7 +617,10 @@ dd {
 .brief-panel {
   @apply flex flex-col gap-4;
   min-width: 0;
-  padding: 0 0 0 24px;
+  align-self: stretch;
+  padding: 24px;
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--neutral-dark-500) 12%, var(--neutral-light-400));
 }
 .brief-panel > p {
   font-size: 12px;
@@ -1201,7 +1207,7 @@ progress {
     max-height: 360px;
   }
   .brief-panel {
-    padding: 16px 0 0;
+    padding: 20px;
   }
   .profile-grid {
     grid-template-columns: 1fr;
