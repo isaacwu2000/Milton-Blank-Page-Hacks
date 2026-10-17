@@ -198,8 +198,11 @@ async def upload(
     interval: float = Form(config.DEFAULT_SAMPLE_INTERVAL),
     reference: bool = Form(False),
 ) -> SessionRecord:
-    if not math.isfinite(interval) or not 0.033 <= interval <= 1:
-        raise HTTPException(422, "Use a sampling interval between 0.033 and 1 second.")
+    if (
+        not math.isfinite(interval)
+        or not config.MIN_SAMPLE_INTERVAL <= interval <= config.MAX_SAMPLE_INTERVAL
+    ):
+        raise HTTPException(422, "Use a sampling interval between 0.05 and 2 seconds.")
     if not reference:
         await asyncio.to_thread(record, "profiles", profileId)
         await asyncio.to_thread(record, "tools", toolId)

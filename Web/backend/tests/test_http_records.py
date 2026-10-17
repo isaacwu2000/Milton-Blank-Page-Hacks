@@ -171,3 +171,37 @@ def test_session_patch_roundtrips_height_provenance(monkeypatch: pytest.MonkeyPa
     )
     assert response.status_code == 200
     assert response.json()["calibration"] == metadata
+
+
+@pytest.mark.parametrize("interval", [0.05, 2])
+def test_upload_accepts_sampling_range_endpoints(monkeypatch: pytest.MonkeyPatch, interval: float):
+    from server import vision
+    from server.types import VideoInfo
+
+    monkeypatch.setattr(store, "get", lambda kind, identifier: {"id": identifier})
+    monkeypatch.setattr(store, "put", lambda key, body, content_type: None)
+    monkeypatch.setattr(store, "save", lambda kind, value: value)
+    monkeypatch.setattr(vision, "inspect_video", lambda path: VideoInfo(30, 90, 640, 360, 3))
+    monkeypatch.setattr(vision, "first_frame_preview", lambda path: b"jpeg")
+    response = TestClient(app).post(
+        "/api/upload",
+        files={"file": ("clip.mp4", b"video", "video/mp4")},
+        data={
+            "profileId": str(PROFILE["id"]),
+            "toolId": str(TOOL["id"]),
+            "interval": str(interval),
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["interval"] == interval
+
+
+@pytest.mark.parametrize("interval", [0.033, 0.049, 2.001, "nan", "inf"])
+def test_upload_rejects_out_of_range_or_nonfinite_sampling_interval(interval: float | str):
+    response = TestClient(app).post(
+        "/api/upload",
+        files={"file": ("clip.mp4", b"video", "video/mp4")},
+        data={"interval": str(interval)},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Use a sampling interval between 0.05 and 2 seconds."
