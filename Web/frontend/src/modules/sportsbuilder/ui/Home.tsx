@@ -247,7 +247,7 @@ export function Product() {
         </nav>
       </aside>
       <main className="home-main" inert={isMobile && !sidebarCollapsed}>
-        <div className="home-content">
+        <div className={`home-content${view === "builder" && !builder ? " coach-library" : ""}`}>
           {view !== "coached" && !(view === "builder" && builder) && (
             <div className="page-heading">
               <div>
