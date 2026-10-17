@@ -65,7 +65,20 @@ describe("description-led upload", () => {
     let finish!: (job: unknown) => void;
     const accepted = { ...saved.tools[0], id: "generated-coach" };
     vi.mocked(api).mockImplementation(async (path) => {
-      if (path === "/api/home") return { ...saved, tools: [] };
+      if (path === "/api/home")
+        return {
+          ...saved,
+          tools: [],
+          sessions: [
+            {
+              id: "older",
+              name: "older.mp4",
+              status: "complete",
+              duration: 2,
+              createdAt: "2026-10-17T12:00:00Z",
+            },
+          ],
+        };
       if (path === "/agent/jobs/build-job")
         return new Promise((resolve) => {
           finish = resolve;
@@ -100,11 +113,20 @@ describe("description-led upload", () => {
       vi.mocked(api).mock.calls.some(([path]) => path === "/api/upload"),
     ).toBe(false);
     expect(prompt.disabled).toBe(true);
+    const older = screen.getByRole("button", {
+      name: "Open older.mp4",
+    }) as HTMLButtonElement;
+    expect(older.disabled).toBe(true);
+    fireEvent.click(older);
+    expect(
+      screen.getByRole("textbox", { name: "What are you working on?" }),
+    ).toBe(prompt);
     await waitFor(() => expect(typeof finish).toBe("function"));
     await act(async () => {
       finish({ status: "complete", stage: "Done", tool: accepted });
     });
     await screen.findByText("Upload unavailable. Retry.");
+    expect(older.disabled).toBe(false);
     const upload = vi
       .mocked(api)
       .mock.calls.find(([path]) => path === "/api/upload");

@@ -42,6 +42,7 @@ export function Product() {
   const [data, setData] = useState<HomeData>(EMPTY_HOME_DATA),
     [loaded, setLoaded] = useState(false),
     [workspaceAvailable, setWorkspaceAvailable] = useState(false),
+    [uploadBusy, setUploadBusy] = useState(false),
     [error, setError] = useState(""),
     [view, setView] = useState<"coached" | "profile" | "builder">("coached"),
     [builder, setBuilder] = useState(false),
@@ -321,6 +322,7 @@ export function Product() {
             <UploadPanel
               profile={profile}
               profileReady={!needsProfile}
+              onBusyChange={setUploadBusy}
               loading={!loaded}
               onUploaded={(s) => {
                 setOpened(s.id);
@@ -371,6 +373,7 @@ export function Product() {
                           )}
                           <IconButton
                             label={`Open ${s.name}`}
+                            disabled={uploadBusy}
                             onClick={() => setOpened(s.id)}
                           >
                             <ArrowRight size={17} />
@@ -412,12 +415,14 @@ function UploadPanel({
   loading = false,
   onUploaded,
   onCoachReady,
+  onBusyChange,
 }: {
   profile?: Profile;
   profileReady: boolean;
   loading?: boolean;
   onUploaded: (s: Session) => void;
   onCoachReady: (tool: SavedTool) => void;
+  onBusyChange: (busy: boolean) => void;
 }) {
   const [description, setDescription] = useState(""),
     [job, setJob] = useState<string | null>(null),
@@ -425,6 +430,11 @@ function UploadPanel({
     [interval, setInterval] = useState(DEFAULT_SAMPLING_INTERVAL),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  // Opening a recording would unmount this coordinator and discard its pending file.
+  useEffect(() => {
+    onBusyChange(busy);
+    return () => onBusyChange(false);
+  }, [busy, onBusyChange]);
   const fileRef = useRef<HTMLInputElement>(null);
   const pending = useRef<{
     file: File;

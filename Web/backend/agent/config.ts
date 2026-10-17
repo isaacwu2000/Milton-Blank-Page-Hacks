@@ -69,6 +69,7 @@ export const config = {
   providerTimeoutMs: 180_000,
   backendTimeoutMs: 60_000,
   saveRetryMs: 1000,
+  saveAttempts: 2,
   reviewBudgetMs: 600_000,
   coachBudgetMs: 900_000,
   imageBatchSize: 32,

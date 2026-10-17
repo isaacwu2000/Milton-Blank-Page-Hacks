@@ -42,9 +42,9 @@ def prepare(source_key: str) -> Path:
                         "-c:v",
                         "libx264",
                         "-preset",
-                        "fast",
+                        config.PLAYBACK_ENCODER_PRESET,
                         "-crf",
-                        "20",
+                        str(config.PLAYBACK_QUALITY),
                         "-pix_fmt",
                         "yuv420p",
                         "-vf",
@@ -55,7 +55,7 @@ def prepare(source_key: str) -> Path:
                     ],
                     check=True,
                     capture_output=True,
-                    timeout=180,
+                    timeout=config.PLAYBACK_TIMEOUT_SECONDS,
                 )
             except (OSError, subprocess.SubprocessError) as error:
                 raise RuntimeError(
