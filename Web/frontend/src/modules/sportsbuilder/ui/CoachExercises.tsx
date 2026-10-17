@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CoachDrill, Session } from "../../../../../shared";
+import { normalizePracticeStep, type CoachDrill, type Session } from "../../../../../shared";
 import { api } from "../services/api";
 import { ErrorNote } from "./common";
 
@@ -14,20 +14,24 @@ export function CoachExercises({
   const [completed, setCompleted] = useState(session?.completedDrills ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const steps = drill.steps ?? [drill.instructions];
+  const rawSteps = drill.steps ?? [drill.instructions];
+  const steps = [...new Set(rawSteps.map(normalizePracticeStep).filter(Boolean))];
   const keys = steps.map((step) => `goal:${JSON.stringify([drill.title, step])}`);
-  const checked = keys.map(
-    (key) => completed.includes(key) || completed.includes(drill.title),
+  const aliases = steps.map((step) => rawSteps
+    .filter((raw) => normalizePracticeStep(raw) === step)
+    .map((raw) => `goal:${JSON.stringify([drill.title, raw])}`));
+  const checked = keys.map((key, index) =>
+    completed.includes(key) || completed.includes(drill.title) ||
+    aliases[index].some((alias) => completed.includes(alias)),
   );
   async function toggle(index: number) {
     if (saving) return;
-    // Expand a previous whole-drill completion into its individual goals before an edit.
-    const previous = completed.includes(drill.title)
-      ? [...completed.filter((value) => value !== drill.title), ...keys]
-      : completed;
-    const next = checked[index]
-      ? previous.filter((value) => value !== keys[index])
-      : [...previous, keys[index]];
+    // Migrate old whole-drill and glyph-prefixed records only when a goal is edited.
+    const owned = new Set([drill.title, ...keys, ...aliases.flat()]);
+    const next = [
+      ...completed.filter((value) => !owned.has(value)),
+      ...keys.filter((_, i) => i === index ? !checked[i] : checked[i]),
+    ];
     setSaving(true);
     setError("");
     try {

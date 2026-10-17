@@ -136,3 +136,8 @@ it("rejects repeated checklist goals so each check remains independent", () => {
     drill: { title: "Balance", instructions: "Pause comfortably.", steps: ["Hold for two seconds.", "Hold for two seconds."] },
   }).success).toBe(false);
 });
+it("removes leading checklist glyphs before checking for duplicate goals", () => {
+  const result = coachResponseSchema.parse({ reply: "Try this.", drill: { title: "Practice", instructions: "Move comfortably.", steps: ["☐ Hold for two seconds.", "- [ ] Reset your stance."] } });
+  expect(result.drill?.steps).toEqual(["Hold for two seconds.", "Reset your stance."]);
+  expect(coachResponseSchema.safeParse({ reply: "Try this.", drill: { title: "Practice", instructions: "Move comfortably.", steps: ["☐ Hold for two seconds.", "Hold for two seconds."] } }).success).toBe(false);
+});

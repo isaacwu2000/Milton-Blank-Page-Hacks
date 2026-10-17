@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizePracticeStep } from "../../../shared";
 import { briefSchema } from "./buildBrief";
 import { chat, parseJSON } from "./provider";
 import type { Chat, Tool } from "../types";
@@ -26,7 +27,7 @@ export const coachResponseSchema = z.object({
     .object({
       title: z.string().min(1).max(120),
       instructions: z.string().min(1).max(2000),
-      steps: z.array(z.string().min(1).max(300)).min(2).max(6)
+      steps: z.array(z.string().max(320).transform(normalizePracticeStep).pipe(z.string().min(1).max(300))).min(2).max(6)
         .refine((steps) => new Set(steps).size === steps.length, "Practice steps must be distinct.")
         .optional(),
     })

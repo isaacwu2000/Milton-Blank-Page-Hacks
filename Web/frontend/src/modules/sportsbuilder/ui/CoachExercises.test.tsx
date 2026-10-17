@@ -44,3 +44,14 @@ it("converts a completed whole drill to individual goals when one goal is undone
     body: JSON.stringify({ completedDrills: ["Earlier drill", 'goal:["Balance practice","Return to your ready stance."]'] }),
   });
 });
+it("shows one checkbox per normalized goal and migrates a saved glyph-prefixed completion", async () => {
+  vi.mocked(api).mockResolvedValue({});
+  render(<CoachExercises drill={{ ...drill, steps: ["☐ Hold for two seconds.", "☐ Return to your ready stance."] }} session={{ id: "practice", completedDrills: ['goal:["Balance practice","☐ Hold for two seconds."]'] }} />);
+  const checkbox = screen.getByRole("checkbox", { name: "Hold for two seconds." }) as HTMLInputElement;
+  expect(checkbox.checked).toBe(true);
+  expect(screen.queryByText(/☐/)).toBeNull();
+  expect(screen.getAllByRole("checkbox")).toHaveLength(2);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Return to your ready stance." }));
+  await screen.findByText("2 of 2 practice goals completed");
+  expect(api).toHaveBeenCalledWith("/api/sessions/practice", { method: "PATCH", body: JSON.stringify({ completedDrills: ['goal:["Balance practice","Hold for two seconds."]', 'goal:["Balance practice","Return to your ready stance."]'] }) });
+});
