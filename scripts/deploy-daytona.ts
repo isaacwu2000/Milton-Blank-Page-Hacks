@@ -75,7 +75,11 @@ async function main() {
     const prepare = `cd ${quote(hosting.workspace)} && tar -xzf source.tar.gz && rm source.tar.gz && mkdir -p .sportsbuilder && chmod 700 .sportsbuilder && bun install --frozen-lockfile > .sportsbuilder/install.log 2>&1 && uv sync --project Web/backend --frozen --no-dev >> .sportsbuilder/install.log 2>&1 && bun run build >> .sportsbuilder/install.log 2>&1 && nginx -t -c ${hosting.workspace}/deploy/nginx.conf >> .sportsbuilder/install.log 2>&1`;
     console.log(`Host created: ${sandbox.id}. Installing the locked application dependencies…`);
     const installed = await sandbox.process.executeCommand(prepare, hosting.workspace, undefined, 900);
-    if (installed.exitCode !== 0) throw Error("Host installation failed. Inspect the private install log.");
+    if (installed.exitCode !== 0) {
+      const log = await sandbox.fs.downloadFile(`${hosting.workspace}/.sportsbuilder/install.log`).catch(() => Buffer.from(installed.result));
+      writeFileSync(resolve(stateDirectory, "daytona-install.log"), log, { mode: 0o600 });
+      throw Error(`Host installation failed: ${log.toString().slice(-2000)}`);
+    }
     await sandbox.process.createSession("sportsbuilder-host");
     await sandbox.process.executeSessionCommand("sportsbuilder-host", {
       command: `cd ${quote(hosting.workspace)} && bun scripts/host.ts > .sportsbuilder/supervisor.log 2>&1`,
@@ -84,12 +88,25 @@ async function main() {
     await sandbox.refreshData();
     metadata.expiresAt = sandbox.autoDestroyAt;
     metadata.url = (await sandbox.getPreviewLink(hosting.port)).url;
+    const ready = await sandbox.process.executeCommand(
+      "for attempt in $(seq 1 60); do if curl -fsS http://127.0.0.1:8000/api/health >/dev/null && curl -fsS http://127.0.0.1:8000/agent/health >/dev/null; then exit 0; fi; sleep 2; done; exit 1",
+      hosting.workspace, undefined, 150,
+    );
+    if (ready.exitCode !== 0) throw Error("Hosted services did not become healthy within two minutes.");
+    for (const path of ["/", "/api/health", "/agent/health"]) {
+      const response = await fetch(metadata.url.replace(/\/$/, "") + path, { signal: AbortSignal.timeout(30_000) });
+      if (!response.ok || (path !== "/" && !(await response.json()).ok)) throw Error("Public deployment readiness failed.");
+    }
     metadata.status = "running";
     save();
     console.log(JSON.stringify(metadata, null, 2));
   } catch (error) {
     metadata.status = "failed";
     save();
+    for (const name of ["api", "agent", "nginx-error", "supervisor"]) {
+      const log = await sandbox.fs.downloadFile(`${hosting.workspace}/.sportsbuilder/${name}.log`).catch(() => null);
+      if (log) writeFileSync(resolve(stateDirectory, `daytona-${name}.log`), log, { mode: 0o600 });
+    }
     // Failed setup is not a useful public host; delete it rather than leave it billing.
     await sandbox.delete(60).then(() => { metadata.status = "deleted-after-failure"; save(); }).catch(() => {});
     throw error;

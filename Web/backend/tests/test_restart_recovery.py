@@ -72,3 +72,66 @@ def test_database_failure_prevents_a_falsely_healthy_start(monkeypatch: pytest.M
                 pytest.fail("The process supervisor must retry startup")
 
     asyncio.run(scenario())
+
+
+def test_recovery_and_new_analysis_share_the_five_job_capacity(monkeypatch, tracking_store):
+    from threading import Event
+
+    from fastapi import HTTPException
+
+    pending_id = "00000000-0000-4000-8000-000000000090"
+    new_id = "00000000-0000-4000-8000-000000000091"
+    sessions = {
+        pending_id: {
+            "id": pending_id,
+            "status": "queued",
+            "analysisRunId": "expired",
+            "analysisLeaseUntil": 0,
+        },
+        new_id: {"id": new_id, "status": "uploaded"},
+    }
+    entered, release = Event(), Event()
+    claim = store.claim_tracking
+    monkeypatch.setattr(store, "records", lambda kind: [deepcopy(sessions[pending_id])])
+    monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(sessions[identifier]))
+
+    def patch(kind, identifier, fields):
+        sessions[identifier].update(fields)
+        return deepcopy(sessions[identifier])
+
+    def delayed_claim(identifier, token):
+        if identifier == pending_id:
+            entered.set()
+            assert release.wait(3)
+        return claim(identifier, token)
+
+    async def scenario():
+        finish = asyncio.Event()
+
+        async def work(identifier):
+            await finish.wait()
+
+        monkeypatch.setattr(runtime, "work", work)
+        runtime.active.update({"existing-1", "existing-2", "existing-3", "existing-4"})
+        recovering = asyncio.create_task(runtime.recover_tracking())
+        try:
+            assert await asyncio.to_thread(entered.wait, 3)
+            requesting = asyncio.create_task(runtime.start(new_id))
+            await asyncio.sleep(0.01)
+            release.set()
+            await recovering
+            with pytest.raises(HTTPException) as error:
+                await requesting
+            assert error.value.status_code == 429
+            assert len(runtime.active) == 5
+        finally:
+            release.set()
+            finish.set()
+            await recovering
+            await asyncio.gather(*runtime.tasks)
+            runtime.active.clear()
+            runtime.run_ids.pop(pending_id, None)
+
+    monkeypatch.setattr(store, "patch", patch)
+    monkeypatch.setattr(store, "claim_tracking", delayed_claim)
+    asyncio.run(asyncio.wait_for(scenario(), 5))

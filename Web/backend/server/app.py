@@ -90,16 +90,17 @@ async def recover_tracking() -> None:
     """Claim saved pending jobs only when their database lease has expired."""
     for session in reversed(await asyncio.to_thread(store.records, "sessions")):
         identifier = session["id"]
-        if len(active) >= config.MAX_QUEUED_JOBS:
-            break
-        if identifier in active or session["status"] not in ("queued", "processing"):
-            continue
-        run_id = str(uuid4())
-        claimed = await asyncio.to_thread(store.claim_tracking, identifier, run_id)
-        if claimed is not None:
-            active.add(identifier)
-            run_ids[identifier] = run_id
-            schedule_work(identifier)
+        async with session_lock:
+            if len(active) >= config.MAX_QUEUED_JOBS:
+                break
+            if identifier in active or session["status"] not in ("queued", "processing"):
+                continue
+            run_id = str(uuid4())
+            claimed = await asyncio.to_thread(store.claim_tracking, identifier, run_id)
+            if claimed is not None:
+                active.add(identifier)
+                run_ids[identifier] = run_id
+                schedule_work(identifier)
 
 
 async def recovery_loop() -> None:
