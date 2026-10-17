@@ -231,6 +231,9 @@ not completion of the new full early-build journey.
 `output/screenshots/early-build-popup.png` records the current popup over the
 unframed builder; `output/screenshots/builder-refinement.png` is an earlier
 refinement capture and must not be used as proof of the current popup. The current
-one-page refinement PDF uses the popup image only. A fresh full early-build
-browser/Daytona/save run is in progress at this checkpoint; its outcome is not
-claimed here. All refinement evidence is local, with no deployment.
+one-page refinement PDF uses the popup image only. A fresh full early-build browser/Daytona/save run completed successfully: job
+`f6479c79-8351-451a-ab7f-ec2c438399a0` saved the validated
+Beginner Running Knee-Angle Coach — Draft (`caae461b-fad6-4c8a-a26a-921d43e66952`).
+Its provisional assumptions remain explicit. Reviewed draft screenshots and
+acceptance data live in `output/builds/f6479c79-8351-451a-ab7f-ec2c438399a0/`.
+The current TypeScript suite passes 65 tests. All refinement evidence is local, with no deployment.
