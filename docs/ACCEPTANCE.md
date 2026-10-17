@@ -331,3 +331,26 @@ The local browser capture and one-page report are
 `output/pdf/automatic-scale-review.pdf`. Browser dimensions and tested revision
 are recorded in the report. This is local implementation evidence, not deployment
 or proof that every sport/pose can be physically calibrated.
+
+## Coach connection and immediate height correction (2026-10-17)
+
+Verified frontend revision `d3de9fe` locally at 1440×900 CSS pixels and 100% zoom.
+The configured local ChatGPT coach completed a real 42-frame IMG_9964.mov review,
+returned timestamped observations and a recording drill, and identified that the
+footage differs from the selected running tool. The OpenRouter pasted-key and
+provider-error fixes remain covered by deterministic provider tests.
+
+Automatic height scaling still requires reliable full-body evidence. Optional
+manual head/shoe corrections now save after the second mark, without an Apply
+height scale button. UI regression checks verify persistence, conversion to
+meters, and rejection of marks spanning different frames. Existing saved video
+calibrations were not altered by the browser inspection. Cropped and unsupported
+floor-pose clips remain unsuitable for automatic physical calibration.
+
+Build, TypeScript, all 99 Vitest cases, 93 pytest cases, Ruff lint/format and ty
+passed. The final browser resource audit found no failed HTTP resources. Bundle
+size and the upstream AnyIO deprecation remain warnings. Evidence (ignored):
+`output/playwright/live-coach-review.json`, `live-coach-review-success.png`,
+`height-autosave-toolbar.png`, and `output/pdf/coach-height-fixes.pdf`.
+The report distinguishes live coaching from deterministic calibration checks.
+No deployment or push to main was performed.
