@@ -297,6 +297,7 @@ export function Workspace({
   const scale = session?.calibration?.metersPerPixel ?? 1;
   const calibrationMetadata = session?.calibration;
   const calibrated = !!calibrationMetadata;
+  const assumedScale = calibrationMetadata?.source === "assumed_height_auto";
   const coachWidth = useCoachWidth();
   const needsScale = !calibrated;
   const needsPhysicalScale = (unit: string) =>
@@ -350,6 +351,11 @@ export function Workspace({
         );
         return typeof value === "number" ? value : null;
       });
+  const visibleMetrics = tool.metrics.filter((metric) => {
+    if (!["length", "speed", "acceleration"].includes(metric.unit)) return true;
+    const value = metric.scope === "frame" ? data.frames[metric.id]?.[idx] : data.summaries[metric.id];
+    return calibrated && typeof value === "number";
+  });
   const graphMetric = tool.metrics.find((m) => m.id === selectedMetric),
     graphUnit =
       graphMetric?.unit ??
@@ -477,6 +483,7 @@ export function Workspace({
             metersPerPixel={scale}
             calibrated={calibrated}
             requireCalibration
+            scaleNote={assumedScale ? "Estimated 2D · assumed height 170 cm" : undefined}
           />
           <div
             className="measurement-tabs"
@@ -502,7 +509,9 @@ export function Workspace({
             </button>
             <span className="small muted">
               {calibrated
-                ? calibrationMetadata?.source === "athlete_height_auto"
+                ? assumedScale
+                  ? "Estimated 2D · assumed height 170 cm"
+                  : calibrationMetadata?.source === "athlete_height_auto"
                   ? "Automatic height scale · approximate 2D"
                   : "Calibrated · approximate 2D"
                 : "Physical scale unavailable"}
@@ -536,7 +545,7 @@ export function Workspace({
                   </span>
                 </div>
                 <dl className="live-stats">
-                  <div>
+                  {available && calibrated && <div>
                     <dt>Position x, y</dt>
                     <dd>
                       {available && calibrated
@@ -544,8 +553,8 @@ export function Workspace({
                         : missingReading}{" "}
                       <small>{available && calibrated ? "m" : ""}</small>
                     </dd>
-                  </div>
-                  <div>
+                  </div>}
+                  {calibrated && typeof velocity === "number" && <div>
                     <dt>Speed</dt>
                     <dd>
                       {calibrated && typeof velocity === "number"
@@ -557,8 +566,8 @@ export function Workspace({
                         )}
                       </small>
                     </dd>
-                  </div>
-                  <div>
+                  </div>}
+                  {calibrated && typeof acceleration === "number" && <div>
                     <dt>Acceleration</dt>
                     <dd>
                       {calibrated && typeof acceleration === "number"
@@ -570,8 +579,9 @@ export function Workspace({
                         )}
                       </small>
                     </dd>
-                  </div>
+                  </div>}
                 </dl>
+                {!calibrated && <p className="small muted">Physical readings need a clear full-body view. Angles remain available.</p>}
               </div>
               {calibrated && typeof acceleration !== "number" && (
                 <div className="notice">
@@ -613,7 +623,8 @@ export function Workspace({
             </>
           ) : (
             <div className="metric-cards">
-              {tool.metrics.map((m) => (
+              {visibleMetrics.length === 0 && <p className="small muted">No physical metrics can be estimated at this moment. Try a nearby tracked frame or a clear full-body view.</p>}
+              {visibleMetrics.map((m) => (
                 <button
                   key={m.id}
                   className={`metric-readout ${selectedMetric === m.id ? "selected" : ""}`}

@@ -154,7 +154,12 @@ def save_height_calibration(
     complete previous value still matches. A later user edit always wins.
     """
     if expected is None:
-        condition = "(payload->'calibration' IS NULL OR payload->'calibration'='null'::jsonb OR payload#>>'{calibration,source}'='athlete_height_auto')"
+        sources = (
+            "'assumed_height_auto'"
+            if calibration.get("source") == "assumed_height_auto"
+            else "'athlete_height_auto','assumed_height_auto'"
+        )
+        condition = f"(payload->'calibration' IS NULL OR payload->'calibration'='null'::jsonb OR payload#>>'{{calibration,source}}' IN ({sources}))"
         parameters = (Jsonb(calibration), record_id)
     else:
         condition = "payload->'calibration'=%s"

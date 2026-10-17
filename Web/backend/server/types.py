@@ -68,7 +68,11 @@ class Analysis(TypedDict):
 class Calibration(TypedDict):
     metersPerPixel: float
     ground: float
-    source: NotRequired[Literal["athlete_height_auto", "athlete_height_manual", "known_distance"]]
+    source: NotRequired[
+        Literal[
+            "athlete_height_auto", "assumed_height_auto", "athlete_height_manual", "known_distance"
+        ]
+    ]
     heightCm: NotRequired[float]
     bodyHeightPixels: NotRequired[float]
     frameTime: NotRequired[float]

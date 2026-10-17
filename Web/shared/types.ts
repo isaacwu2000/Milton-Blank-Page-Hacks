@@ -144,7 +144,7 @@ export type Session = {
   calibration?: {
     metersPerPixel: number;
     ground: number;
-    source?: "athlete_height_auto" | "athlete_height_manual" | "known_distance";
+    source?: "athlete_height_auto" | "assumed_height_auto" | "athlete_height_manual" | "known_distance";
     heightCm?: number;
     bodyHeightPixels?: number;
     frameTime?: number;

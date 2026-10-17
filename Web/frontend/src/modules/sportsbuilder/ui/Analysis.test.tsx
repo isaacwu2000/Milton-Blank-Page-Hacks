@@ -125,7 +125,9 @@ describe("motion measurement recovery", () => {
   it("keeps physical readings unavailable without automatic scale while angles remain usable", () => {
     render(<Workspace analysis={makeSample()} tool={sampleTool} sample profiles={[]} sessions={[]} onBack={() => {}} />);
     expect(screen.getByText("Physical scale unavailable")).toBeTruthy();
-    expect(screen.getAllByText("Unavailable").length).toBe(3);
+    expect(screen.queryByText("Position x, y")).toBeNull();
+    expect(screen.queryByText("Speed", { selector: "dt" })).toBeNull();
+    expect(screen.getByText(/Physical readings need a clear full-body view/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Set measurement scale" })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Tool metrics" }));
     expect(screen.getAllByText(/°/).length).toBeGreaterThan(0);
@@ -165,7 +167,8 @@ describe("motion measurement recovery", () => {
         sessions={[]}
       />,
     );
-    expect(screen.getAllByText("Need nearby frames").length).toBe(2);
+    expect(screen.queryByText("Need nearby frames")).toBeNull();
+    expect(screen.getByText(/Acceleration needs five consecutive tracked frames/)).toBeTruthy();
     fireEvent.click(
       screen.getByRole("button", { name: "Go to measured frame" }),
     );
@@ -364,4 +367,12 @@ it("announces deletion while preventing duplicate delete requests", async () => 
   expect(screen.getByText("Deleting video…").getAttribute("role")).toBe("status");
   expect((screen.getByRole("button", { name: "Deleting video…" }) as HTMLButtonElement).disabled).toBe(true);
   expect(api).toHaveBeenCalledTimes(1);
+});
+
+it("identifies assumed height beside physical readings without claiming it was measured", () => {
+  const analysis = makeSample();
+  render(<Workspace analysis={analysis} tool={sampleTool} profiles={[]} sessions={[]} onBack={() => {}}
+    session={{ id: "assumed", name: "Estimated clip", profileId: "athlete", toolId: "tool", sourceKey: "clip.mov", status: "complete", progress: 1, duration: analysis.duration, interval: .1, createdAt: "2026-10-17", calibration: { metersPerPixel: 1.7 / 850, ground: analysis.ground, source: "assumed_height_auto", heightCm: 170, bodyHeightPixels: 850, frameTime: 0 } }} />);
+  expect(screen.getByText("Estimated 2D · assumed height 170 cm")).toBeTruthy();
+  expect(screen.getAllByLabelText("m/s").length).toBeGreaterThan(0);
 });

@@ -158,3 +158,18 @@ def from_height(height_cm: float, reference: HeightReference, ground: float) -> 
         "bodyHeightPixels": pixels,
         "frameTime": reference["frameTime"],
     }
+
+
+def automatic_scale(
+    height_cm: float | None, reference: HeightReference, ground: float
+) -> Calibration:
+    """Use a valid saved height or an explicit 170 cm assumption with the same observed span."""
+    provided = height_cm is not None and math.isfinite(height_cm) and 30 <= height_cm <= 300
+    value = from_height(
+        height_cm if height_cm is not None and provided else config.ASSUMED_HEIGHT_CM,
+        reference,
+        ground,
+    )
+    if not provided:
+        value["source"] = "assumed_height_auto"
+    return value

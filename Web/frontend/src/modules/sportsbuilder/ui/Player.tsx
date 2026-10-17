@@ -33,6 +33,7 @@ export function Player({
   metersPerPixel = 1,
   calibrated = false,
   requireCalibration = false,
+  scaleNote,
 }: {
   analysis: Analysis;
   url?: string;
@@ -50,6 +51,7 @@ export function Player({
   metersPerPixel?: number;
   calibrated?: boolean;
   requireCalibration?: boolean;
+  scaleNote?: string;
 }) {
   const ownRef = useRef<HTMLVideoElement>(null),
     videoRef = externalRef ?? ownRef;
@@ -127,6 +129,7 @@ export function Player({
       ),
     };
   });
+  const visibleVectors = vectors.filter((vector) => (!requireCalibration || calibrated) && typeof vector.value === "number");
   const sample = analysis.source === "sample";
   const marking = Boolean(onCanvasClick);
   const reportTime = (value: number) => {
@@ -612,16 +615,14 @@ export function Player({
             </IconButton>
           </div>
           <div className="motion-vector-legend">
-            {vectors.map((vector) => (
+            {visibleVectors.map((vector) => (
               <div
                 key={vector.kind}
                 className={`vector-equation ${vector.kind}`}
               >
                 <h4>{vector.label}</h4>
                 <output aria-label={vector.label}>
-                  {requireCalibration && !calibrated ? (
-                    "Set scale"
-                  ) : typeof vector.value === "number" ? (
+                  {typeof vector.value === "number" ? (
                     <strong>
                       {formatVectorValue(vector.value)}{" "}
                       <MeasurementUnit unit={vector.unit} />
@@ -633,9 +634,12 @@ export function Player({
               </div>
             ))}
           </div>
-          {requireCalibration && !calibrated && (
+          {scaleNote && <p className="small muted">{scaleNote}</p>}
+          {visibleVectors.length < vectors.length && (
             <p className="small muted">
-              Set scale from your height to see measurements.
+              {requireCalibration && !calibrated
+                ? "Physical readings need a clear full-body view. Angles remain available."
+                : "Some motion readings need more nearby tracked frames. Clip edges and tracking gaps may have no reading."}
             </p>
           )}
         </section>

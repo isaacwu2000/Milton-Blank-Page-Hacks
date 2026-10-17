@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { type Analysis, type Joint, type Point } from "../../../../../shared";
+import { jointMeasurement, type Analysis, type Joint, type Point } from "../../../../../shared";
 import { Player } from "./Player";
 afterEach(() => {
   cleanup();
@@ -163,7 +163,9 @@ describe("selected joint derivative vectors", () => {
     expect(
       screen.queryByRole("img", { name: "Acceleration direction arrow" }),
     ).toBeNull();
-    expect(screen.getAllByText("Unavailable")).toHaveLength(2);
+    expect(screen.queryByLabelText("Speed")).toBeNull();
+    expect(screen.queryByLabelText("Acceleration")).toBeNull();
+    expect(screen.getByText(/Some motion readings need more nearby tracked frames/)).toBeTruthy();
     view.rerender(<Player {...props} time={0.2} />);
     expect(
       screen.queryByRole("img", { name: "Speed direction arrow" }),
@@ -261,8 +263,8 @@ describe("selected joint derivative vectors", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Select Right wrist" }));
-    expect(screen.getByLabelText("Speed").textContent).toBe("Set scale");
-    expect(screen.getByLabelText("Acceleration").textContent).toBe("Set scale");
+    expect(screen.queryByLabelText("Speed")).toBeNull();
+    expect(screen.queryByLabelText("Acceleration")).toBeNull();
     expect(
       screen.getByRole("region", { name: "Right wrist details" }).textContent,
     ).not.toContain("px");
@@ -328,4 +330,25 @@ it("shows video buffering and clears it when playback is ready or fails", () => 
   fireEvent.error(video);
   expect(screen.queryByRole("status")).toBeNull();
   expect(screen.getByText(/This video could not be played/)).toBeTruthy();
+});
+
+it("scales trusted position, speed and acceleration with an identified assumed 170cm reference", () => {
+  // Server fixture: assumed170cm / observed850px = .002m per pixel.
+  const scale = 1.7 / 850;
+  const measured = point({ x: 100, y: 200, vx: 20, vy: 0, ax: 4, ay: 0 });
+  expect(jointMeasurement(measured, "point", scale, 300)).toEqual([.2, .2]);
+  render(<Player analysis={analysis([measured])} time={0} onTime={() => {}} joint="right_wrist" onJoint={() => {}} ground={300} calibrated requireCalibration metersPerPixel={scale} scaleNote="Estimated 2D · assumed height 170 cm" />);
+  fireEvent.click(screen.getByRole("button", { name: "Select Right wrist" }));
+  expect(screen.getByLabelText("Speed").textContent).toContain("0.04");
+  expect(screen.getByLabelText("Acceleration").textContent).toContain("0.008");
+  expect(screen.getByText("Estimated 2D · assumed height 170 cm")).toBeTruthy();
+});
+
+it("hides unscaled physical items and explains missing evidence without manual scale actions", () => {
+  render(<Player analysis={analysis([point()])} time={0} onTime={() => {}} joint="right_wrist" onJoint={() => {}} ground={200} requireCalibration />);
+  fireEvent.click(screen.getByRole("button", { name: "Select Right wrist" }));
+  expect(screen.queryByLabelText("Speed")).toBeNull();
+  expect(screen.queryByLabelText("Acceleration")).toBeNull();
+  expect(screen.queryByText("Set scale")).toBeNull();
+  expect(screen.getByText(/Physical readings need a clear full-body view/)).toBeTruthy();
 });

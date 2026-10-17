@@ -19,6 +19,7 @@ from server import calibration, config, store, vision
 from server.types import (
     Analysis,
     Calibration,
+    HeightReference,
     HomeData,
     ProfileRecord,
     Record,
@@ -141,12 +142,16 @@ async def recalibrate_profile_sessions(profile_id: str, height_cm: float | None)
         existing = session.get("calibration")
         if (
             existing is not None
-            and existing.get("source") in ("athlete_height_auto", "athlete_height_manual")
+            and existing.get("source")
+            in ("athlete_height_auto", "assumed_height_auto", "athlete_height_manual")
             and "bodyHeightPixels" in existing
             and "frameTime" in existing
         ):
             changed: Calibration = {
                 **existing,
+                "source": "athlete_height_manual"
+                if existing.get("source") == "athlete_height_manual"
+                else "athlete_height_auto",
                 "heightCm": height_cm,
                 "metersPerPixel": height_cm / 100 / existing["bodyHeightPixels"],
             }
@@ -331,12 +336,16 @@ async def work(session_id: str) -> None:
                     json.dumps(analysis, allow_nan=False).encode(),
                     "application/json",
                 )
-                if reference is not None and session.get("profileId"):
-                    athlete = await asyncio.to_thread(record, "profiles", session["profileId"])
-                    height_cm = athlete.get("heightCm")
-                    if height_cm is not None:
-                        scale = calibration.from_height(height_cm, reference, analysis["ground"])
-                        await asyncio.to_thread(store.save_height_calibration, session_id, scale)
+                if reference is not None:
+                    athlete = (
+                        await asyncio.to_thread(store.get, "profiles", session["profileId"])
+                        if session.get("profileId")
+                        else None
+                    )
+                    scale = calibration.automatic_scale(
+                        athlete.get("heightCm") if athlete else None, reference, analysis["ground"]
+                    )
+                    await asyncio.to_thread(store.save_height_calibration, session_id, scale)
                 job_fields: Record = {
                     "status": "complete",
                     "progress": 1,
@@ -422,7 +431,36 @@ async def start(session_id: str) -> SessionRecord:
 
 @app.get("/api/sessions/{session_id}", response_model=None)
 async def session_get(session_id: str) -> SessionRecord:
-    return cast(SessionRecord, await asyncio.to_thread(record, "sessions", session_id))
+    value = await asyncio.to_thread(record, "sessions", session_id)
+    # Saved stature supplies scale without rerunning tracking; real height supersedes an assumption.
+    existing = value.get("calibration")
+    reference: HeightReference | None = value.get("heightReference")
+    ground = value.get("detectedGround")
+    assumed = existing is not None and existing.get("source") == "assumed_height_auto"
+    if (
+        assumed
+        and existing is not None
+        and "bodyHeightPixels" in existing
+        and "frameTime" in existing
+    ):
+        reference = {
+            "bodyHeightPixels": existing["bodyHeightPixels"],
+            "frameTime": existing["frameTime"],
+        }
+        ground = existing["ground"]
+    if (existing is None or assumed) and reference is not None and ground is not None:
+        athlete = (
+            await asyncio.to_thread(store.get, "profiles", value["profileId"])
+            if value.get("profileId")
+            else None
+        )
+        scale = calibration.automatic_scale(
+            athlete.get("heightCm") if athlete else None, reference, ground
+        )
+        if scale != existing:
+            await asyncio.to_thread(store.save_height_calibration, session_id, scale, existing)
+            value = await asyncio.to_thread(record, "sessions", session_id)
+    return cast(SessionRecord, value)
 
 
 @app.get("/api/sessions/{session_id}/preview")
@@ -457,7 +495,12 @@ async def analysis_get(session_id: str, images: bool = False) -> Analysis:
 
 class CalibrationInput(BaseModel):
     model_config = {"extra": "forbid"}
-    source: Literal["athlete_height_auto", "athlete_height_manual", "known_distance"] | None = None
+    source: (
+        Literal[
+            "athlete_height_auto", "assumed_height_auto", "athlete_height_manual", "known_distance"
+        ]
+        | None
+    ) = None
     heightCm: float | None = Field(default=None, ge=30, le=300, allow_inf_nan=False)
     bodyHeightPixels: float | None = Field(default=None, gt=0, allow_inf_nan=False)
     frameTime: float | None = Field(default=None, ge=0, allow_inf_nan=False)
@@ -466,11 +509,13 @@ class CalibrationInput(BaseModel):
 
     @model_validator(mode="after")
     def validate_height_scale(self) -> Self:
-        if self.source in ("athlete_height_auto", "athlete_height_manual"):
+        if self.source in ("athlete_height_auto", "assumed_height_auto", "athlete_height_manual"):
             if self.heightCm is None or self.bodyHeightPixels is None or self.frameTime is None:
                 raise ValueError(
                     "Height calibration needs the saved height, full-body span, and frame time."
                 )
+            if self.source == "assumed_height_auto" and self.heightCm != config.ASSUMED_HEIGHT_CM:
+                raise ValueError("Assumed automatic scale uses the explicit 170 cm fallback.")
             expected = self.heightCm / 100 / self.bodyHeightPixels
             if not math.isclose(self.metersPerPixel, expected, rel_tol=1e-6):
                 raise ValueError(

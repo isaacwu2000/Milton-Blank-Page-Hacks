@@ -90,7 +90,7 @@ describe("builder and coach request boundary", () => {
             frames: [{ ...sample.frames[0], image: "fixture-image" }],
           });
         if (url.endsWith(`/api/sessions/${sessionId}`))
-          return Response.json({ id: sessionId, profileId: "athlete" });
+          return Response.json({ id: sessionId, profileId: "athlete", calibration: { metersPerPixel: .002, ground: 200, source: "assumed_height_auto", heightCm: 170, bodyHeightPixels: 850, frameTime: 0 } });
         if (url.endsWith("/api/home"))
           return Response.json({ profiles: [], sessions: [{ id: "prior", profileId: "athlete", status: "uploaded", completedDrills: ["legacy-task-marker"] }] });
         throw Error("Unexpected backend request");
@@ -110,6 +110,7 @@ describe("builder and coach request boundary", () => {
       tool: sampleTool,
       messages,
       selectedTime: 0,
+      calibration: { metersPerPixel: 9, ground: 200 },
     });
     expect(response.status).toBe(200);
     const { id } = await response.json();
@@ -130,6 +131,9 @@ describe("builder and coach request boundary", () => {
     expect(coachingContext).toContain("specific adjustment");
     expect(coachingContext).toContain("actual sampled timestamp");
     expect(coachingContext).not.toContain("legacy-task-marker");
+    expect(coachingContext).toContain("assumed_height_auto");
+    expect(coachingContext).toContain("assumed170cm height, not a measured athlete height");
+    expect(coachingContext).toContain("0.002");
   });
 });
 
