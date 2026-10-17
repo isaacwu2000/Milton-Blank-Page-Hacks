@@ -147,8 +147,7 @@ button:focus-visible,
 a:focus-visible,
 summary:focus-visible,
 svg g:focus-visible {
-  outline: 2px solid var(--accent-700);
-  outline-offset: 3px;
+  outline: none;
 }
 button:hover:not(:disabled) {
   filter: brightness(0.98);
