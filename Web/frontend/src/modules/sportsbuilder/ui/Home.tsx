@@ -25,7 +25,7 @@ import {
   type Session,
   type ToolConfig,
 } from "../../../../../shared";
-import { Input, IconButton } from "../../../components";
+import { Input, IconButton, DropdownSelect } from "../../../components";
 import { api, post } from "../services/api";
 import { type HomeData } from "../types";
 import { Logo, ErrorNote, Empty } from "./common";
@@ -49,6 +49,7 @@ export function Product() {
     [opened, setOpened] = useState<string | null>(null),
     [sample, setSample] = useState(false);
   const reload = useCallback(async () => {
+    setLoaded(false);
     try {
       setData(await api<HomeData>("/api/home"));
       setError("");
@@ -169,7 +170,23 @@ export function Product() {
               </button>
             )}
           </div>
-          {error && <ErrorNote message={error} onClose={() => setError("")} />}
+          {!loaded && (
+            <p className="small muted" role="status" aria-live="polite">
+              Loading saved workspace…
+            </p>
+          )}
+          {error && (
+            <div>
+              <ErrorNote message={error} onClose={() => setError("")} />
+              <button
+                className="text-button"
+                disabled={!loaded}
+                onClick={reload}
+              >
+                Retry loading workspace
+              </button>
+            </div>
+          )}
           {builder ? (
             <Builder
               onClose={() => setBuilder(false)}
@@ -184,6 +201,7 @@ export function Product() {
                 <>
                   <UploadPanel
                     data={data}
+                    loading={!loaded}
                     onUploaded={(s) => {
                       setOpened(s.id);
                       reload();
@@ -402,11 +420,13 @@ function ToolSummary({ tool }: { tool: ToolConfig }) {
 }
 function UploadPanel({
   data,
+  loading = false,
   onUploaded,
   onCreateProfile,
   onCreateTool,
 }: {
   data: HomeData;
+  loading?: boolean;
   onUploaded: (s: Session) => void;
   onCreateProfile: () => void;
   onCreateTool: () => void;
@@ -420,6 +440,7 @@ function UploadPanel({
   const profileId = profile || data.profiles[0]?.id || "",
     toolId = tool || data.tools[0]?.id || "";
   async function upload(file: File) {
+    if (loading) return;
     if (!profileId || !toolId) {
       setError("Add an athlete and build a coaching tool first.");
       return;
@@ -450,7 +471,8 @@ function UploadPanel({
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();
-        if (!busy && e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]);
+        if (!loading && !busy && e.dataTransfer.files[0])
+          upload(e.dataTransfer.files[0]);
       }}
     >
       <div className="upload-icon">
@@ -459,38 +481,26 @@ function UploadPanel({
       <h2>A little footage. A clearer picture.</h2>
       <p>Drop your video here, or choose one to get started.</p>
       <div className="upload-selects">
-        <label>
-          Athlete
-          <select
-            aria-label="Athlete for upload"
+        <div className="flex min-w-0 flex-1 flex-col gap-2 text-[12px] text-(--neutral-dark-400)">
+          <span>Athlete</span>
+          <DropdownSelect
+            label="Athlete for upload"
+            disabled={loading || busy || !data.profiles.length}
             value={profileId}
-            onChange={(e) => setProfile(e.target.value)}
-          >
-            {!data.profiles.length && (
-              <option value="">Add an athlete first</option>
-            )}
-            {data.profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Coaching tool
-          <select
-            aria-label="Coaching tool for upload"
+            onChange={setProfile}
+            options={loading ? [{value: profileId, label: "Loading saved workspace…"}] : data.profiles.length ? data.profiles.map(p => ({value: p.id, label: p.name})) : [{value: "", label: "Add an athlete first"}]}
+          />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2 text-[12px] text-(--neutral-dark-400)">
+          <span>Coaching tool</span>
+          <DropdownSelect
+            label="Coaching tool for upload"
+            disabled={loading || busy || !data.tools.length}
             value={toolId}
-            onChange={(e) => setTool(e.target.value)}
-          >
-            {!data.tools.length && <option value="">Build a tool first</option>}
-            {data.tools.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            onChange={setTool}
+            options={loading ? [{value: toolId, label: "Loading saved workspace…"}] : data.tools.length ? data.tools.map(t => ({value: t.id, label: t.name})) : [{value: "", label: "Build a tool first"}]}
+          />
+        </div>
       </div>
       <input
         ref={fileRef}
@@ -505,7 +515,7 @@ function UploadPanel({
       />
       <button
         className="button"
-        disabled={busy || !profileId || !toolId}
+        disabled={loading || busy || !profileId || !toolId}
         onClick={() => fileRef.current?.click()}
       >
         {busy ? (
@@ -518,7 +528,7 @@ function UploadPanel({
       <span className="small muted">
         Up to 30 seconds · MP4, MOV, WebM · 100 MiB
       </span>
-      {(!profileId || !toolId) && (
+      {!loading && (!profileId || !toolId) && (
         <div className="prerequisites">
           {!profileId && (
             <button className="text-button" onClick={onCreateProfile}>

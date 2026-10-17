@@ -452,11 +452,9 @@ export function Workspace({
           <div className="analysis-title">
             <div>
               <h1>{session?.name ?? tool.name}</h1>
-              <p>
-                {sample
-                  ? "Synthetic movement · explore how the analysis works"
-                  : `${profiles.find((p) => p.id === session?.profileId)?.name ?? "Athlete"} · ${tool.name}`}
-              </p>
+              {sample && (
+                <p>Synthetic movement · explore how the analysis works</p>
+              )}
             </div>
             <span className="small muted">
               {analysis.interval}s sampling · {analysis.frames.length} frames
@@ -577,6 +575,8 @@ export function Workspace({
                   setTab("movement");
                 }}
                 ground={ground}
+                metersPerPixel={scale}
+                calibrated={calibrated}
                 onPlayingChange={setMainPlaying}
                 onCanvasClick={
                   calibrationMode === "none" ? undefined : canvasClick
@@ -727,7 +727,7 @@ export function Workspace({
                     </dd>
                   </div>
                   <div>
-                    <dt>Velocity</dt>
+                    <dt>Speed</dt>
                     <dd>
                       {typeof velocity === "number" ? fmt(velocity) : "—"}{" "}
                       <small>{calibrated ? "m/s" : "px/s"}</small>
@@ -761,9 +761,6 @@ export function Workspace({
                     <option value="y">Height above initial feet</option>
                   </select>
                 </label>
-                <span className="small muted">
-                  Velocity and acceleration are magnitudes here.
-                </span>
               </div>
             </>
           ) : (

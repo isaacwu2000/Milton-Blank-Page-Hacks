@@ -13,7 +13,7 @@ A local two-screen React/TypeScript application in Web/frontend, with backend se
 4. As a builder, I can answer a guided AI interview about sport, audience, desired metrics, and good form.
 5. As a builder, I can review the rubric and optional reference footage before building.
 6. As a builder, my agent can use files, terminal commands, calculation tools, and a real browser in Daytona, inspect screenshots, repair a draft, and submit a checked JSON tool.
-7. As an athlete, I can play, pause, scrub, and click tracked body joints to inspect position, velocity, and acceleration.
+7. As an athlete, I can play, pause, scrub, and click a tracked body joint to open a custom panel showing plain Speed and Acceleration values with units. Keep formulas and vector-component notation out of this panel. The video overlay may show selected-joint arrow geometry without persistent names, numbers, or math text; closing the panel restores the quiet viewing state.
 8. As an athlete, I can adjust one sampling interval (default 0.1 seconds) that controls both tracking and coach image evidence.
 9. As an athlete, I see x=0 at the left frame edge and y=0 at initial feet, with positive y upward; I can correct the ground line.
 10. As an athlete, I can mark a known distance to convert pixels into approximate physical units and clear that calibration.
@@ -28,6 +28,7 @@ A local two-screen React/TypeScript application in Web/frontend, with backend se
 
 ## Implementation Decisions
 - Two primary surfaces: home (uploads, profiles, tools; builder interview is an inline panel) and analysis (player, clickable overlay, plots, reference comparison, metrics, and coach conversation).
+- Laptop use is the current UI acceptance priority. Joint detail is disclosed on click in a closable panel with plain scalar Speed/Acceleration values and units. Use an explicit unavailable state when measurements are missing. Only selected arrow geometry belongs on the video; keep its direction trustworthy and scale stable within a clip, without exposing formulas or vector-component notation in the interface.
 - Build once, then use. No post-build adjustment chat, Jev routing, version compatibility, schema migrations for future versions, or editing saved tools. Follow-up: GitHub issue #1.
 - Fixed UI and versioned-format JSON data (format identifier only; not historical tool versioning), not generated application code or a textual DSL.
 - TypeScript calculation engine uses allowlisted JSON operations, unit-aware validation, finite arithmetic, dependency checks, and bounded expression size. No eval or model-provided executable metric code.
@@ -42,7 +43,7 @@ A local two-screen React/TypeScript application in Web/frontend, with backend se
 - Locally run Vite, FastAPI, agent service, and OAuth proxy. Railway deployment is documented but not performed.
 
 ## Testing Decisions
-The user subsequently requested pytest and Vitest suites, overriding the original brief’s no-new-suite preference. Add meaningful tests for numerical contracts, provider parity, reviewed-draft acceptance, asynchronous UI state, video validation/derivatives, and atomic session updates. Verify the numerical engine with known motion/angle/unit/error fixtures, typecheck and build, exercise backend lifecycle and failure boundaries, and run actual desktop/mobile UI journeys. Include one fresh live AI+Daytona build and real video inference if services and footage permit. Keep deterministic sample evidence separate from real inference and disclose unavailable checks. Capture representative screenshots and an acceptance PDF.
+The user subsequently requested pytest and Vitest suites, overriding the original brief’s no-new-suite preference. Add meaningful tests for numerical contracts, provider parity, reviewed-draft acceptance, asynchronous UI state, video validation/derivatives, and atomic session updates. Verify known motion/angle/unit/error fixtures, typecheck/build, and backend lifecycle/failure boundaries. Prioritize actual laptop journeys: select a joint, open and close its custom details panel, verify plain Speed/Acceleration number and unit formatting, and confirm no persistent joint/math text appears on the video overlay. Check vector direction, units, missing samples, fixed scales, and edge fitting. Record actual CSS viewport and zoom separately from screenshot raster dimensions. Existing mobile/Daytona captures remain supplemental responsive evidence rather than a new mobile-polish requirement. Include a fresh live AI+Daytona reviewed build and real supplied-video inference. Keep synthetic, deterministic, local-live, and production evidence distinct. Capture representative laptop screenshots and an acceptance PDF; disclose remaining gaps.
 
 ## Out of Scope
 Authentication, payments, public deployment, live camera recording, multi-athlete clips, moving-camera compensation, 3D biomechanics, ball/racket detection in this phase, generated UI, post-build tool editing, historical compatibility, Jev, and claims of clinical measurement accuracy.

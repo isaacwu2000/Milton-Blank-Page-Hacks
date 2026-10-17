@@ -1,116 +1,170 @@
 ---
-name: LearnUnlock
-description: Learn fast, score high — a whiteboard tutor that guides studying with interactive visuals.
+name: LearnUnlock — Clear Path Studio
+description: SportsBuilder's implementation of LearnUnlock's quiet, content-first visual identity.
+colors:
+  accent-700: "oklch(50.7% 0.099 170)"
+  accent-100: "oklch(95.6% 0.063 170)"
+  accent-900: "oklch(29% 0.056 170)"
+  neutral-light-100: "#fff"
+  neutral-light-400: "oklch(98.88% 0.003 197)"
+  neutral-light-500: "oklch(97.99% 0.003 197)"
+  neutral-dark-150: "oklch(14.9% 0.022 260)"
+  neutral-dark-200: "oklch(19.9% 0.011 260)"
+  neutral-dark-400: "#47524f"
+  neutral-dark-500: "oklch(50.1% 0.009 260)"
+typography:
+  headline:
+    fontFamily: "Lexend, sans-serif"
+    fontSize: "20px"
+    fontWeight: 550
+    lineHeight: "28px"
+    letterSpacing: "-0.025em"
+  title:
+    fontFamily: "Lexend, sans-serif"
+    fontSize: "16px"
+    fontWeight: 500
+    lineHeight: "24px"
+  body:
+    fontFamily: "Lexend, sans-serif"
+    fontSize: "14px"
+  label:
+    fontFamily: "Lexend, sans-serif"
+    fontSize: "12px"
+rounded:
+  field: "8px"
+  player: "12px"
+spacing:
+  compact: "8px"
+  group: "16px"
+  section: "24px"
+  spacious: "32px"
+components:
+  button-primary:
+    backgroundColor: "{colors.accent-700}"
+    textColor: "{colors.neutral-light-100}"
+  button-secondary:
+    backgroundColor: "{colors.neutral-light-100}"
+    textColor: "{colors.neutral-dark-200}"
+  player:
+    backgroundColor: "{colors.neutral-light-100}"
+    rounded: "{rounded.player}"
 ---
 
-# LearnUnlock design direction
+# Design System: LearnUnlock / SportsBuilder
 
-All repository paths in this file are relative to the repository root unless
-explicitly stated otherwise.
+## Overview
 
-## Clear Path Studio
+**Creative North Star: “Clear Path Studio.”** Preserve LearnUnlock's cool paper,
+ink, Path Teal, Lexend, quiet controls, and progressive disclosure. SportsBuilder
+applies that identity to movement analysis: footage and measurements carry the
+explanation, while builder and coach conversations stay concise and separate.
 
-LearnUnlock is a focused studying tool: a quiet shell around a whiteboard tutor and
-chat. The interface should be concise, clear, and tasteful. Decoration exists to
-help students understand material—usually through visuals on the board—not to
-embellish product chrome.
+This refresh reconciles the incumbent identity with the shipped implementation.
+Paths are repository-relative. [styles.css](../../Web/frontend/src/styles.css)
+owns the runtime tokens; the extracted frontmatter should be refreshed alongside
+intentional system changes rather than independently from that stylesheet.
 
-The product should feel current and dependable: Notion-like content focus,
-Claude-like streaming polish without copying its voice, and Cursor-like speed with
-progressive disclosure. Students are often under time pressure, so the interface
-must make the next useful action obvious and then get out of the way.
+Key characteristics: content first, restrained accent, borderless surfaces,
+readable measurement labels, and recoverable states.
 
-## Visual character
+## Colors
 
-- Use cool paper and ink neutrals. Do not drift into cream, sand, purple AI glow,
-  or institutional LMS gray.
-- Use Path Teal deliberately and rarely. It signals focus, confirmation, and
-  meaningful emphasis; it is not a decorative background color.
-- Use Lexend throughout product UI. Keep the type hierarchy compact, legible, and
-  content-first.
-- Let spacing, alignment, and restrained elevation establish hierarchy. Avoid
-  decorative borders, nested cards, and competing chrome.
-- Prefer shadows, elevation, spacing, or surface contrast to borders. Avoid
-  borders in almost all cases; use one only when those quieter cues cannot make
-  an essential boundary clear or accessible.
-- Make reasonable exceptions when an outline carries meaning, such as the
-  boundaries of nodes in a diagram. Note intentional exceptions to the user so
-  the tradeoff is explicit.
-- Keep motion short and state-driven. Honor reduced-motion preferences.
+### Primary
 
-## Diagram labels
+Path Teal (`accent-700`) marks primary actions, active navigation, selected joints,
+and keyboard focus. Pale and deep variants support small selection/status surfaces.
 
-- Place scientific labels on the atom, residue, or base-pair segment they identify.
-- Use a translucent white tint with background blur and subtly rounded corners
-  behind diagram labels and lone-pair dots; avoid fully opaque white masks.
-- Use KaTeX for chemical symbols, attached hydrogen counts, and charges.
-- Three-dimensional molecular and biological schematics use the grapher’s shared
-  rotation, pan, and zoom controls.
+### Neutral
+
+Cool paper variants distinguish page, navigation, fields, and white work surfaces.
+Ink variants establish heading, body, and secondary-text hierarchy. Preserve the
+cool palette instead of cream, purple glow, or decorative gradients.
+
+**The Quiet Shell Rule.** Color emphasis identifies an action or measured state;
+it does not compete with footage or plots. The player's green velocity and rust
+acceleration colors are semantic data encodings, not additional brand accents.
+Plain readings, units, and the details panel carry meaning alongside color.
 
 ## Typography
 
-- Product UI may use only 8px, 10px, 12px, 14px, 16px, and 20px type sizes.
-- Keep line heights and vertical spacing on the 4px grid; prefer 8px steps for
-  spacing between distinct groups.
-- Do not shrink type merely because a viewport is wide. Display scaling is a
-  user and operating-system concern; responsive layout should adapt the space
-  around readable type.
+Use bundled variable Lexend with a sans-serif fallback. Its asset/license live in
+`Web/frontend/public/fonts/`. Follow the headline, title, body, and label roles;
+section headings also use the existing compact 14px treatment. Smaller metadata
+styles are annotations, not a default for explanations.
 
-## Responsive layout
+**The Readable Content Rule.** Adapt layout around readable content instead of
+shrinking type to fill wide monitors. Constrain long explanations rather than
+stretching them across the analysis surface.
 
-- Preserve the 240px app sidebar below 1600px. At 1600px and above, give it a
-  280px content-safe minimum and let it grow at 15vw without a maximum; it is
-  automatic, never draggable. “Course Customizations” should generally remain
-  visible in full.
-- Keep the board and conversation visually dominant as the sidebar grows; its
-  width follows the viewport only to preserve useful navigation context.
-- Keep prose between 65ch and 75ch and cap the Tutor conversation and prompt
-  instead of stretching them across wide monitors.
-- Treat 1920×1080 and 2560×1440 as required monitor checks in addition to the
-  existing laptop and mobile viewports. Verify real content, truncation, focus,
-  and collapsed-sidebar behavior at each size.
-- Size Lucide icons in consistent boxes, then optically adjust broad glyphs
-  within those boxes when equal numeric sizes do not look equal.
+## Layout
 
-## Product principles
+Two primary surfaces remain: home and analysis. The builder interview opens within
+home; the athlete's coach belongs beside analysis. Feature composition lives in
+`Web/frontend/src/modules/sportsbuilder/ui/`.
 
-- **Guide the next step.** Students should rarely wonder what to do next.
-- **Make the board the product.** Interactive teaching visuals carry
-  understanding; surrounding UI stays quiet.
-- **Protect focus.** Prefer one clear action and progressively disclose secondary
-  controls.
-- **Keep small controls quiet.** Use a concise action name or familiar icon with
-  an accessible name. Do not add persistent helper labels, counters, feature
-  descriptions, or repeated status text beside small buttons and routine
-  controls. Disclose useful detail on hover, focus, or when a state needs action.
-  Major section headings may have a short supporting description. Error copy
-  should explain the problem once and offer only a relevant recovery action.
-- **Be fast and honest.** Use optimistic behavior where safe, preserve real
-  content, and show concise, recoverable errors.
-- **Use familiar affordances.** Consistency beats novelty in buttons, fields,
-  menus, and dialogs.
-- **Design accessibly.** WCAG AA contrast, visible keyboard focus, semantic
-  controls, and reduced-motion support are the baseline.
+Laptop use is the current review priority. Analysis gives the recording and
+measurements a flexible column beside the coach; hiding the coach creates more
+viewing room. Preserve portrait handling, video aspect ratio, and overlay alignment.
 
-## Sources of truth
+The actual home sidebar is 224px, changes to 192px below 1100px, and becomes a 64px
+icon rail below 760px. At 1600px and above it uses `max(280px, 15vw)`. The analysis
+coach column is 340px normally, 300px below 1100px, and 380px on wide displays.
+Below 760px, analysis, builder, and reference columns stack. These describe the
+current implementation rather than imposing tutor navigation on every new surface.
 
-- `Web/src/app/globals.css` owns the palette,
-  elevation tokens, theme aliases, and global interaction foundations. Read it
-  before design or UI work; do not copy its values into this document.
-- `Web/src/components/README.md` owns the
-  generic component catalog, reuse boundary, and component-level conventions.
-- Feature-specific presentation stays with its owning module. For example, tutor
-  Markdown and Streamdown behavior belongs under `Web/src/modules/tutor/ui`,
-  beside its implementation and tests.
+Use the repeated compact/group/section spacing rhythm. Progressively disclose
+calibration, reference alignment, metric detail, and rubric content.
 
-## Guardrails
+## Elevation & Depth
 
-Do keep the interface calm, responsive, and ready to use. Use Lucide for product
-icons and the existing token vocabulary for color and elevation.
+Surface contrast, spacing, and the stylesheet's restrained `--shadow` establish
+hierarchy. Inputs use quieter recessed chrome. Reuse these treatments rather than
+adding one-off shadows or nested card layers.
 
-Author component styling with Tailwind utility classes. Do not create or use CSS
-modules; migrate a component's existing CSS module when changing that component.
+## Shapes
 
-Do not build a feature-overload SaaS dashboard, a generic chat clone, or nostalgic
-edtech. Avoid side-stripe accent borders, gradient text, decorative
-glassmorphism, and one-off shadows or colors that bypass the shared system.
+Native fields use the field radius; the player and recurring panels use a larger
+soft-corner treatment. Generic controls retain their own component styles. Borders
+are rare; outlines that identify a measured joint, axis, focus state, or calibration
+geometry carry information and remain appropriate.
+
+## Components
+
+The [generic component catalog](../../Web/frontend/src/components/README.md) owns
+the reuse boundary. Import generic controls through their public `index.ts`.
+Keep sports presentation in its feature and use the feature's public entry.
+
+- **Buttons:** teal primary actions, quiet text actions, white secondary surfaces;
+  preserve disabled state, visible focus, and icon-only accessible names.
+- **Fields:** borderless neutral surfaces, associated labels, and visible focus.
+  Use Input for its supported text types; number/file/range/select/textarea controls
+  retain native semantics.
+- **Navigation:** compact labels, Lucide icons, tonal separation, restrained elevation.
+- **Player:** selectable body joints identify the source measurement. Velocity and
+  acceleration arrows belong to the selected joint/current sampled frame. Their
+  separate scales stay fixed within a clip. A joint click opens its closable custom
+  details panel; plain scalar Speed/Acceleration readings, units, and missing evidence
+  belong there. Keep formulas and vector-component notation out of that panel,
+  and persistent joint names, numbers, and math text off the video
+  overlay. Components use x right / y up and truthful units.
+- **Feedback:** errors explain a recoverable problem once; progress names the
+  actual stage; synthetic and unavailable evidence remain explicit.
+
+Keep transitions short and state-driven and honor the existing reduced-motion
+override. Keyboard focus, semantic controls, and contrast remain requirements;
+this document does not certify a complete accessibility audit.
+
+## Do's and Don'ts
+
+### Do
+
+- **Do** preserve LearnUnlock's Clear Path Studio identity and token vocabulary.
+- **Do** make footage, measurements, and the next useful action dominant.
+- **Do** verify real laptop content, focus, truncation, and hidden-coach behavior.
+
+### Don't
+
+- **Don't** add feature-overload dashboards or decorative AI chrome.
+- **Don't** bypass shared tokens with one-off colors, shadows, or side-stripe accents.
+- **Don't** carry old tutor biology diagrams or sidebar labels into SportsBuilder.
+- **Don't** rely on arrow length/color alone; expose scale, plain values, units, and gaps.

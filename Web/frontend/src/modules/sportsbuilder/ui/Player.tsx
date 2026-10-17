@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { Play, Pause, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Play, Pause, ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
   EDGES,
   JOINTS,
   pretty,
+  jointMeasurement,
+  unitLabel,
+  type Point,
   type Analysis,
   type Joint,
 } from "../../../../../shared";
@@ -22,6 +25,8 @@ export function Player({
   videoRef: externalRef,
   onPlayingChange,
   linkedPlaying,
+  metersPerPixel = 1,
+  calibrated = false,
 }: {
   analysis: Analysis;
   url?: string;
@@ -36,11 +41,14 @@ export function Player({
   videoRef?: React.RefObject<HTMLVideoElement | null>;
   onPlayingChange?: (playing: boolean) => void;
   linkedPlaying?: boolean;
+  metersPerPixel?: number;
+  calibrated?: boolean;
 }) {
   const ownRef = useRef<HTMLVideoElement>(null),
     videoRef = externalRef ?? ownRef;
   const [playing, setPlaying] = useState(false),
-    [playbackError, setPlaybackError] = useState("");
+    [playbackError, setPlaybackError] = useState(""),
+    [inspected, setInspected] = useState(false);
   const onTimeRef = useRef(onTime),
     playingChangeRef = useRef(onPlayingChange),
     lastReported = useRef<number | null>(null),
@@ -53,6 +61,64 @@ export function Player({
       Math.abs(f.time - time) < Math.abs(best.time - time) ? f : best,
     analysis.frames[0],
   );
+  const markerId = useId().replaceAll(":", "");
+  const selectedPoint = frame?.joints[joint];
+  const vectorScale = calibrated ? metersPerPixel : 1;
+  // Keep each derivative's scale stable across the clip so arrow length reflects changing magnitude.
+  const clipVectorFactors = useMemo(() => {
+    let velocityMax = 0,
+      accelerationMax = 0;
+    for (const sample of analysis.frames) {
+      const velocity = jointMeasurement(sample.joints[joint], "speed");
+      const acceleration = jointMeasurement(
+        sample.joints[joint],
+        "acceleration",
+      );
+      if (typeof velocity === "number")
+        velocityMax = Math.max(velocityMax, velocity);
+      if (typeof acceleration === "number")
+        accelerationMax = Math.max(accelerationMax, acceleration);
+    }
+    const maxLength = Math.min(analysis.width, analysis.height) * 0.2;
+    return {
+      velocity: velocityMax ? Math.min(0.1, maxLength / velocityMax) : 0.1,
+      acceleration: accelerationMax
+        ? Math.min(0.01, maxLength / accelerationMax)
+        : 0.01,
+    };
+  }, [analysis, joint]);
+  const vectors = (["velocity", "acceleration"] as const).map((kind) => {
+    const horizontal = kind === "velocity" ? "vx" : "ax";
+    const vertical = kind === "velocity" ? "vy" : "ay";
+    const vx = jointMeasurement(selectedPoint, horizontal, vectorScale, ground);
+    const vy = jointMeasurement(selectedPoint, vertical, vectorScale, ground);
+    const geometry =
+      selectedPoint && typeof vx === "number" && typeof vy === "number"
+        ? fitVector(
+            selectedPoint,
+            horizontal,
+            vertical,
+            analysis.width,
+            analysis.height,
+            clipVectorFactors[kind],
+          )
+        : null;
+    return {
+      kind,
+      label: kind === "velocity" ? "Speed" : "Acceleration",
+      value: jointMeasurement(
+        selectedPoint,
+        kind === "velocity" ? "speed" : "acceleration",
+        vectorScale,
+        ground,
+      ),
+      geometry,
+      unit: unitLabel(
+        kind === "velocity" ? "speed" : "acceleration",
+        calibrated,
+      ),
+    };
+  });
   const sample = analysis.source === "sample";
   const reportTime = (value: number) => {
     lastReported.current = value;
@@ -96,6 +162,7 @@ export function Player({
   }, [time, videoRef, linkedPlaying]);
   useEffect(() => {
     setPlaying(false);
+    setInspected(false);
     setPlaybackError("");
     lastReported.current = null;
   }, [analysis.id]);
@@ -227,6 +294,36 @@ export function Player({
             ]);
           }}
         >
+          <defs>
+            {vectors.map((vector) => (
+              <marker
+                key={vector.kind}
+                id={`${markerId}-${vector.kind}`}
+                viewBox="0 0 10 10"
+                refX="10"
+                refY="5"
+                markerUnits="userSpaceOnUse"
+                markerWidth={Math.min(
+                  analysis.width / 160,
+                  (vector.geometry?.magnitude ?? 0) *
+                    (vector.geometry?.factor ?? 0) *
+                    0.32,
+                )}
+                markerHeight={Math.min(
+                  analysis.width / 160,
+                  (vector.geometry?.magnitude ?? 0) *
+                    (vector.geometry?.factor ?? 0) *
+                    0.32,
+                )}
+                orient="auto-start-reverse"
+              >
+                <path
+                  d="M 0 0 L 10 5 L 0 10 z"
+                  className={`motion-arrowhead ${vector.kind}`}
+                />
+              </marker>
+            ))}
+          </defs>
           <line
             x1="0"
             y1={ground}
@@ -274,12 +371,14 @@ export function Player({
                   if (!onCanvasClick) {
                     e.stopPropagation();
                     onJoint(j);
+                    setInspected(true);
                   }
                 }}
                 onKeyDown={(e) => {
                   if (!onCanvasClick && (e.key === "Enter" || e.key === " ")) {
                     e.preventDefault();
                     onJoint(j);
+                    setInspected(true);
                   }
                 }}
               >
@@ -293,27 +392,50 @@ export function Player({
                 <circle
                   cx={p.x}
                   cy={p.y}
-                  r={analysis.width / (joint === j ? 70 : 105)}
-                  fill={joint === j ? "#14674f" : "#ffffff"}
+                  r={
+                    analysis.width /
+                    (joint === j ? (inspected ? 160 : 70) : 105)
+                  }
+                  fill={
+                    joint === j ? (inspected ? "none" : "#14674f") : "#ffffff"
+                  }
                   stroke="#14674f"
                   strokeWidth={analysis.width / 450}
                 />
-                {joint === j && (
-                  <text
-                    x={p.x + analysis.width / 40}
-                    y={p.y - analysis.height / 35}
-                    fontSize={analysis.width / 48}
-                    fill="#153d31"
-                    paintOrder="stroke"
-                    stroke="#fff"
-                    strokeWidth={analysis.width / 180}
-                  >
-                    {pretty(j)}
-                  </text>
-                )}
               </g>
             ) : null;
           })}
+          {!onCanvasClick &&
+            inspected &&
+            vectors.map((vector) => {
+              const geometry = vector.geometry;
+              if (!geometry || geometry.factor <= 0 || !selectedPoint)
+                return null;
+              return (
+                <g
+                  key={vector.kind}
+                  role="img"
+                  aria-label={`${vector.label} direction arrow`}
+                  className={`motion-vector ${vector.kind}`}
+                  pointerEvents="none"
+                >
+                  <title>{`${pretty(joint)} ${vector.label.toLowerCase()} direction`}</title>
+                  {geometry.magnitude > 0 && (
+                    <line
+                      x1={selectedPoint.x}
+                      y1={selectedPoint.y}
+                      x2={geometry.x2}
+                      y2={geometry.y2}
+                      strokeWidth={Math.min(
+                        analysis.width / 850,
+                        (geometry.magnitude * geometry.factor) / 14,
+                      )}
+                      markerEnd={`url(#${markerId}-${vector.kind})`}
+                    />
+                  )}
+                </g>
+              );
+            })}
           {points.map(([x, y], i) => (
             <circle
               key={i}
@@ -348,6 +470,43 @@ export function Player({
           : "No tracked samples"}{" "}
         · tracking every {analysis.interval}s
       </p>
+      {!onCanvasClick && inspected && (
+        <section
+          className="joint-detail-panel"
+          aria-label={`${pretty(joint)} details`}
+        >
+          <div className="section-heading">
+            <h3>{pretty(joint)}</h3>
+            <IconButton
+              label="Close joint details"
+              surface="transparent"
+              onClick={() => setInspected(false)}
+            >
+              <X size={15} />
+            </IconButton>
+          </div>
+          <div className="motion-vector-legend">
+            {vectors.map((vector) => (
+              <div
+                key={vector.kind}
+                className={`vector-equation ${vector.kind}`}
+              >
+                <h4>{vector.label}</h4>
+                <output aria-label={vector.label}>
+                  {typeof vector.value === "number" ? (
+                    <strong>
+                      {formatVectorValue(vector.value)}{" "}
+                      <span>{vector.unit}</span>
+                    </strong>
+                  ) : (
+                    "Unavailable"
+                  )}
+                </output>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       {!compact && (
         <div className="player-controls">
           <IconButton
@@ -385,6 +544,61 @@ export function Player({
     </div>
   );
 }
+/** Fit each measured vector to the image without changing its direction; expose its actual scale. */
+function fitVector(
+  point: Point,
+  horizontal: "vx" | "ax",
+  vertical: "vy" | "ay",
+  width: number,
+  height: number,
+  baseFactor: number,
+) {
+  const dx = point[horizontal],
+    dy = point[vertical];
+  if (
+    dx === null ||
+    dy === null ||
+    !Number.isFinite(dx) ||
+    !Number.isFinite(dy)
+  )
+    return null;
+  const magnitude = Math.hypot(dx, dy),
+    margin = Math.min(width, height) * 0.035;
+  const roomX =
+    dx > 0
+      ? (width - margin - point.x) / dx
+      : dx < 0
+        ? (margin - point.x) / dx
+        : Infinity;
+  const roomY =
+    dy > 0
+      ? (height - margin - point.y) / dy
+      : dy < 0
+        ? (margin - point.y) / dy
+        : Infinity;
+  const factor = Math.max(
+    0,
+    Math.min(
+      baseFactor,
+      magnitude ? (Math.min(width, height) * 0.2) / magnitude : baseFactor,
+      roomX,
+      roomY,
+    ),
+  );
+  return {
+    x2: point.x + dx * factor,
+    y2: point.y + dy * factor,
+    factor,
+    magnitude,
+    edgeFitted: factor < baseFactor,
+  };
+}
+function formatVectorValue(value: number | null | [number, number]) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Number(value.toPrecision(3)).toString()
+    : "—";
+}
+
 export function Chart({
   times,
   values,
