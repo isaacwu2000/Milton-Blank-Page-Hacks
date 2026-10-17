@@ -1845,3 +1845,5 @@ button .loading-status {
 .destructive-button:hover {
   background: #912018;
 }
+
+.app-shell[hidden] { display: none; }
