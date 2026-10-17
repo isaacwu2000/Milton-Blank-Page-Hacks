@@ -25,7 +25,7 @@ afterEach(() => {
 });
 it("warns before an early build and includes an unsent idea when continuing", async () => {
   vi.mocked(post).mockResolvedValue({ id: "job" });
-  render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
+  render(<Builder onBuilt={vi.fn()} />);
   fireEvent.change(
     screen.getByRole("textbox", { name: "Answer the builder" }),
     { target: { value: "A beginner tennis coach" } },
@@ -56,7 +56,7 @@ it("warns before an early build and includes an unsent idea when continuing", as
   ).toBe(true);
 });
 it("lets the user keep interviewing without starting a build", () => {
-  render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
+  render(<Builder onBuilt={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: "Build my tool" }));
   fireEvent.click(screen.getByRole("button", { name: "Keep talking" }));
   expect(screen.queryByRole("dialog")).toBeNull();
@@ -66,7 +66,7 @@ it("lets the user keep interviewing without starting a build", () => {
 it("uploads an optional reference through the composer plus action", async () => {
   vi.mocked(api).mockResolvedValue({ id: "reference" });
   vi.mocked(post).mockResolvedValue({});
-  render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
+  render(<Builder onBuilt={vi.fn()} />);
   const input = screen.getByLabelText(
     "Upload optional good form reference",
   ) as HTMLInputElement;
@@ -91,7 +91,7 @@ it("uploads an optional reference through the composer plus action", async () =>
 });
 it("keeps an early-build failure recoverable", async () => {
   vi.mocked(post).mockRejectedValue(Error("Please retry the build."));
-  render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
+  render(<Builder onBuilt={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: "Build my tool" }));
   fireEvent.click(screen.getByRole("button", { name: "Build anyway" }));
   await screen.findByText("Please retry the build.");
@@ -106,7 +106,7 @@ it("restores a rejected interview draft and retries without duplicate user turns
   vi.mocked(post)
     .mockRejectedValueOnce(Error("The AI returned an incomplete response. Please retry your message."))
     .mockResolvedValueOnce({ reply: "Who is it for?", ready: false });
-  render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
+  render(<Builder onBuilt={vi.fn()} />);
   const input = screen.getByRole("textbox", { name: "Answer the builder" }) as HTMLTextAreaElement;
   const idea = "Build a coaching tool which analyzes my squash serve from the forehand side.";
   fireEvent.change(input, { target: { value: idea } });
@@ -122,7 +122,7 @@ it("restores a rejected interview draft and retries without duplicate user turns
 
 it("shows concise activity while preparing the next interview question", async () => {
   vi.mocked(post).mockReturnValue(new Promise(() => {}));
-  render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
+  render(<Builder onBuilt={vi.fn()} />);
   fireEvent.change(screen.getByRole("textbox", { name: "Answer the builder" }), {
     target: { value: "Help me build one for situps" },
   });
@@ -132,7 +132,7 @@ it("shows concise activity while preparing the next interview question", async (
 
 it("reveals the newest interview reply inside the chat scroller", async () => {
   vi.mocked(post).mockResolvedValue({ reply: "Who is the sit-up coach for?", ready: false });
-  const view = render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
+  const view = render(<Builder onBuilt={vi.fn()} />);
   const conversation = view.container.querySelector(".conversation") as HTMLDivElement;
   Object.defineProperty(conversation, "scrollHeight", { value: 900 });
   fireEvent.change(screen.getByRole("textbox", { name: "Answer the builder" }), {

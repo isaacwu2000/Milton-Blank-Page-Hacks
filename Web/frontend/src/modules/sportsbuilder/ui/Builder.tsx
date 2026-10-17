@@ -7,7 +7,6 @@ import {
   Plus,
   LoaderCircle,
   Target,
-  X,
 } from "lucide-react";
 import { type Message, type Session } from "../../../../../shared";
 import {
@@ -25,10 +24,8 @@ import { ErrorNote } from "./common";
 import { BUILDER_WELCOME, BUILDER_EXAMPLE } from "../config";
 
 export function Builder({
-  onClose,
   onBuilt,
 }: {
-  onClose: () => void;
   onBuilt: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([
@@ -150,13 +147,6 @@ export function Builder({
           <ChevronRight size={13} />
           <span className={ready ? "" : "pending"}>2</span> Review & build
         </span>
-        <IconButton
-          label="Close tool builder"
-          disabled={!!job}
-          onClick={onClose}
-        >
-          <X size={17} />
-        </IconButton>
       </div>
       <BuilderColumns>
         <div className="interview">

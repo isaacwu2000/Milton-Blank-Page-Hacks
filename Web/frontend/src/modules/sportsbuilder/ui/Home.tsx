@@ -311,7 +311,6 @@ export function Product() {
           {builder && (
             <div hidden={view !== "builder"}>
               <Builder
-                onClose={() => setView("coached")}
                 onBuilt={() => {
                   setView("coached");
                   reload();
