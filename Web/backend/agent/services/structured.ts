@@ -14,10 +14,19 @@ export const interviewResponseSchema = z
   });
 export const coachResponseSchema = z.object({
   reply: z.string().min(1).max(10000),
+  feedback: z
+    .object({
+      doingWell: z.array(z.string().min(1).max(400)).max(4),
+      improve: z.array(z.string().min(1).max(400)).max(4),
+      limitations: z.array(z.string().min(1).max(400)).max(4),
+    })
+    .nullish()
+    .transform((feedback) => feedback ?? undefined),
   drill: z
     .object({
       title: z.string().min(1).max(120),
       instructions: z.string().min(1).max(2000),
+      steps: z.array(z.string().min(1).max(300)).min(2).max(6).optional(),
     })
     .nullish()
     .transform((drill) => drill ?? undefined),

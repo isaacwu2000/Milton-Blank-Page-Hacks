@@ -312,3 +312,23 @@ it("restores the question if starting a review never responds and cancels a late
   expect(post).toHaveBeenCalledWith("/agent/jobs/late-job/cancel", {});
   expect(screen.queryByRole("status")).toBeNull();
 });
+
+it("separates evidence-grounded feedback from a practice checklist without inventing strengths", async () => {
+  vi.mocked(post).mockResolvedValue({ id: "coach-job" });
+  vi.mocked(api).mockResolvedValue({
+    status: "complete", reply: "Focus on your reset.",
+    feedback: { doingWell: [], improve: ["At 1.2 seconds, return to a balanced stance before repeating."], limitations: ["The feet leave the frame, so foot placement is uncertain."] },
+    drill: { title: "Reset practice", instructions: "Move comfortably.", steps: ["Pause for two seconds.", "Reset before the next repetition."] },
+  });
+  render(<Workspace analysis={{ ...makeSample(), source: "video" }} tool={sampleTool}
+    session={{ id: "practice", name: "Practice", createdAt: "2026-10-17T12:00:00Z", profileId: "athlete", toolId: "tool", status: "complete", progress: 1, duration: 5, interval: 0.1, sourceKey: "private.mov" }}
+    onBack={() => {}} profiles={[]} sessions={[]} />);
+  fireEvent.click(screen.getByRole("button", { name: "Review my form" }));
+  await screen.findByRole("heading", { name: "What’s going well" });
+  expect(screen.getByText("There is not enough evidence to identify a clear strength yet.")).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "What to improve" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Evidence limits" })).toBeTruthy();
+  expect(screen.getByRole("region", { name: "Exercises" })).toBeTruthy();
+  expect(screen.getAllByRole("checkbox")).toHaveLength(2);
+  expect(screen.queryByRole("button", { name: "Mark complete" })).toBeNull();
+});

@@ -113,3 +113,19 @@ describe("structured interview and coaching responses", () => {
     expect(chat).toHaveBeenCalledTimes(1);
   });
 });
+
+it("preserves evidence limits and empty strengths without inventing praise", () => {
+  const result = coachResponseSchema.parse({
+    reply: "A clearer view is needed.",
+    feedback: { doingWell: [], improve: [], limitations: ["The feet are cropped at 1.2 seconds."] },
+    drill: { title: "Recording setup", instructions: "Use a stationary side view.", steps: ["Place the camera on a stable support.", "Check that your full body is in view."] },
+  });
+  expect(result.feedback?.doingWell).toEqual([]);
+  expect(result.feedback?.limitations).toEqual(["The feet are cropped at 1.2 seconds."]);
+  expect(result.drill?.steps).toHaveLength(2);
+  expect(coachResponseSchema.safeParse({ reply: "Try again", drill: { title: "Practice", instructions: "Start slowly.", steps: [] } }).success).toBe(false);
+});
+it("continues accepting an earlier instruction-only drill", () => {
+  const result = coachResponseSchema.parse({ reply: "Try this practice.", drill: { title: "Balance", instructions: "Pause before resetting." } });
+  expect(result.drill?.steps).toBeUndefined();
+});

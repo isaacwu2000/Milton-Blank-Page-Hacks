@@ -152,3 +152,14 @@ export type Session = {
   completedDrills?: string[];
 };
 export type Message = { role: "user" | "assistant"; content: string };
+
+export type CoachFeedback = {
+  doingWell: string[];
+  improve: string[];
+  limitations: string[];
+};
+export type CoachDrill = {
+  title: string;
+  instructions: string;
+  steps?: string[];
+};
