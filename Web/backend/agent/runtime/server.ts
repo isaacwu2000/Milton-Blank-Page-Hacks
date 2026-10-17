@@ -19,14 +19,19 @@ import {
   unitLabel,
 } from "../../../shared";
 import { makeSample } from "../../../shared";
-import { chat, parseJSON } from "../services/provider";
+import { chat } from "../services/provider";
+import {
+  structured,
+  interviewResponseSchema,
+  coachResponseSchema,
+} from "../services/structured";
 import { briefSchema, resolveBuildBrief } from "../services/buildBrief";
 import { config, provider } from "../config";
 import type { Chat, Tool, Part, Job } from "../types";
 import { BuildSandbox } from "./sandbox";
 import { runReviewedArtifactAuthoring } from "../../../../.agents/learnunlock/reviewedArtifactAuthoring";
 
-const app = express();
+export const app = express();
 app.use(express.json({ limit: "2mb" }));
 app.disable("x-powered-by");
 const BACKEND = config.backendUrl;
@@ -98,29 +103,6 @@ const object = (
   required = Object.keys(properties),
 ) => ({ type: "object", properties, required, additionalProperties: false });
 const string = { type: "string" };
-async function structured(
-  messages: Chat[],
-  name: string,
-  parameters: Record<string, unknown>,
-  signal: AbortSignal,
-) {
-  const response = await chat(
-    messages,
-    [
-      {
-        name,
-        description: "Return the requested structured result.",
-        parameters,
-      },
-    ],
-    signal,
-  );
-  const call = response.tool_calls?.find((c) => c.function.name === name);
-  return call
-    ? JSON.parse(call.function.arguments)
-    : parseJSON(response.content);
-}
-
 app.get("/agent/health", async (_req, res) => {
   let proxy = false;
   if (provider() === "chatgpt")
@@ -149,38 +131,36 @@ app.post("/agent/interview", async (req, res, next) => {
         },
         ...messages,
       ],
-      "interview_response",
-      object(
-        {
-          reply: string,
-          ready: { type: "boolean" },
-          brief: {
-            type: "object",
-            properties: {
-              name: string,
-              sport: string,
-              audience: string,
-              rubric: string,
-              metrics: { type: "array", items: string },
+      {
+        name: "interview_response",
+        description: "Return the requested structured result.",
+        parameters: object(
+          {
+            reply: { type: "string", minLength: 1, maxLength: 8000 },
+            ready: { type: "boolean" },
+            brief: {
+              type: "object",
+              properties: {
+                name: { type: "string", minLength: 1, maxLength: 80 },
+                sport: { type: "string", minLength: 1, maxLength: 60 },
+                audience: { type: "string", minLength: 1, maxLength: 120 },
+                rubric: { type: "string", minLength: 1, maxLength: 4000 },
+                metrics: {
+                  type: "array", minItems: 1, maxItems: 12,
+                  items: { type: "string", minLength: 1, maxLength: 200 },
+                },
+              },
+              required: ["name", "sport", "audience", "rubric", "metrics"],
+              additionalProperties: false,
             },
-            required: ["name", "sport", "audience", "rubric", "metrics"],
-            additionalProperties: false,
           },
-        },
-        ["reply", "ready"],
-      ),
+          ["reply", "ready"],
+        ),
+      },
+      interviewResponseSchema,
       AbortSignal.timeout(config.providerTimeoutMs),
     );
-    const parsed = z
-      .object({
-        reply: z.string().min(1).max(8000),
-        ready: z.boolean(),
-        brief: briefSchema.optional(),
-      })
-      .parse(result);
-    if (parsed.ready && !parsed.brief)
-      throw Error("The interview needs a complete brief before building.");
-    res.json(parsed);
+    res.json(result);
   } catch (e) {
     next(e);
   }
@@ -753,28 +733,24 @@ app.post("/agent/coach", (req, res, next) => {
           },
           ...data.messages,
         ],
-        "coach_response",
-        object(
-          {
-            reply: string,
-            drill: object({ title: string, instructions: string }),
-          },
-          ["reply"],
-        ),
+        {
+          name: "coach_response",
+          description: "Return the requested structured result.",
+          parameters: object(
+            {
+              reply: { type: "string", minLength: 1, maxLength: 10000 },
+              drill: object({
+                title: { type: "string", minLength: 1, maxLength: 120 },
+                instructions: { type: "string", minLength: 1, maxLength: 2000 },
+              }),
+            },
+            ["reply"],
+          ),
+        },
+        coachResponseSchema,
         signal,
       );
-      const parsed = z
-        .object({
-          reply: z.string().min(1).max(10000),
-          drill: z
-            .object({
-              title: z.string().min(1).max(120),
-              instructions: z.string().min(1).max(2000),
-            })
-            .optional(),
-        })
-        .parse(response);
-      Object.assign(state, parsed);
+      Object.assign(state, response);
     });
     res.json({ id });
   } catch (e) {
@@ -805,9 +781,4 @@ app.use(
             ? "Some request details were invalid. Please check the form and retry."
             : safeError(error),
       }),
-);
-app.listen(config.port, config.host, () =>
-  console.log(
-    `SportsBuilder agent ready at http://${config.host}:${config.port} (${provider()}, ${config.model}, ${config.reasoning} reasoning)`,
-  ),
 );

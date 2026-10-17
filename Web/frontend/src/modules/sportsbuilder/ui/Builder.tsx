@@ -88,6 +88,8 @@ export function Builder({
       if (result.brief) setBrief(result.brief);
       setReady(result.ready);
     } catch (e) {
+      setMessages(messages);
+      setText(content);
       setError((e as Error).message);
     } finally {
       setBusy(false);

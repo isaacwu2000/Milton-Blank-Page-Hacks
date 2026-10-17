@@ -1,5 +1,5 @@
 import { POLLING } from "../config";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   ArrowLeft,
@@ -664,9 +664,22 @@ function CoachPanel({
         : null,
     ),
     [completed, setCompleted] = useState(session?.completedDrills ?? []);
+  const pendingQuestion = useRef<{ messages: Message[]; text: string } | null>(null);
+  /** Restores the unanswered question after either request or background-review failure. */
+  function rejectQuestion(message: string) {
+    if (pendingQuestion.current) {
+      setMessages(pendingQuestion.current.messages);
+      setText(pendingQuestion.current.text);
+      pendingQuestion.current = null;
+    }
+    setError(message);
+    setJob(null);
+    setBusy(false);
+  }
   useAgentJob(
     job,
     (result) => {
+      pendingQuestion.current = null;
       setMessages((m) => [
         ...m,
         {
@@ -679,11 +692,7 @@ function CoachPanel({
       setJob(null);
       setBusy(false);
     },
-    (e) => {
-      setError(e);
-      setJob(null);
-      setBusy(false);
-    },
+    rejectQuestion,
   );
   useEffect(() => {
     if (!job) return;
@@ -713,6 +722,7 @@ function CoachPanel({
       ]);
       return;
     }
+    pendingQuestion.current = { messages, text: value };
     setBusy(true);
     try {
       const result = await post<{ id: string }>("/agent/coach", {
@@ -727,8 +737,7 @@ function CoachPanel({
       setJob(result.id);
       setStage("Preparing video evidence");
     } catch (e) {
-      setBusy(false);
-      setError((e as Error).message);
+      rejectQuestion((e as Error).message);
     }
   }
   async function complete() {

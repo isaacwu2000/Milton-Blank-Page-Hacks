@@ -163,3 +163,35 @@ describe("motion measurement recovery", () => {
     ).toBe(String(analysis.frames[2].time));
   });
 });
+
+it("restores a rejected coach prompt so retry sends one user turn", async () => {
+  vi.mocked(post)
+    .mockRejectedValueOnce(Error("Please retry your message."))
+    .mockResolvedValueOnce({ id: "coach-job" });
+  render(<Workspace analysis={{ ...makeSample(), source: "video" }} tool={sampleTool}
+    session={{ id: "practice", name: "Practice", createdAt: "2026-10-17T12:00:00Z", profileId: "athlete", toolId: "tool", status: "complete", progress: 1, duration: 5, interval: 0.1, sourceKey: "private.mov" }}
+    onBack={() => {}} profiles={[]} sessions={[]} />);
+  const input = screen.getByRole("textbox", { name: "Question for the coach" }) as HTMLTextAreaElement;
+  fireEvent.change(input, { target: { value: "How can I improve my stance?" } });
+  fireEvent.click(screen.getByRole("button", { name: "Send coach question" }));
+  await screen.findByText("Please retry your message.");
+  expect(input.value).toBe("How can I improve my stance?");
+  fireEvent.click(screen.getByRole("button", { name: "Send coach question" }));
+  await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+  expect((vi.mocked(post).mock.calls[1][1] as { messages: unknown[] }).messages).toHaveLength(2);
+});
+
+it("restores a coach question when its background review fails", async () => {
+  vi.mocked(post).mockResolvedValue({ id: "coach-job" });
+  vi.mocked(api).mockResolvedValue({ status: "failed", error: "The AI returned an incomplete response. Please retry your message." });
+  render(<Workspace analysis={{ ...makeSample(), source: "video" }} tool={sampleTool}
+    session={{ id: "practice", name: "Practice", createdAt: "2026-10-17T12:00:00Z", profileId: "athlete", toolId: "tool", status: "complete", progress: 1, duration: 5, interval: 0.1, sourceKey: "private.mov" }}
+    onBack={() => {}} profiles={[]} sessions={[]} />);
+  const input = screen.getByRole("textbox", { name: "Question for the coach" }) as HTMLTextAreaElement;
+  fireEvent.change(input, { target: { value: "How can I improve my stance?" } });
+  fireEvent.click(screen.getByRole("button", { name: "Send coach question" }));
+  await screen.findByText(/The AI returned an incomplete response/);
+  expect(input.value).toBe("How can I improve my stance?");
+  expect(screen.queryByText("How can I improve my stance?", { selector: ".message" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Send coach question" }).hasAttribute("disabled")).toBe(false);
+});
