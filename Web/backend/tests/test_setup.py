@@ -101,7 +101,7 @@ def test_existing_credentials_reused_and_cloud_steps_ordered(checkout: Path) -> 
     calls = (checkout / "calls").read_text().splitlines()
     assert calls[0].startswith("sync --project Web/backend --locked --python 3.12")
     assert "scripts/migrate.py" in calls[1]
-    assert "head_bucket" in calls[2]
+    assert "server.storage_check" in calls[2]
     assert (checkout / ".sportsbuilder/setup.log").stat().st_mode & 0o777 == 0o600
     assert run_setup(checkout, env).returncode == 0
     assert (checkout / ".env.local").read_text() == original
@@ -198,3 +198,20 @@ def test_default_install_starts_app_and_forwards_shutdown(checkout: Path) -> Non
         except ProcessLookupError:
             pass
         child.wait(timeout=5)
+
+
+def test_storage_failure_shows_safe_diagnosis_and_stops_before_build(checkout: Path) -> None:
+    env = environment(checkout)
+    credentials(checkout)
+    (checkout / "bin/uv").write_text(
+        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SETUP_CALLS"\n'
+        'case "$*" in *server.storage_check*)\n'
+        'echo "SPORTSBUILDER_STORAGE_ERROR: Storage rejected the access key. Check the Neon storage access key."\n'
+        'echo "private-test-value" >&2\nexit 2;; esac\nexit 0\n'
+    )
+    result = run_setup(checkout, env)
+    assert result.returncode != 0
+    assert "Storage rejected the access key" in result.stderr
+    assert "private-test-value" not in result.stdout + result.stderr
+    assert "private-test-value" in (checkout / ".sportsbuilder/setup.log").read_text()
+    assert "Building the app" not in result.stdout
