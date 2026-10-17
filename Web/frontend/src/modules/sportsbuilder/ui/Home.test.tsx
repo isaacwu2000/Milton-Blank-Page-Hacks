@@ -479,3 +479,29 @@ it("keeps a deferred build and its completed review across recording navigation"
   expect(screen.getByRole("button", { name: "Build my tool" }).hasAttribute("disabled")).toBe(false);
   expect(post).toHaveBeenCalledTimes(1);
 });
+
+it("renames a library coach and updates its upload option", async () => {
+  const renamed = { ...saved.tools[0], name: "My practice coach" };
+  vi.mocked(api).mockResolvedValueOnce(saved).mockResolvedValueOnce(renamed);
+  render(<Product />);
+  await waitFor(() => expect(screen.getByRole("combobox", { name: "Coaching tool for upload" }).textContent).toBe(sampleTool.name));
+  fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
+  fireEvent.click(screen.getByRole("button", { name: `Options for ${sampleTool.name}` }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Coach name" }), { target: { value: "My practice coach" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save name" }));
+  await screen.findByRole("heading", { name: "My practice coach" });
+  fireEvent.click(screen.getByRole("button", { name: "Get coached" }));
+  expect(screen.getByRole("combobox", { name: "Coaching tool for upload" }).textContent).toBe("My practice coach");
+});
+
+it("deletes the last library option and keeps useful keyboard focus", async () => {
+  vi.mocked(api).mockResolvedValueOnce(saved).mockResolvedValueOnce({ ...saved.tools[0], hidden: true });
+  render(<Product />);
+  await waitFor(() => expect(screen.getByRole("combobox", { name: "Coaching tool for upload" }).textContent).toBe(sampleTool.name));
+  fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
+  fireEvent.click(screen.getByRole("button", { name: `Options for ${sampleTool.name}` }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
+  await screen.findByText("Your saved coaches will appear here.");
+  expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your coaches" }));
+});

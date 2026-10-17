@@ -235,3 +235,34 @@ def test_remove_coach_keeps_full_record_and_historical_lookup(
     assert client.get("/api/home").json()["tools"] == [response.json()]
     assert client.delete(f"/api/tools/{original['id']}").json() == response.json()
     assert client.delete("/api/tools/not-a-uuid").status_code == 404
+
+
+@pytest.mark.parametrize("premade", [False, True])
+def test_rename_preserves_reviewed_configuration_and_history(
+    monkeypatch: pytest.MonkeyPatch, premade: bool
+):
+    original = deepcopy(store.PREMADE_COACHES[0] if premade else TOOL)
+    saved = {}
+    monkeypatch.setattr(store, "get", lambda kind, key: deepcopy(saved.get(key, original)))
+
+    def save(kind, value):
+        saved[value["id"]] = deepcopy(value)
+        return value
+
+    monkeypatch.setattr(store, "save", save)
+    client = TestClient(app)
+    response = client.patch(f"/api/tools/{original['id']}", json={"name": "  My practice coach  "})
+    assert response.status_code == 200
+    assert response.json() == {**original, "name": "My practice coach"}
+    assert (
+        client.patch(f"/api/tools/{original['id']}", json={"name": "My practice coach"}).json()
+        == response.json()
+    )
+    assert store.get("tools", str(original["id"])) == response.json()
+
+
+@pytest.mark.parametrize(
+    "body", [{"name": "   "}, {"name": "a" * 121}, {"name": "Name", "metrics": []}]
+)
+def test_rename_rejects_invalid_names_or_configuration_changes(body):
+    assert TestClient(app).patch(f"/api/tools/{TOOL['id']}", json=body).status_code == 422

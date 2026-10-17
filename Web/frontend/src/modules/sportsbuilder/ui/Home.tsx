@@ -13,7 +13,6 @@ import {
   LoaderCircle,
   Menu,
   Target,
-  X,
 } from "lucide-react";
 import {
   sampleTool,
@@ -31,12 +30,14 @@ import {
   DEFAULT_SAMPLING_INTERVAL,
 } from "../config";
 import { Builder } from "./Builder";
+import { CoachCard } from "./CoachCard";
 import { RecentVideo } from "./RecentVideo";
 import { SamplingControl } from "./SamplingControl";
 import { SessionWorkspace, Workspace } from "./Analysis";
 
 export function Product() {
   const recentHeading = useRef<HTMLHeadingElement>(null);
+  const coachHeading = useRef<HTMLHeadingElement>(null);
   const [data, setData] = useState<HomeData>(EMPTY_HOME_DATA),
     [loaded, setLoaded] = useState(false),
     [workspaceAvailable, setWorkspaceAvailable] = useState(false),
@@ -316,22 +317,28 @@ export function Product() {
                   reload();
                 }}
               />
-              {visibleTools.length > 0 && (
-                <section className="mt-8">
-                  <h2>Your coaches</h2>
-                  <div className="tool-grid">
-                    {visibleTools.map((tool) => (
-                      <ToolSummary
-                        key={tool.id}
-                        tool={tool}
-                        removing={removingTool === tool.id}
-                        disabled={!!removingTool}
-                        onRemove={() => removeTool(tool.id)}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
+              <section className="mt-8">
+                <h2 ref={coachHeading} tabIndex={-1}>Your coaches</h2>
+                <div className="tool-grid">
+                  {visibleTools.map((tool) => (
+                    <CoachCard
+                      key={tool.id}
+                      tool={tool}
+                      disabled={!!removingTool}
+                      onUpdated={(saved) => {
+                        setData((previous) => ({
+                          ...previous,
+                          tools: previous.tools.map((item) => item.id === saved.id ? saved : item),
+                        }));
+                        if (saved.hidden) coachHeading.current?.focus();
+                      }}
+                    />
+                  ))}
+                </div>
+                {!visibleTools.length && (
+                  <p className="small muted">Your saved coaches will appear here.</p>
+                )}
+              </section>
             </div>
           )}
           <div hidden={view !== "coached" || (loaded && !workspaceAvailable)}>
@@ -391,38 +398,6 @@ export function Product() {
       </main>
     </div>
     </>
-  );
-}
-function ToolSummary({ tool, removing, disabled, onRemove }: {
-  tool: SavedTool;
-  removing: boolean;
-  disabled: boolean;
-  onRemove: () => void;
-}) {
-  return (
-    <article className="tool-summary">
-      <div className="tool-symbol">
-        <Target size={19} />
-      </div>
-      <div>
-        <h3>{tool.name}</h3>
-        <p>
-          {tool.sport} · {tool.metrics.length} metrics
-        </p>
-      </div>
-      <IconButton
-        label={`Remove ${tool.name}`}
-        className="ml-auto shrink-0"
-        disabled={disabled}
-        onClick={onRemove}
-      >
-        {removing ? (
-          <LoaderCircle size={17} className="spin" aria-hidden="true" />
-        ) : (
-          <X size={17} aria-hidden="true" />
-        )}
-      </IconButton>
-    </article>
   );
 }
 function UploadPanel({

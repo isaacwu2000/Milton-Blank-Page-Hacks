@@ -206,6 +206,20 @@ async def save_tool(request: Request) -> ToolRecord:
         return cast(ToolRecord, await asyncio.to_thread(store.save, "tools", value))
 
 
+class CoachRename(BaseModel):
+    model_config = {"extra": "forbid", "str_strip_whitespace": True}
+    name: str = Field(min_length=1, max_length=120)
+
+
+@app.patch("/api/tools/{tool_id}")
+async def rename_tool(tool_id: str, data: CoachRename) -> ToolRecord:
+    """Change only the coach name, preserving configuration, visibility and video links."""
+    async with session_lock:
+        value = await asyncio.to_thread(record, "tools", tool_id)
+        value = {**value, "name": data.name}
+        return cast(ToolRecord, await asyncio.to_thread(store.save, "tools", value))
+
+
 @app.delete("/api/tools/{tool_id}")
 async def hide_tool(tool_id: str) -> ToolRecord:
     """Remove a coach from choices while retaining its configuration for existing videos."""
