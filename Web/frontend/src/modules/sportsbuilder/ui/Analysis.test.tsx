@@ -65,11 +65,9 @@ describe("height-scale workflow", () => {
       toJSON: () => ({}),
     });
     fireEvent.click(overlay, { clientX: 100, clientY: 50 });
-    fireEvent.click(overlay, { clientX: 100, clientY: 450 });
+    expect(screen.queryByRole("button", { name: "Apply height scale" })).toBeNull();
     await act(async () => {
-      fireEvent.click(
-        screen.getByRole("button", { name: "Apply height scale" }),
-      );
+      fireEvent.click(overlay, { clientX: 100, clientY: 450 });
     });
     await waitFor(() => expect(api).toHaveBeenCalled());
     const [path, request] = vi.mocked(api).mock.calls[0];
@@ -167,13 +165,9 @@ describe("height-scale workflow", () => {
     });
     expect(screen.getByText(/shoes \(0\/2\)/)).toBeTruthy();
     fireEvent.click(overlay, { clientX: 100, clientY: 450 });
-    expect(
-      (
-        screen.getByRole("button", {
-          name: "Apply height scale",
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true);
+    expect(screen.getByText(/shoes \(1\/2\)/)).toBeTruthy();
+    expect(api).not.toHaveBeenCalled();
+    expect(screen.queryByText("Height scale saved. Measurements now use meters.")).toBeNull();
   });
 });
 
