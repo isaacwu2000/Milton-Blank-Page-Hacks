@@ -12,7 +12,7 @@ import {
   LoaderCircle,
   MoreHorizontal,
   Ruler,
-  Sparkles,
+  MessageCircle,
   Trash2,
   X,
 } from "lucide-react";
@@ -528,7 +528,7 @@ export function Workspace({
             onClick={() => setCoachOpen(!coachOpen)}
             surface="transparent"
           >
-            <Sparkles size={18} />
+            <MessageCircle size={18} />
           </IconButton>
           <IconButton
             label="Analysis settings"
