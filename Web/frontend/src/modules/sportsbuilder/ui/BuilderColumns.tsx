@@ -53,6 +53,7 @@ export function BuilderColumns({ children }: { children: ReactNode }) {
     <div
       ref={container}
       className="builder-columns builder-columns-resizable"
+      data-stacked={available > 0 && available < 640}
       style={{ "--builder-rail-width": `${width}px` } as CSSProperties}
     >
       {panels[0]}
