@@ -174,7 +174,13 @@ Keep sports presentation in its feature and use the feature's public entry.
   Use Input for supported text types and NumberInput for decimal drafts and unit
   suffixes. NumberInput preserves the grapher’s Input-based chrome and editable
   text behavior; file/range/select/textarea controls retain native semantics.
-- **Navigation:** compact labels, Lucide icons, tonal separation, restrained elevation.
+- **Icons:** one crisp outline family with subtly rounded joins and square line
+  endings. The shared `.lucide` rule and `--icon-stroke-width: 1.75` token own
+  stroke styling; avoid individual weight overrides. Keep the approved solid
+  Progression logo separate from interface line icons. Measurement overlays and
+  plots retain their own data-encoding strokes.
+- **Navigation:** compact labels, consistent outline icons, tonal separation,
+  restrained elevation.
 - **Player:** selectable body joints identify the source measurement. Velocity and
   acceleration arrows belong to the selected joint/current sampled frame. Their
   separate scales stay fixed within a clip. A joint click opens its closable custom

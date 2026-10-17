@@ -180,7 +180,6 @@ export function DropdownSelect<Value extends string>({
                     aria-hidden="true"
                     className={`shrink-0 transition-transform duration-150 motion-reduce:transition-none ${isOpen ? "rotate-180" : ""}`}
                     size={17}
-                    strokeWidth={2.25}
                 />
             </button>
 

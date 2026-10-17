@@ -49,6 +49,7 @@
     inset -1px 2px 8px
       color-mix(in oklch, var(--neutral-dark-150) 2%, transparent);
   --shadow: var(--shadow-md);
+  --icon-stroke-width: 1.75;
 }
 * {
   box-sizing: border-box;
@@ -56,6 +57,13 @@
 body {
   margin: 0;
 }
+/* Crisp line endings and gently rounded corners across every interface icon. */
+.lucide {
+  stroke-width: var(--icon-stroke-width);
+  stroke-linecap: square;
+  stroke-linejoin: round;
+}
+
 button,
 a,
 input,
