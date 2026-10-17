@@ -1,4 +1,4 @@
-import type { SavedTool } from "../../shared";
+import type { CoachDrill, CoachFeedback, SavedTool } from "../../shared";
 
 export type Part =
   | { type: "text"; text: string }
@@ -18,7 +18,8 @@ export type Job = {
   stage: string;
   tool?: SavedTool;
   reply?: string;
-  drill?: { title: string; instructions: string };
+  drill?: CoachDrill;
+  feedback?: CoachFeedback;
   error?: string;
   createdAt: number;
 };

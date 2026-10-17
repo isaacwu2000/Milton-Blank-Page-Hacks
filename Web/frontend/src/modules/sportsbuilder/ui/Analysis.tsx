@@ -7,15 +7,12 @@ import {
   Activity,
   ArrowLeft,
   ArrowRight,
-  Check,
   Clipboard,
   Film,
   LoaderCircle,
   MoreHorizontal,
-  Plus,
   Ruler,
   Sparkles,
-  Target,
   Trash2,
   X,
 } from "lucide-react";
@@ -25,6 +22,8 @@ import {
   type Analysis,
   type Joint,
   type Message,
+  type CoachFeedback as Feedback,
+  type CoachDrill,
   type Profile,
   type Session,
   type ToolConfig,
@@ -46,6 +45,8 @@ import { useAgentJob } from "../hooks/useAgentJob";
 import { Logo, ErrorNote } from "./common";
 import { fmt } from "../runtime/format";
 import { Player, Chart } from "./Player";
+import { CoachExercises } from "./CoachExercises";
+import { CoachFeedback } from "./CoachFeedback";
 
 export function SessionWorkspace({
   sessionId,
@@ -912,7 +913,6 @@ export function Workspace({
             ground={ground}
             calibrated={calibrated}
             referenceId={tool.referenceId}
-            onDrillComplete={() => {}}
           />
         )}
       </div>
@@ -928,7 +928,6 @@ function CoachPanel({
   ground,
   calibrated,
   referenceId,
-  onDrillComplete,
 }: {
   tool: ToolConfig;
   session?: Session;
@@ -938,12 +937,11 @@ function CoachPanel({
   ground: number;
   calibrated: boolean;
   referenceId?: string;
-  onDrillComplete: () => void;
 }) {
   const initial = sample
     ? "This is a synthetic movement sample, so I can show how coaching works, but cannot assess an athlete’s actual form. Try the motion controls, then upload a video for a real report."
     : `Your ${tool.sport.toLowerCase()} coach is ready. Ask about a moment or request an overall form review.`;
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<(Message & { feedback?: Feedback })[]>([
       { role: "assistant", content: initial },
     ]),
     [text, setText] = useState(""),
@@ -951,10 +949,7 @@ function CoachPanel({
     [stage, setStage] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [drill, setDrill] = useState<{
-      title: string;
-      instructions: string;
-    } | null>(
+    [drill, setDrill] = useState<CoachDrill | null>(
       sample
         ? {
             title:
@@ -965,10 +960,14 @@ function CoachPanel({
               tool.sport.toLowerCase() === "squash"
                 ? "Example drill: 2 sets of 8 gentle shadow swings. Move comfortably and pause to notice your balance. This sample drill is not based on analyzed footage."
                 : "Example drill: move slowly through a comfortable range, pause, and reset. This sample drill is not based on analyzed footage.",
+            steps: [
+              "Move slowly through a comfortable range.",
+              "Pause and notice your balance.",
+              "Return to your ready position before repeating.",
+            ],
           }
         : null,
-    ),
-    [completed, setCompleted] = useState(session?.completedDrills ?? []);
+    );
   const pendingQuestion = useRef<{ messages: Message[]; text: string } | null>(null);
   /** Restores the unanswered question after either request or background-review failure. */
   function rejectQuestion(message: string) {
@@ -991,6 +990,7 @@ function CoachPanel({
           role: "assistant",
           content:
             result.reply ?? "The coach returned no explanation. Please retry.",
+          feedback: result.feedback,
         },
       ]);
       if (result.drill) setDrill(result.drill);
@@ -1061,23 +1061,6 @@ function CoachPanel({
         rejectQuestion((e as Error).message);
     }
   }
-  async function complete() {
-    if (!drill) return;
-    const next = completed.includes(drill.title)
-      ? completed.filter((s) => s !== drill.title)
-      : [...completed, drill.title];
-    try {
-      if (session)
-        await api(`/api/sessions/${session.id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ completedDrills: next }),
-        });
-      setCompleted(next);
-      onDrillComplete();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
   return (
     <aside className="coach-panel" id="coach-panel">
       <div className="coach-heading">
@@ -1099,8 +1082,10 @@ function CoachPanel({
               {m.role === "assistant" ? "Coach" : "You"}
             </span>
             <p>{m.content}</p>
+            {m.feedback && <CoachFeedback feedback={m.feedback} />}
           </div>
         ))}
+        {drill && <CoachExercises drill={drill} session={session} />}
       </div>
       {busy && (
         <div className="coach-review-progress">
@@ -1113,39 +1098,13 @@ function CoachPanel({
           </button>
         </div>
       )}
-      {drill && (
-        <section className="drill">
-          <div className="section-heading">
-            <h3>{drill.title}</h3>
-            <Target size={17} />
-          </div>
-          <p>{drill.instructions}</p>
-          <button
-            className={`button ${completed.includes(drill.title) ? "secondary" : ""}`}
-            onClick={complete}
-          >
-            {completed.includes(drill.title) ? (
-              <Check size={15} />
-            ) : (
-              <Plus size={15} />
-            )}{" "}
-            {completed.includes(drill.title)
-              ? "Completed · undo"
-              : "Mark complete"}
-          </button>
-          <span className="small muted">
-            {completed.length} {completed.length === 1 ? "drill" : "drills"}{" "}
-            completed this session
-          </span>
-        </section>
-      )}
       {error && <ErrorNote message={error} onClose={() => setError("")} />}
       <div className="coach-suggestions">
         <button
           disabled={busy}
           onClick={() =>
             send(
-              "Review my overall form and suggest one prioritized focus and a practical drill.",
+              "Review my overall form. Tell me clearly what is going well and what I should improve, with evidence. Separately suggest an exercise with a checklist of practice actions.",
             )
           }
         >
