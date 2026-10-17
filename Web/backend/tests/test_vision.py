@@ -147,17 +147,36 @@ def test_shoe_origin_rejects_clipped_or_unreliable_feet(box: Box, joints: dict[s
     assert vision.shoe_contact_ground(box, joints, 100, 200) is None
 
 
-def test_analysis_waits_for_earliest_clear_shoe_boundary(monkeypatch: pytest.MonkeyPatch):
+@pytest.mark.parametrize(
+    "offset,sample_times,timing_error",
+    [
+        (0.0, [0.0, 0.1, 0.2], None),
+        (-0.0003666666666667, [0.0, 0.1, 0.2], None),
+        (12.5, [0.0, 0.1, 0.2], None),
+        (12.5, [0.0, 0.087, 0.215], None),
+        (math.nan, [0.0, 0.1, 0.2], "invalid frame timing"),
+        (math.inf, [0.0, 0.1, 0.2], "invalid frame timing"),
+        (0.0, [0.0, 0.0, 0.2], "frame times do not advance"),
+        (0.0, [0.0, -0.1, 0.2], "frame times do not advance"),
+    ],
+)
+def test_analysis_waits_for_earliest_clear_shoe_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+    offset: float,
+    sample_times: list[float],
+    timing_error: str | None,
+):
     from unittest.mock import MagicMock
 
     class TimedCapture:
         frame = 0
+        released = False
 
         def get(self, prop: int) -> float:
             return {
                 cv2.CAP_PROP_FPS: 30.0,
                 cv2.CAP_PROP_FRAME_COUNT: 9.0,
-                cv2.CAP_PROP_POS_MSEC: self.frame / 30 * 1000,
+                cv2.CAP_PROP_POS_MSEC: (offset + sample_times[min(self.frame // 3, 2)]) * 1000,
             }.get(prop, 0.0)
 
         def set(self, prop: int, value: float) -> bool:
@@ -168,7 +187,7 @@ def test_analysis_waits_for_earliest_clear_shoe_boundary(monkeypatch: pytest.Mon
             return True, np.zeros((200, 100, 3), dtype=np.uint8)
 
         def release(self) -> None:
-            pass
+            self.released = True
 
     detector_processor, detector, pose_processor, pose = [MagicMock() for _ in range(4)]
     detector_processor.return_value = {}
@@ -194,12 +213,25 @@ def test_analysis_waits_for_earliest_clear_shoe_boundary(monkeypatch: pytest.Mon
     monkeypatch.setattr(
         vision, "models", lambda: (detector_processor, detector, pose_processor, pose)
     )
-    monkeypatch.setattr(vision.cv2, "VideoCapture", lambda _: TimedCapture())
+    captures = []
+
+    def capture(_):
+        value = TimedCapture()
+        captures.append(value)
+        return value
+
+    monkeypatch.setattr(vision.cv2, "VideoCapture", capture)
+    if timing_error:
+        with pytest.raises(ValueError, match=timing_error):
+            vision.analyze("ignored.mov", "fixture", 0.1, lambda value, message: True)
+        assert all(value.released for value in captures)
+        return
     result = vision.analyze("ignored.mov", "fixture", 0.1, lambda value, message: True)
     assert result["ground"] == 185
-    assert result["groundTime"] == 0.2
+    assert result["groundTime"] == sample_times[2]
     assert result["groundSource"] == "person_boundary"
-    assert len(result["frames"]) == 3
+    assert [frame["time"] for frame in result["frames"]] == sample_times
+    assert all(value.released for value in captures)
 
 
 def test_preview_is_first_displayed_frame_and_small_jpeg(tmp_path):
