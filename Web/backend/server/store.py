@@ -146,7 +146,10 @@ def remove(key: str) -> None:
 
 
 def save_height_calibration(
-    record_id: str, calibration: Calibration, expected: Calibration | None = None
+    record_id: str,
+    calibration: Calibration,
+    expected: Calibration | None = None,
+    run_id: str | None = None,
 ) -> bool:
     """Set an automatic scale without replacing manual calibration or concurrent edits.
 
@@ -159,6 +162,9 @@ def save_height_calibration(
     else:
         condition = "payload->'calibration'=%s"
         parameters = (Jsonb(calibration), record_id, Jsonb(expected))
+    if run_id is not None:
+        condition += " AND payload->>'analysisRunId'=%s AND (payload->>'analysisLeaseUntil')::double precision > EXTRACT(EPOCH FROM clock_timestamp())"
+        parameters += (run_id,)
     from psycopg import sql
 
     query = sql.SQL(
@@ -166,3 +172,73 @@ def save_height_calibration(
     ).format(sql.SQL(condition))
     with pool().connection() as con:
         return con.execute(query, parameters).fetchone() is not None
+
+
+def claim_tracking(record_id: str, run_id: str) -> Record | None:
+    """Atomically claim an idle or expired job; live and legacy running jobs stay owned.
+
+    Database time decides expiry across computers. Completed footage is never recomputed.
+    """
+    with pool().connection() as con:
+        row = con.execute(
+            """UPDATE sportsbuilder_records SET payload=payload || jsonb_build_object(
+                'analysisRunId',%s::text,'analysisLeaseUntil',EXTRACT(EPOCH FROM clock_timestamp())+%s,
+                'status','queued','progress',0,'error',NULL,'stage','Queued')
+                WHERE kind='sessions' AND id=%s AND payload->>'status'<>'complete'
+                AND (CASE WHEN payload ? 'analysisRunId'
+                    THEN COALESCE((payload->>'analysisLeaseUntil')::double precision,0)
+                        <= EXTRACT(EPOCH FROM clock_timestamp())
+                    ELSE payload->>'status' NOT IN ('queued','processing') END)
+                RETURNING payload""",
+            (run_id, config.TRACKING_LEASE_SECONDS, record_id),
+        ).fetchone()
+    return cast(Record, row[0]) if row else None
+
+
+def update_tracking(
+    record_id: str, run_id: str, fields: Mapping[str, object], renew: bool = False
+) -> Record | None:
+    """Write only while this unexpired run owns the recording; stale workers change nothing.
+
+    Heartbeats extend ownership using database time. Terminal writes release the lease.
+    """
+    if any(key in fields for key in ("id", "analysisRunId", "analysisLeaseUntil")):
+        raise ValueError("Tracking ownership cannot be replaced by a worker.")
+    with pool().connection() as con:
+        row = con.execute(
+            """UPDATE sportsbuilder_records SET payload=payload || %s ||
+                CASE WHEN %s THEN jsonb_build_object('analysisLeaseUntil',
+                    EXTRACT(EPOCH FROM clock_timestamp())+%s)
+                WHEN %s THEN jsonb_build_object('analysisLeaseUntil',0)
+                ELSE '{}'::jsonb END
+                WHERE kind='sessions' AND id=%s AND payload->>'analysisRunId'=%s
+                AND (payload->>'analysisLeaseUntil')::double precision
+                    > EXTRACT(EPOCH FROM clock_timestamp()) RETURNING payload""",
+            (
+                Jsonb(fields),
+                renew,
+                config.TRACKING_LEASE_SECONDS,
+                fields.get("status") in ("complete", "failed", "uploaded"),
+                record_id,
+                run_id,
+            ),
+        ).fetchone()
+    return cast(Record, row[0]) if row else None
+
+
+def cancel_tracking(record_id: str) -> Record | None:
+    """Revoke the current run atomically so a peer worker cannot publish after cancellation.
+
+    A legacy unleased running job cannot be fenced, so preserve it until that app stops it.
+    """
+    with pool().connection() as con:
+        row = con.execute(
+            """UPDATE sportsbuilder_records SET payload=payload || jsonb_build_object(
+                'status','uploaded','progress',0,'error',NULL,
+                'stage','Analysis cancelled. Your video is saved.',
+                'analysisRunId',NULL,'analysisLeaseUntil',0)
+                WHERE kind='sessions' AND id=%s AND payload->>'status' IN ('queued','processing')
+                AND payload->>'analysisRunId' IS NOT NULL RETURNING payload""",
+            (record_id,),
+        ).fetchone()
+    return cast(Record, row[0]) if row else None

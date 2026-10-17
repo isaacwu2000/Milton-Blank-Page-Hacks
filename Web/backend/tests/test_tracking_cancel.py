@@ -1,5 +1,6 @@
 """Cancellation keeps stored footage and prevents late tracking results from publishing."""
 
+import time
 from copy import deepcopy
 
 import pytest
@@ -8,6 +9,8 @@ from fastapi.testclient import TestClient
 from server import app as runtime
 from server import store
 
+pytestmark = pytest.mark.usefixtures("tracking_store")
+
 SESSION_ID = "00000000-0000-4000-8000-000000000099"
 
 
@@ -15,6 +18,8 @@ def test_cancel_retains_footage_and_returns_a_retryable_session(monkeypatch: pyt
     session = {
         "id": SESSION_ID,
         "status": "processing",
+        "analysisRunId": "cancel-test",
+        "analysisLeaseUntil": time.time() + 60,
         "progress": 0.4,
         "sourceKey": "videos/athlete.mov",
         "previewKey": "previews/athlete.jpg",
@@ -67,6 +72,8 @@ def test_cancelled_worker_discards_late_results_and_removes_temporary_video(
     session = {
         "id": SESSION_ID,
         "status": "queued",
+        "analysisRunId": "cancel-test",
+        "analysisLeaseUntil": time.time() + 60,
         "sourceKey": "videos/saved.mov",
         "interval": 0.1,
     }
@@ -114,7 +121,12 @@ def test_cancelled_worker_discards_late_results_and_removes_temporary_video(
 def test_cancelled_queued_job_never_loads_video_or_models(monkeypatch: pytest.MonkeyPatch):
     import asyncio
 
-    session = {"id": SESSION_ID, "status": "queued"}
+    session = {
+        "id": SESSION_ID,
+        "status": "queued",
+        "analysisRunId": "cancel-test",
+        "analysisLeaseUntil": time.time() + 60,
+    }
     monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(session))
     monkeypatch.setattr(
         store, "read", lambda *args: pytest.fail("Queued cancellation must skip work")
