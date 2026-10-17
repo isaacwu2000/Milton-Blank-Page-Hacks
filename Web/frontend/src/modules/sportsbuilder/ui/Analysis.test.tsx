@@ -26,6 +26,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  vi.useRealTimers();
 });
 
 describe("height-scale workflow", () => {
@@ -428,4 +429,40 @@ it("drags the divider left to widen coaching and clamps saved widths to laptop s
   );
   const restored = screen.getByRole("separator", { name: "Resize coach panel" });
   expect(restored.getAttribute("aria-valuenow")).toBe(restored.getAttribute("aria-valuemax"));
+});
+
+it("keeps review progress visible outside the conversation and lets the athlete stop and retry", async () => {
+  vi.mocked(post).mockResolvedValue({ id: "coach-job" });
+  vi.mocked(api).mockResolvedValue({ status: "running", stage: "Reviewing athlete footage frames 1–32 of 42" });
+  render(<Workspace analysis={{ ...makeSample(), source: "video" }} tool={sampleTool}
+    session={{ id: "practice", name: "Practice", createdAt: "2026-10-17T12:00:00Z", profileId: "athlete", toolId: "tool", status: "complete", progress: 1, duration: 5, interval: 0.1, sourceKey: "private.mov" }}
+    onBack={() => {}} profiles={[]} sessions={[]} />);
+  fireEvent.click(screen.getByRole("button", { name: "Review my form" }));
+  const progress = await screen.findByRole("status");
+  expect(progress.closest(".coach-conversation")).toBeNull();
+  await waitFor(() => expect(progress.textContent).toContain("Reviewing athlete footage"));
+  fireEvent.click(screen.getByRole("button", { name: "Stop review" }));
+  expect(screen.queryByRole("status")).toBeNull();
+  const input = screen.getByRole("textbox", { name: "Question for the coach" }) as HTMLTextAreaElement;
+  expect(input.disabled).toBe(false);
+  expect(input.value).toContain("Review my overall form");
+  await waitFor(() => expect(post).toHaveBeenCalledWith("/agent/jobs/coach-job/cancel", {}));
+});
+
+it("restores the question if starting a review never responds and cancels a late job", async () => {
+  vi.useFakeTimers();
+  let finishStart!: (result: unknown) => void;
+  vi.mocked(post)
+    .mockReturnValueOnce(new Promise((resolve) => { finishStart = resolve; }))
+    .mockResolvedValue({ status: "failed" });
+  render(<Workspace analysis={{ ...makeSample(), source: "video" }} tool={sampleTool}
+    session={{ id: "practice", name: "Practice", createdAt: "2026-10-17T12:00:00Z", profileId: "athlete", toolId: "tool", status: "complete", progress: 1, duration: 5, interval: 0.1, sourceKey: "private.mov" }}
+    onBack={() => {}} profiles={[]} sessions={[]} />);
+  fireEvent.click(screen.getByRole("button", { name: "Review my form" }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+  expect(screen.getByText("The review could not start. Please retry your message.")).toBeTruthy();
+  expect((screen.getByRole("textbox", { name: "Question for the coach" }) as HTMLTextAreaElement).disabled).toBe(false);
+  await act(async () => { finishStart({ id: "late-job" }); });
+  expect(post).toHaveBeenCalledWith("/agent/jobs/late-job/cancel", {});
+  expect(screen.queryByRole("status")).toBeNull();
 });

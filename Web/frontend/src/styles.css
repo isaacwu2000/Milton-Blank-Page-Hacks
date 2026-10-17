@@ -999,6 +999,21 @@ dd {
   flex: 1;
   padding-right: 4px;
 }
+.coach-review-progress {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: 12px;
+}
+.coach-review-progress p {
+  flex: 1 1 160px;
+}
+.coach-review-progress .button {
+  font-size: 11px;
+  padding: 6px 10px;
+}
 .coach-message {
   margin-bottom: 24px;
 }

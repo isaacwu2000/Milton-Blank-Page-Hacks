@@ -125,3 +125,25 @@ describe("builder and coach request boundary", () => {
     });
   });
 });
+
+it("stops an active coaching review and aborts its provider request", async () => {
+  const sessionId = "ecf1dc5a-8808-411e-bd7e-65d0ff337aee";
+  const sample = makeSample();
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    if (url.endsWith("/analysis?images=true")) return Response.json({ ...sample, source: "video", frames: [{ ...sample.frames[0], image: "fixture-image" }] });
+    if (url.endsWith(`/api/sessions/${sessionId}`)) return Response.json({ id: sessionId, profileId: "athlete" });
+    if (url.endsWith("/api/home")) return Response.json({ profiles: [], sessions: [] });
+    throw Error("Unexpected backend request");
+  }));
+  vi.mocked(chat).mockImplementation((_messages, _tools, signal) => new Promise((_resolve, reject) => {
+    signal?.addEventListener("abort", () => reject(Error("Aborted")), { once: true });
+  }));
+  const started = await post("/agent/coach", { sessionId, tool: sampleTool, messages, selectedTime: 0 }).then((response) => response.json());
+  await vi.waitFor(() => expect(chat).toHaveBeenCalledTimes(1));
+  const response = await post(`/agent/jobs/${started.id}/cancel`, {});
+  expect(response.status).toBe(200);
+  expect(vi.mocked(chat).mock.calls[0][2]?.aborted).toBe(true);
+  const stopped = await nativeFetch(`${base}/agent/jobs/${started.id}`).then((result) => result.json());
+  expect(stopped).toMatchObject({ status: "failed", stage: "Stopped", error: "Review stopped. You can edit your question and retry." });
+  expect(stopped.reply).toBeUndefined();
+});

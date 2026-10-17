@@ -998,18 +998,27 @@ function CoachPanel({
       setBusy(false);
     },
     rejectQuestion,
+    (result) => setStage(result.stage),
   );
   useEffect(() => {
-    if (!job) return;
-    const t = setInterval(
-      () =>
-        api<AgentJob>(`/agent/jobs/${job}`)
-          .then((j) => setStage(j.stage))
-          .catch(() => {}),
-      POLLING.agentStageMs,
-    );
-    return () => clearInterval(t);
-  }, [job]);
+    if (!busy || job) return;
+    const deadline = setTimeout(() => {
+      rejectQuestion("The review could not start. Please retry your message.");
+    }, POLLING.agentStartTimeoutMs);
+    return () => clearTimeout(deadline);
+  }, [busy, job]);
+  /** Stops waiting immediately and asks the service to abort the known review. */
+  function stopReview() {
+    rejectQuestion("");
+    if (job) cancelReview(job);
+  }
+  /** Aborts service work; a failed cancellation never discards the restored question. */
+  function cancelReview(id: string) {
+    void post(`/agent/jobs/${id}/cancel`, {}).catch(() => {
+      if (!pendingQuestion.current)
+        setError("Your question is ready to retry, but the previous review could not be stopped.");
+    });
+  }
   async function send(value = text) {
     if (!value.trim() || busy) return;
     setText("");
@@ -1027,7 +1036,9 @@ function CoachPanel({
       ]);
       return;
     }
-    pendingQuestion.current = { messages, text: value };
+    const pending = { messages, text: value };
+    pendingQuestion.current = pending;
+    setStage("Starting your review…");
     setBusy(true);
     try {
       const result = await post<{ id: string }>("/agent/coach", {
@@ -1039,10 +1050,15 @@ function CoachPanel({
         calibration: calibrated ? { metersPerPixel: scale, ground } : undefined,
         referenceId: referenceId || undefined,
       });
+      if (pendingQuestion.current !== pending) {
+        cancelReview(result.id);
+        return;
+      }
       setJob(result.id);
       setStage("Preparing video evidence");
     } catch (e) {
-      rejectQuestion((e as Error).message);
+      if (pendingQuestion.current === pending)
+        rejectQuestion((e as Error).message);
     }
   }
   async function complete() {
@@ -1085,13 +1101,18 @@ function CoachPanel({
             <p>{m.content}</p>
           </div>
         ))}
-        {busy && (
-          <p role="status" className="small muted">
-            <LoaderCircle size={14} className="spin inline" />
-            {stage || "Reviewing your movement…"}
-          </p>
-        )}
       </div>
+      {busy && (
+        <div className="coach-review-progress">
+          <p role="status" className="small muted">
+            <LoaderCircle size={14} className="spin inline" aria-hidden="true" />
+            {stage || "Starting your review…"}
+          </p>
+          <button type="button" className="button secondary" onClick={stopReview}>
+            Stop review
+          </button>
+        </div>
+      )}
       {drill && (
         <section className="drill">
           <div className="section-heading">
