@@ -76,11 +76,22 @@ export function Builder({
   const [startingReview, setStartingReview] = useState(false);
   const [failedDraft, setFailedDraft] = useState<ToolConfig | null>(null);
   const ref = useRef<HTMLInputElement>(null);
-  const lastChecked = useRef<{ tool: ToolConfig; jobId: string | null; revision: number; saved: boolean } | undefined>(
-    initialTool ? { tool: initialTool, jobId: null, revision: 1, saved: true } : undefined,
+  const lastChecked = useRef<
+    | {
+        tool: ToolConfig;
+        jobId: string | null;
+        revision: number;
+        saved: boolean;
+      }
+    | undefined
+  >(
+    initialTool
+      ? { tool: initialTool, jobId: null, revision: 1, saved: true }
+      : undefined,
   );
   const nextRevision = useRef(initialTool ? 1 : 0);
   const reviewing = useRef<ToolConfig | null>(null);
+  const reviewingRevision = useRef(revision);
   const pending = useRef(queued);
   pending.current = queued;
   const { conversationRef, latestRef } = useConversationScroll(messages, busy);
@@ -91,12 +102,28 @@ export function Builder({
       return tool;
     });
   }
+  // Both review-start and in-flight failures restore the same checked snapshot.
+  function restoreChecked(message: string, failed: ToolConfig | null) {
+    setFailedDraft(failed);
+    const checked = lastChecked.current;
+    if (checked) {
+      showPreview(checked.tool);
+      setReviewedId(checked.jobId);
+      setRevision(checked.revision);
+      setSaved(checked.saved);
+    }
+    setStage(
+      checked
+        ? "Previous checked version · Update needs attention"
+        : "Draft · Review needs attention",
+    );
+    setError(message);
+  }
   useAgentJob(
     job,
     (result) => {
       const completedId = job;
       setJob(null);
-      if (pending.current) return;
       if (!result.preview) {
         setError("The review returned no coach. Please retry.");
         return;
@@ -104,28 +131,23 @@ export function Builder({
       const tool = validateTool(result.preview);
       nextRevision.current = Math.max(nextRevision.current, 1);
       setRevision((value) => value || 1);
-      lastChecked.current = { tool, jobId: completedId, revision: revision || 1, saved: false };
+      lastChecked.current = {
+        tool,
+        jobId: completedId,
+        revision: reviewingRevision.current || 1,
+        saved: false,
+      };
+      if (pending.current) return;
       showPreview(tool);
       setReviewedId(completedId);
+      setSaved(false);
       setStage("Checked on desktop and mobile · Ready to save");
       setFailedDraft(null);
     },
     (message) => {
       setJob(null);
       if (pending.current) return;
-      setFailedDraft(reviewing.current);
-      if (lastChecked.current) {
-        showPreview(lastChecked.current.tool);
-        setReviewedId(lastChecked.current.jobId);
-        setRevision(lastChecked.current.revision);
-        setSaved(lastChecked.current.saved);
-      }
-      setStage(
-        lastChecked.current
-          ? "Previous checked version · Update needs attention"
-          : "Draft · Review needs attention",
-      );
-      setError(message);
+      restoreChecked(message, reviewing.current);
     },
     (progress) => {
       if (pending.current) return;
@@ -143,9 +165,11 @@ export function Builder({
   useEffect(() => {
     if (!queued || job || startingReview) return;
     const candidate = queued;
+    pending.current = null;
     setQueued(null);
     setStartingReview(true);
     reviewing.current = candidate;
+    reviewingRevision.current = revision;
     setStage("Draft · Preparing desktop and mobile review…");
     void post<{ id: string }>("/agent/build", {
       candidate,
@@ -155,12 +179,10 @@ export function Builder({
     })
       .then((result) => setJob(result.id))
       .catch((problem: Error) => {
-        setFailedDraft(candidate);
-        setError(problem.message);
-        setStage("Draft · Review needs attention");
+        if (!pending.current) restoreChecked(problem.message, candidate);
       })
       .finally(() => setStartingReview(false));
-  }, [queued, job, startingReview, messages, referenceId]);
+  }, [queued, job, startingReview, messages, referenceId, revision]);
 
   async function send(content = text) {
     if (!content.trim() || busy) return;
@@ -239,7 +261,8 @@ export function Builder({
     try {
       await post<SavedTool>(`/agent/jobs/${reviewedId}/save`, {});
       setSaved(true);
-      if (lastChecked.current?.jobId === reviewedId) lastChecked.current.saved = true;
+      if (lastChecked.current?.jobId === reviewedId)
+        lastChecked.current.saved = true;
       setStage("Saved · Ready for your recordings");
       onBuilt();
     } catch (problem) {
@@ -268,6 +291,7 @@ export function Builder({
       if (revision) {
         const updated = { ...preview, referenceId: session.id };
         showPreview(updated);
+        setRevision(++nextRevision.current);
         setReviewedId(null);
         setSaved(false);
         setQueued(updated);
@@ -390,7 +414,12 @@ export function Builder({
             attachment={
               uploadingReference ? (
                 <p className="prompt-bar-attachment" role="status">
-                  <LoaderCircle className="spin inline" size={14} aria-hidden="true" /> Uploading reference video…
+                  <LoaderCircle
+                    className="spin inline"
+                    size={14}
+                    aria-hidden="true"
+                  />{" "}
+                  Uploading reference video…
                 </p>
               ) : referenceName ? (
                 <p className="prompt-bar-attachment">{referenceName}</p>
@@ -404,6 +433,10 @@ export function Builder({
               disabled={busy || checking}
               onClick={() => {
                 setError("");
+                showPreview(failedDraft);
+                setRevision(++nextRevision.current);
+                setReviewedId(null);
+                setSaved(false);
                 setQueued(failedDraft);
               }}
             >

@@ -27,54 +27,213 @@ afterEach(() => {
 });
 it("keeps a complete preview while editing and saves only after background review", async () => {
   vi.mocked(post)
-    .mockResolvedValueOnce({ reply: "Try this coach", ready: false, preview: sampleTool })
+    .mockResolvedValueOnce({
+      reply: "Try this coach",
+      ready: false,
+      preview: sampleTool,
+    })
     .mockResolvedValueOnce({ id: "review-one" });
   const onBuilt = vi.fn();
   render(<Builder onClose={vi.fn()} onBuilt={onBuilt} />);
   expect(screen.getByRole("region", { name: "Coach preview" })).toBeTruthy();
-  fireEvent.change(screen.getByRole("textbox", { name: "Answer the builder" }), { target: { value: "Build a squash coach" } });
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "Answer the builder" }),
+    { target: { value: "Build a squash coach" } },
+  );
   fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
   await screen.findByRole("heading", { name: sampleTool.name });
-  await waitFor(() => expect(post).toHaveBeenCalledWith("/agent/build", expect.objectContaining({ candidate: sampleTool, save: false })));
-  expect(screen.getByRole("button", { name: "Save coach" }).hasAttribute("disabled")).toBe(true);
+  await waitFor(() =>
+    expect(post).toHaveBeenCalledWith(
+      "/agent/build",
+      expect.objectContaining({ candidate: sampleTool, save: false }),
+    ),
+  );
+  expect(
+    screen.getByRole("button", { name: "Save coach" }).hasAttribute("disabled"),
+  ).toBe(true);
   const complete = vi.mocked(useAgentJob).mock.calls.at(-1)![1];
   const { act } = await import("@testing-library/react");
-  await act(async () => complete({ status: "complete", stage: "Ready", preview: sampleTool }));
+  await act(async () =>
+    complete({ status: "complete", stage: "Ready", preview: sampleTool }),
+  );
   expect(onBuilt).not.toHaveBeenCalled();
   vi.mocked(post).mockResolvedValueOnce({ ...sampleTool, id: "saved" });
   fireEvent.click(screen.getByRole("button", { name: "Save coach" }));
-  await waitFor(() => expect(post).toHaveBeenCalledWith("/agent/jobs/review-one/save", {}));
+  await waitFor(() =>
+    expect(post).toHaveBeenCalledWith("/agent/jobs/review-one/save", {}),
+  );
   expect(onBuilt).toHaveBeenCalledOnce();
   let finish!: (value: unknown) => void;
-  vi.mocked(post).mockImplementationOnce(() => new Promise((done) => { finish = done; }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Answer the builder" }), { target: { value: "Make it gentler" } });
+  vi.mocked(post).mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        finish = done;
+      }),
+  );
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "Answer the builder" }),
+    { target: { value: "Make it gentler" } },
+  );
   fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
   expect(screen.getByRole("heading", { name: sampleTool.name })).toBeTruthy();
-  await act(async () => finish({ reply: "Could not change that yet", ready: false }));
+  await act(async () =>
+    finish({ reply: "Could not change that yet", ready: false }),
+  );
   expect(screen.getByRole("heading", { name: sampleTool.name })).toBeTruthy();
 });
 it("restores the previously checked version when a refinement fails review", async () => {
   const { act } = await import("@testing-library/react");
   vi.mocked(post)
-    .mockResolvedValueOnce({ reply: "First version", ready: false, preview: sampleTool })
+    .mockResolvedValueOnce({
+      reply: "First version",
+      ready: false,
+      preview: sampleTool,
+    })
     .mockResolvedValueOnce({ id: "first" });
   render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
   const input = screen.getByRole("textbox", { name: "Answer the builder" });
   fireEvent.change(input, { target: { value: "Build my squash coach" } });
   fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
-  await waitFor(() => expect(vi.mocked(useAgentJob).mock.calls.at(-1)![0]).toBe("first"));
-  await act(async () => vi.mocked(useAgentJob).mock.calls.at(-1)![1]({ status: "complete", stage: "Ready", preview: sampleTool }));
+  await waitFor(() =>
+    expect(vi.mocked(useAgentJob).mock.calls.at(-1)![0]).toBe("first"),
+  );
+  await act(async () =>
+    vi
+      .mocked(useAgentJob)
+      .mock.calls.at(-1)![1]({
+        status: "complete",
+        stage: "Ready",
+        preview: sampleTool,
+      }),
+  );
   vi.mocked(post)
-    .mockResolvedValueOnce({ reply: "Changed", ready: false, preview: { ...sampleTool, name: "Gentler coach" } })
+    .mockResolvedValueOnce({
+      reply: "Changed",
+      ready: false,
+      preview: { ...sampleTool, name: "Gentler coach" },
+    })
     .mockResolvedValueOnce({ id: "second" });
   fireEvent.change(input, { target: { value: "Make it gentler" } });
   fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
-  await waitFor(() => expect(vi.mocked(useAgentJob).mock.calls.at(-1)![0]).toBe("second"));
-  await act(async () => vi.mocked(useAgentJob).mock.calls.at(-1)![2]("Review could not finish"));
+  await waitFor(() =>
+    expect(vi.mocked(useAgentJob).mock.calls.at(-1)![0]).toBe("second"),
+  );
+  await act(async () =>
+    vi.mocked(useAgentJob).mock.calls.at(-1)![2]("Review could not finish"),
+  );
   expect(screen.getByRole("heading", { name: sampleTool.name })).toBeTruthy();
   expect(screen.queryByRole("heading", { name: "Gentler coach" })).toBeNull();
-  expect(screen.getByRole("button", { name: "Save coach" }).hasAttribute("disabled")).toBe(false);
+  expect(
+    screen.getByRole("button", { name: "Save coach" }).hasAttribute("disabled"),
+  ).toBe(false);
   expect(screen.getByRole("button", { name: "Retry review" })).toBeTruthy();
+});
+it("allows saving a successful retry after a failed edit to a saved coach", async () => {
+  const { act } = await import("@testing-library/react");
+  vi.mocked(post)
+    .mockResolvedValueOnce({
+      reply: "Changed",
+      ready: false,
+      preview: { ...sampleTool, name: "Gentler coach" },
+    })
+    .mockResolvedValueOnce({ id: "failed" });
+  render(
+    <Builder initialTool={sampleTool} onClose={vi.fn()} onBuilt={vi.fn()} />,
+  );
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "Answer the builder" }),
+    { target: { value: "Make it gentler" } },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
+  await waitFor(() =>
+    expect(vi.mocked(useAgentJob).mock.calls.at(-1)![0]).toBe("failed"),
+  );
+  await act(async () =>
+    vi.mocked(useAgentJob).mock.calls.at(-1)![2]("Review failed"),
+  );
+  vi.mocked(post).mockResolvedValueOnce({ id: "retry" });
+  fireEvent.click(screen.getByRole("button", { name: "Retry review" }));
+  await waitFor(() =>
+    expect(vi.mocked(useAgentJob).mock.calls.at(-1)![0]).toBe("retry"),
+  );
+  await act(async () =>
+    vi
+      .mocked(useAgentJob)
+      .mock.calls.at(-1)![1]({
+        status: "complete",
+        stage: "Ready",
+        preview: { ...sampleTool, name: "Gentler coach" },
+      }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Save coach" }).hasAttribute("disabled"),
+  ).toBe(false);
+});
+it("restores the saved preview when a new review cannot start", async () => {
+  vi.mocked(post)
+    .mockResolvedValueOnce({
+      reply: "Changed",
+      ready: false,
+      preview: { ...sampleTool, name: "Unreviewed edit" },
+    })
+    .mockRejectedValueOnce(Error("Another build is active"));
+  render(
+    <Builder initialTool={sampleTool} onClose={vi.fn()} onBuilt={vi.fn()} />,
+  );
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "Answer the builder" }),
+    { target: { value: "Change the tone" } },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
+  await screen.findByText("Another build is active");
+  expect(screen.getByRole("heading", { name: sampleTool.name })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Unreviewed edit" })).toBeNull();
+});
+it("retains a completed review as the fallback while the next version waits", async () => {
+  const { act } = await import("@testing-library/react");
+  vi.mocked(post)
+    .mockResolvedValueOnce({
+      reply: "First",
+      ready: false,
+      preview: sampleTool,
+    })
+    .mockResolvedValueOnce({ id: "first" });
+  render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
+  const input = screen.getByRole("textbox", { name: "Answer the builder" });
+  fireEvent.change(input, { target: { value: "Build a squash coach" } });
+  fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
+  await waitFor(() =>
+    expect(vi.mocked(useAgentJob).mock.calls.at(-1)![0]).toBe("first"),
+  );
+  vi.mocked(post)
+    .mockResolvedValueOnce({
+      reply: "Next",
+      ready: false,
+      preview: { ...sampleTool, name: "Next version" },
+    })
+    .mockResolvedValueOnce({ id: "second" });
+  fireEvent.change(input, { target: { value: "Make it gentler" } });
+  fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
+  await screen.findByRole("heading", { name: "Next version" });
+  await act(async () =>
+    vi
+      .mocked(useAgentJob)
+      .mock.calls.at(-1)![1]({
+        status: "complete",
+        stage: "Ready",
+        preview: sampleTool,
+      }),
+  );
+  await waitFor(() =>
+    expect(vi.mocked(useAgentJob).mock.calls.at(-1)![0]).toBe("second"),
+  );
+  await act(async () =>
+    vi.mocked(useAgentJob).mock.calls.at(-1)![2]("Second review failed"),
+  );
+  expect(screen.getByRole("heading", { name: sampleTool.name })).toBeTruthy();
+  expect(
+    screen.getByRole("button", { name: "Save coach" }).hasAttribute("disabled"),
+  ).toBe(false);
 });
 it("warns before an early build and includes an unsent idea when continuing", async () => {
   vi.mocked(post).mockResolvedValue({ id: "job" });
@@ -83,7 +242,9 @@ it("warns before an early build and includes an unsent idea when continuing", as
     screen.getByRole("textbox", { name: "Answer the builder" }),
     { target: { value: "A beginner tennis coach" } },
   );
-  expect(screen.getByRole("button", { name: "Build my tool" }).closest("form")).toBe(
+  expect(
+    screen.getByRole("button", { name: "Build my tool" }).closest("form"),
+  ).toBe(
     screen.getByRole("textbox", { name: "Answer the builder" }).closest("form"),
   );
   fireEvent.click(screen.getByRole("button", { name: "Build my tool" }));
@@ -160,11 +321,18 @@ it("keeps an early-build failure recoverable", async () => {
 
 it("restores a rejected interview draft and retries without duplicate user turns", async () => {
   vi.mocked(post)
-    .mockRejectedValueOnce(Error("The AI returned an incomplete response. Please retry your message."))
+    .mockRejectedValueOnce(
+      Error(
+        "The AI returned an incomplete response. Please retry your message.",
+      ),
+    )
     .mockResolvedValueOnce({ reply: "Who is it for?", ready: false });
   render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
-  const input = screen.getByRole("textbox", { name: "Answer the builder" }) as HTMLTextAreaElement;
-  const idea = "Build a coaching tool which analyzes my squash serve from the forehand side.";
+  const input = screen.getByRole("textbox", {
+    name: "Answer the builder",
+  }) as HTMLTextAreaElement;
+  const idea =
+    "Build a coaching tool which analyzes my squash serve from the forehand side.";
   fireEvent.change(input, { target: { value: idea } });
   fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
   await screen.findByText(/The AI returned an incomplete response/);
@@ -172,28 +340,43 @@ it("restores a rejected interview draft and retries without duplicate user turns
   fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
   await screen.findByText("Who is it for?");
   expect(screen.getAllByText(idea)).toHaveLength(1);
-  expect(vi.mocked(post).mock.calls[1][1]).toEqual({ messages: expect.arrayContaining([{ role: "user", content: idea }]) });
-  expect((vi.mocked(post).mock.calls[1][1] as { messages: unknown[] }).messages).toHaveLength(2);
+  expect(vi.mocked(post).mock.calls[1][1]).toEqual({
+    messages: expect.arrayContaining([{ role: "user", content: idea }]),
+  });
+  expect(
+    (vi.mocked(post).mock.calls[1][1] as { messages: unknown[] }).messages,
+  ).toHaveLength(2);
 });
 
 it("shows concise activity while preparing the next interview question", async () => {
   vi.mocked(post).mockReturnValue(new Promise(() => {}));
   render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
-  fireEvent.change(screen.getByRole("textbox", { name: "Answer the builder" }), {
-    target: { value: "Help me build one for situps" },
-  });
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "Answer the builder" }),
+    {
+      target: { value: "Help me build one for situps" },
+    },
+  );
   fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
   expect(screen.getByText(/Preparing your next question/)).toBeTruthy();
 });
 
 it("reveals the newest interview reply inside the chat scroller", async () => {
-  vi.mocked(post).mockResolvedValue({ reply: "Who is the sit-up coach for?", ready: false });
-  const view = render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
-  const conversation = view.container.querySelector(".conversation") as HTMLDivElement;
-  Object.defineProperty(conversation, "scrollHeight", { value: 900 });
-  fireEvent.change(screen.getByRole("textbox", { name: "Answer the builder" }), {
-    target: { value: "Help me build one for situps" },
+  vi.mocked(post).mockResolvedValue({
+    reply: "Who is the sit-up coach for?",
+    ready: false,
   });
+  const view = render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
+  const conversation = view.container.querySelector(
+    ".conversation",
+  ) as HTMLDivElement;
+  Object.defineProperty(conversation, "scrollHeight", { value: 900 });
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "Answer the builder" }),
+    {
+      target: { value: "Help me build one for situps" },
+    },
+  );
   fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
   await screen.findByText("Who is the sit-up coach for?");
   expect(conversation.scrollTop).toBe(900);
