@@ -1732,11 +1732,11 @@ button .loading-status {
   width: 3px;
   height: 40px;
   border-radius: 3px;
-  background: var(--neutral-light-200);
+  background: color-mix(in oklch, var(--neutral-dark-500) 30%, var(--neutral-light-400));
 }
 .builder-resize-handle:hover > span,
 .builder-resize-handle:focus-visible > span {
-  background: var(--neutral-dark-300);
+  background: var(--neutral-dark-400);
 }
 .builder-resize-handle:focus-visible {
   outline: 2px solid var(--accent-900);
