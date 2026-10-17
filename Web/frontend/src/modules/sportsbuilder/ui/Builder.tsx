@@ -11,8 +11,7 @@ import {
 } from "../../../../../shared";
 import { IconButton, PromptBar, ConfirmDialog } from "../../../components";
 import { api, post } from "../services/api";
-import { type Brief, type AgentJob } from "../types";
-import { useAgentJob } from "../hooks/useAgentJob";
+import { streamBuilder } from "../services/builderStream";
 import { useConversationScroll } from "../hooks/useConversationScroll";
 import { ErrorNote } from "./common";
 import { BUILDER_WELCOME } from "../config";
@@ -33,9 +32,9 @@ const starter: ToolConfig = {
 };
 
 /**
- * Swaps complete validated previews, then reviews each configuration before saving.
- * - New edits keep the current preview visible and queue behind an active review.
- * - Only the server's accepted job can be saved; failed edits retain the last checked coach.
+ * Streams conversation while preserving an atomic, validated coach preview.
+ * - A follow-up cancels the old turn; late callbacks cannot replace the latest coach.
+ * - Only server-held validated configurations can be saved; failed edits preserve the preview.
  */
 export function Builder({
   onClose,
@@ -52,14 +51,13 @@ export function Builder({
     {
       role: "assistant",
       content: initialTool
-        ? "What would you like to change? Your saved coach stays available while we review a new version."
+        ? "What would you like to change? Your saved coach stays available while we update it."
         : BUILDER_WELCOME,
     },
   ]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [brief, setBrief] = useState<Brief | null>(null);
   const [ready, setReady] = useState(false);
   const [confirmEarlyBuild, setConfirmEarlyBuild] = useState(false);
   const [referenceId, setReferenceId] = useState<string | undefined>(
@@ -67,213 +65,136 @@ export function Builder({
   );
   const [referenceName, setReferenceName] = useState("");
   const [uploadingReference, setUploadingReference] = useState(false);
-  const [job, setJob] = useState<string | null>(null);
-  const [reviewedId, setReviewedId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [validatedId, setValidatedId] = useState<string | null>(null);
   const [stage, setStage] = useState("");
   const [preview, setPreview] = useState<ToolConfig>(initialTool ?? starter);
   const [revision, setRevision] = useState(initialTool ? 1 : 0);
   const [saved, setSaved] = useState(Boolean(initialTool));
-  const [queued, setQueued] = useState<ToolConfig | null>(null);
-  const [startingReview, setStartingReview] = useState(false);
-  const [failedDraft, setFailedDraft] = useState<ToolConfig | null>(null);
+  const [retry, setRetry] = useState<{
+    content: string;
+    force: boolean;
+  } | null>(null);
   const ref = useRef<HTMLInputElement>(null);
-  const lastChecked = useRef<
-    | {
-        tool: ToolConfig;
-        jobId: string | null;
-        revision: number;
-        saved: boolean;
-      }
-    | undefined
-  >(
-    initialTool
-      ? { tool: initialTool, jobId: null, revision: 1, saved: true }
-      : undefined,
-  );
-  const nextRevision = useRef(initialTool ? 1 : 0);
-  const reviewing = useRef<ToolConfig | null>(null);
-  const reviewingRevision = useRef(revision);
-  const pending = useRef(queued);
-  pending.current = queued;
+  const active = useRef<AbortController | null>(null);
+  const history = useRef(messages);
+  history.current = messages;
   const { conversationRef, latestRef } = useConversationScroll(messages, busy);
+  useEffect(() => () => active.current?.abort(), []);
 
-  function showPreview(tool: ToolConfig) {
-    setPreview((previous) => {
-      if (JSON.stringify(previous) === JSON.stringify(tool)) return previous;
-      return tool;
-    });
-  }
-  // Both review-start and in-flight failures restore the same checked snapshot.
-  function restoreChecked(message: string, failed: ToolConfig | null) {
-    setFailedDraft(failed);
-    const checked = lastChecked.current;
-    if (checked) {
-      showPreview(checked.tool);
-      setReviewedId(checked.jobId);
-      setRevision(checked.revision);
-      setSaved(checked.saved);
-    }
-    setStage(
-      checked
-        ? "Previous checked version · Update needs attention"
-        : "Draft · Review needs attention",
-    );
-    setError(message);
-  }
-  useAgentJob(
-    job,
-    (result) => {
-      const completedId = job;
-      setJob(null);
-      if (!result.preview) {
-        setError("The review returned no coach. Please retry.");
-        return;
-      }
-      const tool = validateTool(result.preview);
-      nextRevision.current = Math.max(nextRevision.current, 1);
-      setRevision((value) => value || 1);
-      lastChecked.current = {
-        tool,
-        jobId: completedId,
-        revision: reviewingRevision.current || 1,
-        saved: false,
-      };
-      if (pending.current) return;
-      showPreview(tool);
-      setReviewedId(completedId);
-      setSaved(false);
-      setStage("Checked on desktop and mobile · Ready to save");
-      setFailedDraft(null);
-    },
-    (message) => {
-      setJob(null);
-      if (pending.current) return;
-      restoreChecked(message, reviewing.current);
-    },
-    (progress) => {
-      if (pending.current) return;
-      setStage(`Draft · ${progress.stage}`);
-      if (progress.preview) {
-        const tool = validateTool(progress.preview);
-        showPreview(tool);
-        reviewing.current = tool;
-        nextRevision.current = Math.max(nextRevision.current, 1);
-        setRevision((value) => value || nextRevision.current);
-      }
-    },
-  );
-
-  useEffect(() => {
-    if (!queued || job || startingReview) return;
-    const candidate = queued;
-    pending.current = null;
-    setQueued(null);
-    setStartingReview(true);
-    reviewing.current = candidate;
-    reviewingRevision.current = revision;
-    setStage("Draft · Preparing desktop and mobile review…");
-    void post<{ id: string }>("/agent/build", {
-      candidate,
-      messages,
-      referenceId,
-      save: false,
-    })
-      .then((result) => setJob(result.id))
-      .catch((problem: Error) => {
-        if (!pending.current) restoreChecked(problem.message, candidate);
-      })
-      .finally(() => setStartingReview(false));
-  }, [queued, job, startingReview, messages, referenceId, revision]);
-
-  async function send(content = text) {
-    if (!content.trim() || busy) return;
-    const next = [
-      ...messages,
-      { role: "user" as const, content: content.trim() },
-    ];
+  async function send(
+    content = text,
+    force = false,
+    attachedReference = referenceId,
+    keepDraft = false,
+  ) {
+    if ((!content.trim() && !force) || saving || uploadingReference) return;
+    active.current?.abort();
+    const controller = new AbortController();
+    active.current = controller;
+    const before = history.current;
+    const requestText =
+      content.trim() ||
+      "Build my coach now using conservative assumptions for anything missing.";
+    const next = [...before, { role: "user" as const, content: requestText }];
+    history.current = next;
     setMessages(next);
-    setText("");
+    if (!keepDraft) setText("");
     setBusy(true);
+    setReady(false);
     setError("");
+    setRetry(null);
+    setStage("Preparing your coach…");
+    let reply = "";
     try {
-      const result = await post<{
-        reply: string;
-        brief?: Brief;
-        ready: boolean;
-        preview?: ToolConfig;
-      }>("/agent/interview", {
-        messages: next,
-        ...(revision ? { current: preview } : {}),
-      });
-      // Validate the whole response before replacing either the conversation or preview.
-      const tool = result.preview ? validateTool(result.preview) : undefined;
-      setMessages([...next, { role: "assistant", content: result.reply }]);
-      if (result.brief) setBrief(result.brief);
-      setReady(result.ready);
-      if (tool) {
-        showPreview(tool);
-        setRevision(++nextRevision.current);
-        setReviewedId(null);
-        setSaved(false);
-        setFailedDraft(null);
-        setQueued(tool);
-      }
+      await streamBuilder(
+        {
+          messages: next,
+          current: revision ? preview : undefined,
+          revision,
+          force,
+          referenceId: attachedReference,
+        },
+        (event) => {
+          if (active.current !== controller || controller.signal.aborted)
+            return;
+          if (event.type === "text") {
+            reply += event.text;
+            history.current = [...next, { role: "assistant", content: reply }];
+            setMessages(history.current);
+            setStage("Updating your coach…");
+          } else if (event.type === "status") setStage(event.message);
+          else if (event.type === "complete") {
+            const tool = event.preview
+              ? validateTool(event.preview)
+              : undefined;
+            if (tool && !event.id)
+              throw Error(
+                "The coach update has no save reference. Please retry.",
+              );
+            history.current = [
+              ...next,
+              { role: "assistant", content: event.reply },
+            ];
+            setMessages(history.current);
+            setReady(event.ready);
+            if (tool) {
+              setPreview(tool);
+              setRevision(event.revision);
+              setValidatedId(event.id!);
+              setSaved(false);
+              setStage("Validated · Ready to save");
+            } else
+              setStage(
+                saved
+                  ? "Saved coach"
+                  : validatedId
+                    ? "Validated · Ready to save"
+                    : "Tell me more about your coach",
+              );
+          }
+        },
+        controller.signal,
+      );
     } catch (problem) {
-      setMessages(messages);
-      setText(content);
+      if (active.current !== controller || controller.signal.aborted) return;
+      history.current = before;
+      setMessages(before);
+      setText((draft) => draft || content);
+      setRetry({ content: requestText, force });
+      setStage(
+        revision
+          ? "Previous version · Update needs attention"
+          : "Your idea is ready to retry",
+      );
       setError((problem as Error).message);
     } finally {
-      setBusy(false);
+      if (active.current === controller) {
+        active.current = null;
+        setBusy(false);
+      }
     }
   }
-  async function build() {
+  function build() {
     setConfirmEarlyBuild(false);
-    setBusy(true);
-    setError("");
-    setStage("Preparing your coach…");
-    const next = text.trim()
-      ? [...messages, { role: "user" as const, content: text.trim() }]
-      : messages;
-    try {
-      const result = await post<{ id: string }>("/agent/build", {
-        brief: ready && !text.trim() ? (brief ?? undefined) : undefined,
-        messages: next,
-        referenceId,
-        save: false,
-      });
-      reviewing.current = null;
-      setReviewedId(null);
-      setSaved(false);
-      setJob(result.id);
-      if (text.trim()) {
-        setMessages(next);
-        setText("");
-      }
-    } catch (problem) {
-      setError((problem as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    void send(text, true);
   }
   async function save() {
-    if (!reviewedId || busy || job || queued || startingReview) return;
-    setBusy(true);
+    if (!validatedId || busy || saving || uploadingReference) return;
+    setSaving(true);
     setError("");
     try {
-      await post<SavedTool>(`/agent/jobs/${reviewedId}/save`, {});
+      await post<SavedTool>(`/agent/jobs/${validatedId}/save`, {});
       setSaved(true);
-      if (lastChecked.current?.jobId === reviewedId)
-        lastChecked.current.saved = true;
       setStage("Saved · Ready for your recordings");
       onBuilt();
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   }
   async function uploadRef(file: File) {
-    setBusy(true);
     setUploadingReference(true);
     setError("");
     try {
@@ -288,30 +209,25 @@ export function Builder({
       await post(`/api/sessions/${session.id}/analyze`, {});
       setReferenceId(session.id);
       setReferenceName(file.name);
-      // A reference change requires review too; it cannot reuse an older acceptance.
+      // Reference association is validated by the server on the next configuration update.
       if (revision) {
-        const updated = { ...preview, referenceId: session.id };
-        showPreview(updated);
-        setRevision(++nextRevision.current);
-        setReviewedId(null);
+        setValidatedId(null);
         setSaved(false);
-        setQueued(updated);
+        setStage("Reference added · Send a message to update your coach");
       }
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
-      setBusy(false);
       setUploadingReference(false);
     }
   }
-  const checking = !!job || startingReview || !!queued;
   return (
     <section className="builder">
       <div className="section-heading">
         <h1>{initialTool ? "Refine your coach" : "Build your coach"}</h1>
         <IconButton
           label="Close tool builder"
-          disabled={checking || busy}
+          disabled={saving || uploadingReference}
           onClick={onClose}
         >
           <X size={17} />
@@ -329,16 +245,14 @@ export function Builder({
                 <div>{message.content}</div>
               </div>
             ))}
-            {busy && !uploadingReference && (
+            {(busy || saving) && !uploadingReference && (
               <p className="muted small" role="status">
                 <LoaderCircle
                   className="spin inline"
                   size={14}
                   aria-hidden="true"
                 />{" "}
-                {saved
-                  ? "Saving your coach…"
-                  : "Preparing your next question and preview…"}
+                {saving ? "Saving your coach…" : stage}
               </p>
             )}
             <div ref={latestRef} />
@@ -356,7 +270,7 @@ export function Builder({
             }
             label="Answer the builder"
             sendLabel="Send answer"
-            disabled={busy}
+            disabled={saving || uploadingReference}
             actions={
               <>
                 <input
@@ -365,7 +279,7 @@ export function Builder({
                   type="file"
                   aria-label="Upload optional good form reference"
                   accept=".mov,.mp4,.webm,video/*"
-                  disabled={busy || checking}
+                  disabled={busy || saving || uploadingReference}
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (file) void uploadRef(file);
@@ -375,7 +289,7 @@ export function Builder({
                 <IconButton
                   label="Add a good-form video"
                   surface="transparent"
-                  disabled={busy || checking}
+                  disabled={busy || saving || uploadingReference}
                   onClick={() => ref.current?.click()}
                 >
                   <Plus size={18} aria-hidden="true" />
@@ -384,27 +298,29 @@ export function Builder({
                   type="button"
                   className="button builder-build"
                   disabled={
-                    busy ||
-                    (!(text.trim() && revision > 0) &&
-                      (checking || saved || (revision > 0 && !reviewedId)))
+                    saving ||
+                    uploadingReference ||
+                    (!text.trim() && (busy || saved))
                   }
                   onClick={() => {
                     if (text.trim() && revision > 0) void send();
-                    else if (reviewedId) void save();
-                    else if (ready && !text.trim()) void build();
+                    else if (validatedId && !text.trim()) void save();
+                    else if (ready && !text.trim()) build();
                     else setConfirmEarlyBuild(true);
                   }}
                 >
-                  {checking && <LoaderCircle className="spin" size={16} />}
+                  {(busy || saving) && (
+                    <LoaderCircle className="spin" size={16} />
+                  )}
                   {text.trim() && revision > 0 ? (
                     "Update preview"
                   ) : saved ? (
                     <>
                       <Check size={14} /> Saved
                     </>
-                  ) : revision || reviewedId ? (
+                  ) : validatedId ? (
                     "Save coach"
-                  ) : checking ? (
+                  ) : busy ? (
                     "Building your tool…"
                   ) : (
                     "Build my tool"
@@ -428,20 +344,20 @@ export function Builder({
             }
           />
           {error && <ErrorNote message={error} />}
-          {failedDraft && (
+          {retry && (
             <button
               className="text-button"
-              disabled={busy || checking}
-              onClick={() => {
-                setError("");
-                showPreview(failedDraft);
-                setRevision(++nextRevision.current);
-                setReviewedId(null);
-                setSaved(false);
-                setQueued(failedDraft);
-              }}
+              disabled={busy || saving || uploadingReference}
+              onClick={() =>
+                void send(
+                  retry.content,
+                  retry.force,
+                  referenceId,
+                  Boolean(text.trim() && text.trim() !== retry.content),
+                )
+              }
             >
-              Retry review
+              Retry update
             </button>
           )}
           {saved && onUse && (
@@ -460,7 +376,7 @@ export function Builder({
             </span>
             <span className="small muted" role="status">
               {busy
-                ? "Updating · Current preview stays visible"
+                ? stage + " · Current preview stays visible"
                 : stage ||
                   (saved
                     ? "Saved coach"

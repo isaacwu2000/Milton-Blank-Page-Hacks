@@ -20,6 +20,7 @@ import {
 } from "../../../shared";
 import { makeSample } from "../../../shared";
 import { chat } from "../services/provider";
+import { buildStream } from "../services/builderStream";
 import {
   structured,
   interviewResponseSchema,
@@ -181,6 +182,48 @@ app.post("/agent/interview", async (req, res, next) => {
     res.json(result);
   } catch (e) {
     next(e);
+  }
+});
+
+/** Streams commentary immediately; publishes only a complete math-validated configuration. */
+app.post("/agent/builder/stream", async (req, res, next) => {
+  const cancellation = new AbortController();
+  const disconnect = () => { if (!res.writableEnded) cancellation.abort(); };
+  res.on("close", disconnect);
+  try {
+    const messages = messagesSchema.parse(req.body.messages);
+    const current = req.body.current == null ? undefined : validateTool(req.body.current);
+    const revision = z.number().int().nonnegative().parse(req.body.revision);
+    const force = z.boolean().optional().parse(req.body.force) ?? false;
+    const referenceId = z.string().uuid().optional().parse(req.body.referenceId);
+    const signal = AbortSignal.any([cancellation.signal, AbortSignal.timeout(config.providerTimeoutMs)]);
+    res.set({ "content-type": "application/x-ndjson", "cache-control": "no-store, no-transform", "x-accel-buffering": "no" });
+    res.flushHeaders();
+    const emit = (event: unknown) => { if (!res.destroyed) res.write(JSON.stringify(event) + "\n"); };
+    const started = Date.now();
+    let firstTextMs: number | undefined;
+    const result = await buildStream(messages, current, revision, force, referenceId, (event) => {
+      if (event.type === "text" && firstTextMs === undefined) firstTextMs = Date.now() - started;
+      emit(event);
+    }, signal);
+    signal.throwIfAborted();
+    let id: string | undefined;
+    if (result.preview) {
+      // Reuse server-held immutable saves; client-supplied edits are never saved directly.
+      id = job(async (jobId, state) => {
+        acceptedDrafts.set(jobId, result.preview!);
+        state.preview = result.preview;
+      });
+    }
+    emit({ type: "complete", ...result, id, revision: result.preview ? revision + 1 : revision,
+      timings: { firstTextMs, completeMs: Date.now() - started } });
+    res.end();
+  } catch (error) {
+    if (res.headersSent) {
+      if (!res.destroyed) res.end(JSON.stringify({ type: "error", message: safeError(error) }) + "\n");
+    } else next(error);
+  } finally {
+    res.off("close", disconnect);
   }
 });
 
@@ -555,10 +598,10 @@ app.post("/agent/build", (req, res, next) => {
   }
 });
 
-/** Saves only server-held, screenshot-accepted configurations; simultaneous retries share one write. */
+/** Saves only server-held validated configurations; simultaneous retries share one write. */
 async function saveReviewedTool(id: string): Promise<SavedTool> {
   const draft = acceptedDrafts.get(id);
-  if (!draft) throw Error("This coach has not passed review.");
+  if (!draft) throw Error("This coach has not passed validation.");
   const existing = saves.get(id);
   if (existing) return existing;
   if (!process.env.AGENT_INTERNAL_SECRET) throw Error("The internal agent connection is not configured.");
@@ -580,9 +623,9 @@ async function saveReviewedTool(id: string): Promise<SavedTool> {
 }
 app.post("/agent/jobs/:id/save", async (req, res, next) => {
   const state = jobs.get(req.params.id);
-  if (!state) { res.status(404).json({ error: "This preview expired. Review the coach again before saving." }); return; }
+  if (!state) { res.status(404).json({ error: "This preview expired. Update the coach again before saving." }); return; }
   if (state.status !== "complete" || !acceptedDrafts.has(req.params.id)) {
-    res.status(409).json({ error: "Wait for this coach to pass review before saving." }); return;
+    res.status(409).json({ error: "Wait for this coach to pass validation before saving." }); return;
   }
   try { res.json(await saveReviewedTool(req.params.id)); } catch (error) { next(error); }
 });

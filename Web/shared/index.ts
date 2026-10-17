@@ -4,3 +4,4 @@ export * from "./services/metrics";
 export * from "./services/sample";
 export * from "./services/format";
 export * from "./services/coaching";
+export * from "./services/lines";

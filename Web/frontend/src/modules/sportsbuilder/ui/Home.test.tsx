@@ -9,9 +9,11 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, post } from "../services/api";
+import { streamBuilder, type BuilderEvent } from "../services/builderStream";
 import { sampleTool } from "../../../../../shared";
 import { Product } from "./Home";
 vi.mock("../services/api", () => ({ api: vi.fn(), post: vi.fn() }));
+vi.mock("../services/builderStream", () => ({ streamBuilder: vi.fn() }));
 beforeEach(() => {
   const values = new Map<string, string>();
   Object.defineProperty(window, "localStorage", {
@@ -42,16 +44,26 @@ describe("saved workspace loading", () => {
     await screen.findAllByText(sampleTool.name);
     fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
     expect(screen.getByRole("heading", { name: "Your coaches" })).toBeTruthy();
-    expect(screen.queryByRole("textbox", { name: "Answer the builder" })).toBeNull();
+    expect(
+      screen.queryByRole("textbox", { name: "Answer the builder" }),
+    ).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Create a new coach" }));
     const draft = screen.getByRole("textbox", { name: "Answer the builder" });
     fireEvent.change(draft, { target: { value: "A jump coach" } });
     fireEvent.click(screen.getByRole("button", { name: "Get coached" }));
     fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
-    expect((screen.getByRole("textbox", { name: "Answer the builder" }) as HTMLTextAreaElement).value).toBe("A jump coach");
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "Answer the builder",
+        }) as HTMLTextAreaElement
+      ).value,
+    ).toBe("A jump coach");
     fireEvent.click(screen.getByRole("button", { name: "Close tool builder" }));
     expect(screen.getByRole("heading", { name: "Your coaches" })).toBeTruthy();
-    expect(screen.queryByRole("textbox", { name: "Answer the builder" })).toBeNull();
+    expect(
+      screen.queryByRole("textbox", { name: "Answer the builder" }),
+    ).toBeNull();
     expect(post).not.toHaveBeenCalled();
   });
   it("withholds empty-workspace prerequisites until the saved records arrive", async () => {
@@ -158,7 +170,9 @@ describe("saved workspace loading", () => {
     expect(post).toHaveBeenCalledWith("/api/profiles", {
       name: "Athlete",
       heightCm: 178,
-      weightKg: null, gender: "", notes: "",
+      weightKg: null,
+      gender: "",
+      notes: "",
     });
     expect(screen.queryByRole("button", { name: "Athletes" })).toBeNull();
     expect(
@@ -180,7 +194,13 @@ describe("saved workspace loading", () => {
   });
   it("edits height on the existing canonical profile and reuses its identity", async () => {
     const profile = { id: "canonical", name: "Athlete", heightCm: 178 };
-    const updated = { ...profile, heightCm: 180, weightKg: 75.5, gender: "Woman", notes: "Focus on endurance" };
+    const updated = {
+      ...profile,
+      heightCm: 180,
+      weightKg: 75.5,
+      gender: "Woman",
+      notes: "Focus on endurance",
+    };
     vi.mocked(api)
       .mockResolvedValueOnce({
         ...saved,
@@ -195,16 +215,28 @@ describe("saved workspace loading", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Height (cm)" }), {
       target: { value: "180" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: "Weight (kg, optional)" }), { target: { value: "75.5" } });
-    fireEvent.change(screen.getByLabelText("Gender (optional)"), { target: { value: "Woman" } });
-    fireEvent.change(screen.getByLabelText("General notes (optional)"), { target: { value: "Focus on endurance" } });
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Weight (kg, optional)" }),
+      { target: { value: "75.5" } },
+    );
+    fireEvent.change(screen.getByLabelText("Gender (optional)"), {
+      target: { value: "Woman" },
+    });
+    fireEvent.change(screen.getByLabelText("General notes (optional)"), {
+      target: { value: "Focus on endurance" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
     await screen.findByRole("heading", {
       name: "Your Athletic Dreams Will Become a Reality",
     });
     expect(api).toHaveBeenCalledWith("/api/profiles/canonical", {
       method: "PATCH",
-      body: JSON.stringify({ heightCm: 180, weightKg: 75.5, gender: "Woman", notes: "Focus on endurance" }),
+      body: JSON.stringify({
+        heightCm: 180,
+        weightKg: 75.5,
+        gender: "Woman",
+        notes: "Focus on endurance",
+      }),
     });
     expect(post).not.toHaveBeenCalled();
     const slider = screen.getByRole("slider", {
@@ -265,9 +297,7 @@ describe("saved workspace loading", () => {
     })) as HTMLInputElement;
     fireEvent.change(height, { target: { value: "179.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
-    expect(
-      screen.getByRole("heading", { name: "Your coaches" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Your coaches" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Save profile" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Your profile" }));
     expect(
@@ -300,9 +330,7 @@ describe("saved workspace loading", () => {
     });
     render(<Product />);
     const open = await screen.findByRole("button", { name: "Open jump.mp4" });
-    expect(
-      screen.getByText("jump.mp4").closest("button"),
-    ).toBe(open);
+    expect(screen.getByText("jump.mp4").closest("button")).toBe(open);
     expect(open.querySelector("img")).toBeTruthy();
     expect(open.querySelectorAll("button").length).toBe(0);
     expect(screen.queryByText("Ready")).toBeNull();
@@ -416,39 +444,84 @@ describe("mobile sidebar drawer", () => {
 });
 
 it("announces profile saving until the saved height returns", async () => {
-  vi.mocked(api).mockResolvedValueOnce(saved).mockReturnValueOnce(new Promise(() => {}));
+  vi.mocked(api)
+    .mockResolvedValueOnce(saved)
+    .mockReturnValueOnce(new Promise(() => {}));
   render(<Product />);
   await screen.findAllByText(sampleTool.name);
   fireEvent.click(screen.getByRole("button", { name: "Your profile" }));
   fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
-  expect(screen.getByRole("status").textContent).toContain("Saving your profile");
-  expect((screen.getByRole("textbox", { name: "Height (cm)" }) as HTMLInputElement).disabled).toBe(true);
+  expect(screen.getByRole("status").textContent).toContain(
+    "Saving your profile",
+  );
+  expect(
+    (screen.getByRole("textbox", { name: "Height (cm)" }) as HTMLInputElement)
+      .disabled,
+  ).toBe(true);
 });
 
 it("removes only the confirmed recent video and restores useful keyboard focus", async () => {
   vi.spyOn(window, "confirm").mockReturnValue(true);
-  vi.mocked(api).mockResolvedValueOnce({ ...saved, sessions: [
-    { id: "clip", name: "jump.mp4", duration: 12, createdAt: "2026-10-17T12:00:00Z", status: "complete" },
-    { id: "other", name: "serve.mp4", duration: 10, createdAt: "2026-10-17T12:00:00Z", status: "complete" },
-  ] }).mockResolvedValueOnce({ deleted: true });
+  vi.mocked(api)
+    .mockResolvedValueOnce({
+      ...saved,
+      sessions: [
+        {
+          id: "clip",
+          name: "jump.mp4",
+          duration: 12,
+          createdAt: "2026-10-17T12:00:00Z",
+          status: "complete",
+        },
+        {
+          id: "other",
+          name: "serve.mp4",
+          duration: 10,
+          createdAt: "2026-10-17T12:00:00Z",
+          status: "complete",
+        },
+      ],
+    })
+    .mockResolvedValueOnce({ deleted: true });
   render(<Product />);
-  fireEvent.click(await screen.findByRole("button", { name: "Delete jump.mp4" }));
-  await waitFor(() => expect(screen.queryByRole("button", { name: "Open jump.mp4" })).toBeNull());
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Delete jump.mp4" }),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Open jump.mp4" })).toBeNull(),
+  );
   expect(screen.getByRole("button", { name: "Open serve.mp4" })).toBeTruthy();
-  expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Recent videos" }));
+  expect(document.activeElement).toBe(
+    screen.getByRole("heading", { name: "Recent videos" }),
+  );
 });
 
-it("keeps a deferred build and its completed review across recording navigation", async () => {
-  HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
-  HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
-  const clip = { id: "clip", name: "jump.mp4", duration: 12, createdAt: "2026-10-17T12:00:00Z", status: "failed", error: "Tracking needs retry" };
+it("keeps a streaming build and its validated preview across recording navigation", async () => {
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute("open");
+  };
+  const clip = {
+    id: "clip",
+    name: "jump.mp4",
+    duration: 12,
+    createdAt: "2026-10-17T12:00:00Z",
+    status: "failed",
+    error: "Tracking needs retry",
+  };
   const home = { ...saved, sessions: [clip] };
-  let started!: (value: { id: string }) => void;
-  let reviewed!: (value: unknown) => void;
-  vi.mocked(post).mockImplementationOnce(() => new Promise((resolve) => { started = resolve; }));
+  let emit!: (event: BuilderEvent) => void;
+  let finish!: () => void;
+  vi.mocked(streamBuilder).mockImplementation((_turn, callback) => {
+    emit = callback;
+    return new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+  });
   vi.mocked(api).mockImplementation(async (path) => {
     if (path === "/api/home") return home;
-    if (path === "/agent/jobs/background-build") return new Promise((resolve) => { reviewed = resolve; });
     if (path === "/api/sessions/clip") return clip;
     if (path.endsWith("/video")) return { url: "clip.mp4" };
     return {};
@@ -462,11 +535,23 @@ it("keeps a deferred build and its completed review across recording navigation"
   fireEvent.click(screen.getByRole("button", { name: "Get coached" }));
   fireEvent.click(screen.getByRole("button", { name: "Open jump.mp4" }));
   await screen.findByRole("button", { name: "All videos" });
-  await act(async () => started({ id: "background-build" }));
-  await waitFor(() => expect(reviewed).toBeTypeOf("function"));
-  await act(async () => reviewed({ status: "complete", stage: "Ready", preview: sampleTool }));
+  await act(async () => {
+    emit({ type: "text", text: "Your coach is ready." });
+    emit({
+      type: "complete",
+      reply: "Your coach is ready.",
+      ready: false,
+      preview: sampleTool,
+      id: "background-build",
+      revision: 1,
+    });
+    finish();
+  });
   fireEvent.click(screen.getByRole("button", { name: "All videos" }));
   fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
-  expect(screen.getByRole("button", { name: "Save coach" }).hasAttribute("disabled")).toBe(false);
-  expect(post).toHaveBeenCalledTimes(1);
+  expect(
+    screen.getByRole("button", { name: "Save coach" }).hasAttribute("disabled"),
+  ).toBe(false);
+  expect(streamBuilder).toHaveBeenCalledTimes(1);
+  expect(post).not.toHaveBeenCalled();
 });
