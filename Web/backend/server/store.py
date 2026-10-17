@@ -20,6 +20,7 @@ from psycopg_pool import ConnectionPool
 
 from server import config
 from server.env import load_environment
+from server.hosted_database import HostedPool
 from server.types import Calibration, Record, RecordKind
 
 ROOT = config.ROOT
@@ -34,11 +35,13 @@ PREMADE_COACHES = cast(
 
 
 @lru_cache
-def pool() -> ConnectionPool:
+def pool() -> ConnectionPool | HostedPool:
     """Share at most four database connections; allow a cold Neon compute to wake."""
     url = os.getenv("DATABASE_URL")
     if not url:
         raise RuntimeError("DATABASE_URL is missing. Add Neon credentials to .env.local.")
+    if config.HOSTED_MODE:
+        return HostedPool()
     return ConnectionPool(url, min_size=0, max_size=4, timeout=45, kwargs={"connect_timeout": 3})
 
 

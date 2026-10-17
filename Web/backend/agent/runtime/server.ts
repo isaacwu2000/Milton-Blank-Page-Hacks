@@ -30,11 +30,13 @@ import { briefSchema, resolveBuildBrief } from "../services/buildBrief";
 import { config, provider } from "../config";
 import type { Chat, Tool, Part, Job } from "../types";
 import { BuildSandbox } from "./sandbox";
+import { databaseRouter } from "./database";
 import { runReviewedArtifactAuthoring } from "../../../../.agents/learnunlock/reviewedArtifactAuthoring";
 
 export const app = express();
 app.use(express.json({ limit: "2mb" }));
 app.disable("x-powered-by");
+app.use("/internal/database", databaseRouter());
 const BACKEND = config.backendUrl;
 const messagesSchema = z
   .array(
