@@ -71,21 +71,32 @@ export function SessionWorkspace({
       const analysis = await api<Analysis>(`/api/sessions/${sessionId}/analysis`, { signal });
       if (!signal?.aborted) setAnalysis(analysis);
     }
+    if (!signal?.aborted) setError("");
     return s;
   }, [sessionId]);
   useEffect(() => {
     const controller = new AbortController();
     let stopped = false,
       timer: ReturnType<typeof setTimeout>;
+    let tracking = false;
     setAnalysis(null);
+    setSession(null);
+    setUrl("");
     setError("");
     const poll = async () => {
       try {
         const s = await load(controller.signal);
-        if (!stopped && (s.status === "processing" || s.status === "queued"))
+        tracking = s.status === "processing" || s.status === "queued";
+        if (!stopped && tracking)
           timer = setTimeout(poll, POLLING.videoStatusMs);
       } catch (e) {
-        if (!stopped) setError((e as Error).message);
+        if (!stopped) {
+          setError((e as Error).message);
+          // A dropped status read does not stop the server’s active tracking job.
+          if (tracking) timer = setTimeout(poll, POLLING.videoStatusMs);
+        }
+      } finally {
+        if (!stopped) setRefreshing(false);
       }
     };
     poll();
@@ -143,18 +154,11 @@ export function SessionWorkspace({
       setStarting(false);
     }
   }
-  /** Refreshes saved progress once without overlapping manual refresh requests. */
-  async function refresh() {
+  /** Restarts saved-data reads and polling without recomputing completed analysis. */
+  function refresh() {
     if (refreshing) return;
     setRefreshing(true);
-    setError("");
-    try {
-      await load();
-    } catch (problem) {
-      setError((problem as Error).message);
-    } finally {
-      setRefreshing(false);
-    }
+    setPollGeneration((generation) => generation + 1);
   }
   if (analysis && session && !tool && !closing)
     return (
@@ -245,9 +249,9 @@ export function SessionWorkspace({
             </button>
           </>
         )}
-        {error && !session && (
+        {error && (!session || session.status === "complete") && (
           <button className="text-button" disabled={refreshing} onClick={() => { void refresh(); }}>
-            {refreshing ? <LoadingStatus>Loading your video…</LoadingStatus> : "Retry loading video"}
+            {refreshing ? <LoadingStatus>Loading saved analysis…</LoadingStatus> : session ? "Retry loading analysis" : "Retry loading video"}
           </button>
         )}
         {session && ["failed", "uploaded"].includes(session.status) && (
