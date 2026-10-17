@@ -1,3 +1,4 @@
+import { readLines } from "../../../shared";
 /** One conversation/tool contract; only the provider wire format changes. */
 import { config, provider } from "../config";
 import type { Chat, Part, Tool } from "../types";
@@ -133,11 +134,13 @@ function openRouterError(status: number): Error {
   );
 }
 
-export async function chat(
+/** Sends one provider request with shared model policy; caller controls streaming and cancellation. */
+async function request(
   messages: Chat[],
   tools: Tool[] = [],
   signal?: AbortSignal,
-): Promise<Chat> {
+  stream = false,
+): Promise<Response> {
   const local = provider() === "chatgpt";
   const url = local
     ? `${config.localProxyUrl}/responses`
@@ -152,7 +155,7 @@ export async function chat(
         input: input(messages),
         reasoning: { effort: config.reasoning },
         service_tier: "priority",
-        stream: false,
+        stream,
         store: false,
         include: ["reasoning.encrypted_content"],
         parallel_tool_calls: false,
@@ -172,7 +175,7 @@ export async function chat(
         model: config.model,
         messages: openRouterMessages(messages),
         reasoning: { effort: config.reasoning },
-        stream: false,
+        stream,
         max_tokens: config.maxOutputTokens,
         parallel_tool_calls: false,
         ...(tools.length
@@ -200,7 +203,9 @@ export async function chat(
         ["AbortError", "TimeoutError"].includes(error.name))
     )
       throw Error(
-        "The video review timed out. Please retry, or use a lower frame sampling rate.",
+        stream
+          ? "The coach update timed out. Please retry your message."
+          : "The video review timed out. Please retry, or use a lower frame sampling rate.",
       );
     throw Error(
       local
@@ -214,6 +219,16 @@ export async function chat(
       `Local ChatGPT returned HTTP ${response.status}. Check sign-in, model access, and usage limits. No alternate provider was used.`,
     );
   }
+  return response;
+}
+
+export async function chat(
+  messages: Chat[],
+  tools: Tool[] = [],
+  signal?: AbortSignal,
+): Promise<Chat> {
+  const local = provider() === "chatgpt";
+  const response = await request(messages, tools, signal);
   let data;
   try {
     data = await response.json();
@@ -275,4 +290,50 @@ export function parseJSON(content: Chat["content"]): unknown {
   } catch {
     throw Error("The AI response was not valid structured data. Please retry.");
   }
+}
+
+/**
+ * Streams assistant text from either provider, preserving medium reasoning.
+ * - A missing completion event, truncation, cancellation or provider error fails the turn.
+ * - No fallback provider or automatic network retry can duplicate generation.
+ */
+export async function* streamChat(
+  messages: Chat[],
+  signal: AbortSignal,
+): AsyncGenerator<string> {
+  const local = provider() === "chatgpt";
+  const response = await request(messages, [], signal, true);
+  if (!response.body) throw Error("The model returned no response stream.");
+  let completed = false;
+  for await (const line of readLines(response.body)) {
+    signal.throwIfAborted();
+    if (!line.startsWith("data:")) continue;
+    const payload = line.slice(5).trim();
+    if (!payload || payload === "[DONE]") continue;
+    const event = JSON.parse(payload);
+    if (
+      event.error ||
+      ["error", "response.failed", "response.incomplete"].includes(event.type)
+    )
+      throw Error("The model could not complete this response. Please retry.");
+    if (local) {
+      if (event.type === "response.output_text.delta") yield event.delta;
+      if (
+        event.type === "response.completed" &&
+        event.response?.status === "completed"
+      )
+        completed = true;
+    } else {
+      const choice = event.choices?.[0];
+      if (typeof choice?.delta?.content === "string")
+        yield choice.delta.content;
+      if (choice?.finish_reason === "stop") completed = true;
+      else if (choice?.finish_reason)
+        throw Error(
+          `The model response stopped early (${choice.finish_reason}). Please retry.`,
+        );
+    }
+  }
+  if (!completed)
+    throw Error("The model stream ended before completion. Please retry.");
 }

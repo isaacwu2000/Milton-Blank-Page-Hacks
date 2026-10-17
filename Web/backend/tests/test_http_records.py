@@ -298,3 +298,45 @@ def test_profile_details_can_be_updated_and_cleared(monkeypatch: pytest.MonkeyPa
 def test_profile_details_reject_invalid_values(monkeypatch: pytest.MonkeyPatch, details: dict):
     monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(PROFILE))
     assert TestClient(app).patch(f"/api/profiles/{PROFILE['id']}", json=details).status_code == 422
+
+
+def test_builder_save_retry_returns_committed_coach_after_lost_reply(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("AGENT_INTERNAL_SECRET", "test-only-secret")
+    records = {}
+
+    def get(kind, identifier):
+        return deepcopy(records.get(identifier))
+
+    def publish(kind, value):
+        records.setdefault(value["id"], deepcopy(value))
+        raise ConnectionError("Reply lost after commit")
+
+    monkeypatch.setattr(store, "get", get)
+    monkeypatch.setattr(store, "save_once", publish)
+    client = TestClient(app, raise_server_exceptions=False)
+    headers = {"x-agent-secret": "test-only-secret", "x-agent-job-id": str(TOOL["id"])}
+    first = client.post("/api/tools", json=TOOL, headers=headers)
+    assert first.status_code == 503
+    records[TOOL["id"]].update(name="Renamed after save", hidden=True)
+    retry = client.post(
+        "/api/tools",
+        json={**TOOL, "name": "Injected retry", "referenceId": "deleted"},
+        headers=headers,
+    )
+    assert retry.status_code == 200
+    assert retry.json()["id"] == TOOL["id"]
+    assert retry.json()["name"] == "Renamed after save"
+    assert retry.json()["hidden"] is True
+    assert len(records) == 1
+
+
+def test_builder_save_rejects_invalid_identity_before_persistence(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("AGENT_INTERNAL_SECRET", "test-only-secret")
+    response = TestClient(app).post(
+        "/api/tools",
+        json=TOOL,
+        headers={"x-agent-secret": "test-only-secret", "x-agent-job-id": "bad"},
+    )
+    assert response.status_code == 422

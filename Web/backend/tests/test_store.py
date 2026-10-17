@@ -131,3 +131,27 @@ def test_hidden_premade_stays_in_history_without_catalog_resurrection(
     tools = store.records("tools")
     assert [tool for tool in tools if tool["id"] == hidden["id"]] == [hidden]
     assert store.get("tools", str(hidden["id"])) == hidden
+
+
+@pytest.mark.parametrize("already_saved", [False, True])
+def test_save_once_never_overwrites_existing_payload(
+    monkeypatch: pytest.MonkeyPatch, already_saved: bool
+):
+    pool = MagicMock()
+    connection = pool.connection.return_value.__enter__.return_value
+    first = {"id": "draft", "name": "First coach", "hidden": True}
+    connection.execute.return_value.fetchone.side_effect = (
+        [None, (first,)] if already_saved else [(first,)]
+    )
+    monkeypatch.setattr(store, "pool", lambda: pool)
+    result = store.save_once("tools", {"id": "draft", "name": "Retry body"})
+    assert result == first
+    query, parameters = connection.execute.call_args_list[0].args
+    assert "ON CONFLICT(kind,id) DO NOTHING RETURNING payload" in query
+    assert "DO UPDATE" not in query
+    assert parameters[:2] == ("tools", "draft")
+    if already_saved:
+        assert connection.execute.call_args_list[1].args == (
+            "SELECT payload FROM sportsbuilder_records WHERE kind=%s AND id=%s",
+            ("tools", "draft"),
+        )

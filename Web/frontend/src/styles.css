@@ -1773,3 +1773,52 @@ button .loading-status {
 
 .builder-columns-resizable[data-stacked="true"] { grid-template-columns: minmax(0, 1fr); }
 .builder-columns-resizable[data-stacked="true"] > .builder-resize-handle { display: none; }
+
+/* Stable builder preview inside the existing resizable rail. */
+.coach-preview {
+  min-width: 0;
+}
+.preview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-bottom: 20px;
+  font-size: 12px;
+}
+.preview-toolbar [role="status"] {
+  max-width: 36ch;
+}
+.coach-preview-content > header h2 {
+  font-size: 20px;
+  line-height: 28px;
+  margin-bottom: 8px;
+}
+.coach-preview-content > header p {
+  margin: 8px 0;
+}
+.preview-disclosure {
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--neutral-dark-400);
+  margin: 16px 0;
+}
+.preview-rubric {
+  margin-top: 24px;
+  font-size: 12px;
+  line-height: 22px;
+}
+.preview-rubric summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+.preview-rubric p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.builder-use { margin-top: 16px; }
+
+.coach-preview .player-controls { flex-wrap: wrap; }
+.coach-preview .player-controls .time { flex-basis: 100%; text-align: right; }
+.coach-preview-content { overflow-wrap: anywhere; }

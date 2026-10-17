@@ -21,3 +21,6 @@ Endpoints:
 - `GET /agent/jobs/:id`: `{status,stage,tool?,reply?,drill?,error?}`.
 
 Jobs are held in memory for this single local process. Restarting the agent invalidates pending jobs; the client must retry. No deployment, production load guarantee, or live pose-estimation accuracy is established by a successful synthetic browser review. Railway hosting requires separately configured secrets, processes, storage, networking, and resource limits; none is deployed by this implementation.
+
+
+Routine coach creation uses `/agent/builder/stream` JSONL commentary and complete validated transactions. Later turns use targeted edits against the supplied revision; exact old values and trusted schema/unit/calculation checks reject the entire batch on failure. One bounded repair receives precise diagnostics. Only explicit `/agent/jobs/:id/save` publishes the immutable server-held configuration; its stable job UUID makes lost-response retries idempotent. The optional `/agent/build` diagnostic path retains the existing Daytona screenshot workflow. Both providers stream with the configured Sol medium reasoning policy.

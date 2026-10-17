@@ -128,6 +128,23 @@ def save(kind: RecordKind, value: Mapping[str, object]) -> Record:
     return cast(Record, dict(value))
 
 
+def save_once(kind: RecordKind, value: Mapping[str, object]) -> Record:
+    """Publish an immutable record once; concurrent retries return the winning payload."""
+    with pool().connection() as con:
+        row = con.execute(
+            "INSERT INTO sportsbuilder_records(kind,id,payload) VALUES(%s,%s,%s) ON CONFLICT(kind,id) DO NOTHING RETURNING payload",
+            (kind, value["id"], Jsonb(value)),
+        ).fetchone()
+        if row is None:
+            row = con.execute(
+                "SELECT payload FROM sportsbuilder_records WHERE kind=%s AND id=%s",
+                (kind, value["id"]),
+            ).fetchone()
+        if row is None:
+            raise KeyError("The saved coach is no longer available.")
+        return cast(Record, row[0])
+
+
 def patch(kind: RecordKind, record_id: str, fields: Mapping[str, object]) -> Record:
     """Atomically merge only owned fields, preserving concurrent calibration and job updates.
 

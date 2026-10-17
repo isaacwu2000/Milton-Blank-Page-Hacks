@@ -19,6 +19,7 @@ import {
   type Profile,
   type Session,
   type SavedTool,
+  type ToolConfig,
 } from "../../../../../shared";
 import { Input, IconButton, DropdownSelect, NumberInput } from "../../../components";
 import { api, post } from "../services/api";
@@ -44,6 +45,8 @@ export function Product() {
     [error, setError] = useState(""),
     [view, setView] = useState<"coached" | "profile" | "builder">("coached"),
     [builder, setBuilder] = useState(false),
+    [editingTool, setEditingTool] = useState<ToolConfig | undefined>(),
+    [builderRevision, setBuilderRevision] = useState(0),
     [opened, setOpened] = useState<string | null>(null),
     [sample, setSample] = useState(false),
     [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900),
@@ -312,18 +315,30 @@ export function Product() {
           {builder && (
             <div hidden={view !== "builder"}>
               <Builder
+                key={builderRevision}
+                initialTool={editingTool}
+                onUse={() => setView("coached")}
                 onBuilt={() => {
-                  setView("coached");
                   reload();
                 }}
               />
               <section className="mt-8">
-                <h2 ref={coachHeading} tabIndex={-1}>Your coaches</h2>
+                <div className="section-heading">
+                  <h2 ref={coachHeading} tabIndex={-1}>Your coaches</h2>
+                  <button className="text-button" onClick={() => {
+                    setEditingTool(undefined);
+                    setBuilderRevision(value => value + 1);
+                  }}>Create a new coach</button>
+                </div>
                 <div className="tool-grid">
                   {visibleTools.map((tool) => (
                     <CoachCard
                       key={tool.id}
                       tool={tool}
+                      onRefine={() => {
+                        setEditingTool(tool);
+                        setBuilderRevision(value => value + 1);
+                      }}
                       disabled={!!removingTool}
                       onUpdated={(saved) => {
                         setData((previous) => ({

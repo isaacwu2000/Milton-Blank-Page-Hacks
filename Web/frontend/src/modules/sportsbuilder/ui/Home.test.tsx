@@ -9,9 +9,11 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, post } from "../services/api";
+import { streamBuilder, type BuilderEvent } from "../services/builderStream";
 import { sampleTool } from "../../../../../shared";
 import { Product } from "./Home";
 vi.mock("../services/api", () => ({ api: vi.fn(), post: vi.fn() }));
+vi.mock("../services/builderStream", () => ({ streamBuilder: vi.fn() }));
 beforeEach(() => {
   const values = new Map<string, string>();
   Object.defineProperty(window, "localStorage", {
@@ -452,17 +454,17 @@ it("retains coach selection and reports a failed removal without hiding it", asy
   expect(trigger.textContent).toBe(sampleTool.name);
 });
 
-it("keeps a deferred build and its completed review across recording navigation", async () => {
+it("keeps a streaming build and explicit save across recording navigation", async () => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
   const clip = { id: "clip", name: "jump.mp4", duration: 12, createdAt: "2026-10-17T12:00:00Z", status: "failed", error: "Tracking needs retry" };
   const home = { ...saved, sessions: [clip] };
-  let started!: (value: { id: string }) => void;
-  let reviewed!: (value: unknown) => void;
-  vi.mocked(post).mockImplementationOnce(() => new Promise((resolve) => { started = resolve; }));
+  let emit!: (event: BuilderEvent) => void;
+  let finish!: () => void;
+  let signal!: AbortSignal;
+  vi.mocked(streamBuilder).mockImplementation((_turn, callback, cancellation) => new Promise(resolve => { emit = callback; finish = resolve; signal = cancellation; }));
   vi.mocked(api).mockImplementation(async (path) => {
     if (path === "/api/home") return home;
-    if (path === "/agent/jobs/background-build") return new Promise((resolve) => { reviewed = resolve; });
     if (path === "/api/sessions/clip") return clip;
     if (path.endsWith("/video")) return { url: "clip.mp4" };
     return {};
@@ -475,13 +477,27 @@ it("keeps a deferred build and its completed review across recording navigation"
   fireEvent.click(screen.getByRole("button", { name: "Get coached" }));
   fireEvent.click(screen.getByRole("button", { name: "Open jump.mp4" }));
   await screen.findByRole("button", { name: "All videos" });
-  await act(async () => started({ id: "background-build" }));
-  await waitFor(() => expect(reviewed).toBeTypeOf("function"));
-  await act(async () => reviewed({ status: "complete", stage: "Ready", preview: sampleTool }));
+  expect(signal.aborted).toBe(false);
+  await act(async () => { emit({ type: "complete", reply: "Ready", ready: false, preview: sampleTool, id: "background-build", revision: 1 }); finish(); });
   fireEvent.click(screen.getByRole("button", { name: "All videos" }));
   fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
-  expect(screen.getByRole("button", { name: "Build my tool" }).hasAttribute("disabled")).toBe(false);
-  expect(post).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("button", { name: "Save coach" }).hasAttribute("disabled")).toBe(false);
+  expect(post).not.toHaveBeenCalled();
+  vi.mocked(post).mockResolvedValueOnce(saved.tools[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Save coach" }));
+  await waitFor(() => expect(post).toHaveBeenCalledWith("/agent/jobs/background-build/save", {}));
+  expect(screen.getByRole("textbox", { name: "Answer the builder" })).toBeTruthy();
+});
+
+it("refines a saved coach without changing its Rename/Delete menu", async () => {
+  vi.mocked(api).mockResolvedValue({ ...saved, tools: saved.tools.map(tool => ({ ...tool, id: "00000000-0000-4000-8000-000000000001" })) });
+  render(<Product />);
+  await screen.findAllByText(sampleTool.name);
+  fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
+  fireEvent.click(screen.getByRole("button", { name: "Refine coach" }));
+  expect(screen.getByRole("heading", { name: sampleTool.name, level: 2 })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: `Options for ${sampleTool.name}` }));
+  expect(screen.getAllByRole("menuitem").map(item => item.textContent)).toEqual(["Rename", "Delete"]);
 });
 
 it("renames a library coach and updates its upload option", async () => {

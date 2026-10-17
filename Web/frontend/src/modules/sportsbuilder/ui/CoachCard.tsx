@@ -24,10 +24,12 @@ export function CoachCard({
   tool,
   disabled,
   onUpdated,
+  onRefine,
 }: {
   tool: SavedTool;
   disabled?: boolean;
   onUpdated: (tool: SavedTool) => void;
+  onRefine?: () => void;
 }) {
   const [menu, setMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -153,6 +155,11 @@ export function CoachCard({
         <p>
           {tool.sport} · {tool.metrics.length} metrics
         </p>
+        {onRefine && !renaming && (
+          <button type="button" className="text-button" disabled={!!busy || disabled} onClick={onRefine}>
+            Refine coach
+          </button>
+        )}
         {renaming && (
           <form
             ref={renameForm}

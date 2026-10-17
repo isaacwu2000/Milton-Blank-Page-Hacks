@@ -1,4 +1,4 @@
-import type { CoachDrill, CoachFeedback, SavedTool } from "../../shared";
+import type { CoachDrill, CoachFeedback, SavedTool, ToolConfig } from "../../shared";
 
 export type Part =
   | { type: "text"; text: string }
@@ -17,6 +17,7 @@ export type Job = {
   status: "running" | "complete" | "failed";
   stage: string;
   tool?: SavedTool;
+  preview?: ToolConfig;
   reply?: string;
   drill?: CoachDrill;
   feedback?: CoachFeedback;

@@ -9,7 +9,13 @@ import {
   type ToolConfig,
 } from "../types";
 type Unit =
-  "point" | "length" | "speed" | "acceleration" | "angle" | "number" | "time";
+  | "point"
+  | "length"
+  | "speed"
+  | "acceleration"
+  | "angle"
+  | "number"
+  | "time";
 type Value = number | [number, number] | null;
 const fields: Record<string, Unit> = {
   x: "length",
@@ -32,6 +38,21 @@ const jointOps = [
 ];
 const reducers = ["max", "min", "mean", "range", "initial", "final"];
 export const CAPABILITIES = `JSON math operations (no executable code): point(joint), x/y/vx/vy/ax/ay(joint), speed(joint), acceleration(joint), time, constant(value), metric(metric=id). point values support midpoint(point A, point B), x(point), y(point), angle(point A, point vertex B, point C) in degrees, distance(point A, point B). Scalar arithmetic: add/subtract(same units), multiply(one dimensionless operand, or speed*time=length, acceleration*time=speed), divide(by number, same units=number, length/time=speed, speed/time=acceleration), abs, sqrt(number). Numbers/constants are dimensionless. Summary reducers max/min/mean/range/initial/final take exactly one {op:'metric',metric:'earlier_frame_id'}; reducers ignore missing samples except initial/final which use the exact first/last sample. Summaries may combine reducers and earlier summary metrics using arithmetic. Frame metrics may reference earlier frame metrics. No forward references or cycles. Unit types: length, speed, acceleration, angle, number, time. Coordinates: x starts at left edge, y increases upward from initial foot baseline; distances are pixels unless calibrated (then meters), time is seconds. Target length/speed/acceleration thresholds are SI units and must not be evaluated before calibration. Missing, non-finite, or confidence below 0.35 yields null. Angle of overlapping points yields null. Single-camera measurements are 2D projections; do not assert true jump height without calibration and baseline/plane assumptions.`;
+
+/** Formula diagnostics retain an exact JSON pointer and expected/actual values for agent repair. */
+export class ToolValidationError extends Error {
+  constructor(
+    readonly path: string,
+    readonly expected: unknown,
+    readonly actual: unknown,
+    message: string,
+  ) {
+    super(
+      `${message} Path: ${path}. Expected: ${JSON.stringify(expected)}; actual: ${JSON.stringify(actual)}.`,
+    );
+    this.name = "ToolValidationError";
+  }
+}
 
 /** Reject invalid dimensions, mixed scopes and executable content before saving. */
 export function validateTool(raw: unknown): ToolConfig {
@@ -58,16 +79,42 @@ export function validateTool(raw: unknown): ToolConfig {
   let nodes = 0;
   // Ordered metric definitions form an acyclic dependency graph: only earlier entries may be referenced.
   const known = new Map<string, { unit: Unit; scope: string }>();
-  for (const metric of tool.metrics) {
-    if (known.has(metric.id)) throw Error(`Duplicate metric: ${metric.id}`);
-    function type(e: Expr, depth = 0, insideReducer = false): Unit {
+  for (const [index, metric] of tool.metrics.entries()) {
+    if (known.has(metric.id))
+      throw new ToolValidationError(
+        `/metrics/${index}/id`,
+        "unique metric ID",
+        metric.id,
+        `Duplicate metric: ${metric.id}`,
+      );
+    function type(
+      e: Expr,
+      depth = 0,
+      insideReducer = false,
+      path = `/metrics/${index}/formula`,
+    ): Unit {
+      const fail = (
+        message: string,
+        expected: unknown,
+        actual: unknown,
+      ): never => {
+        throw new ToolValidationError(path, expected, actual, message);
+      };
       if (++nodes > 500 || depth > 16)
-        throw Error("Calculation is too complex.");
+        fail("Calculation is too complex.", "at most 500 nodes and depth 16", {
+          nodes,
+          depth,
+        });
       if (typeof e === "number") return "number";
       const args = e.args ?? [];
       const expect = (count: number) => {
         if (args.length !== count)
-          throw Error(`${e.op} needs ${count} arguments.`);
+          throw new ToolValidationError(
+            path + "/args",
+            count,
+            args.length,
+            `${e.op} needs ${count} arguments.`,
+          );
       };
       const allowed = [
         "op",
@@ -77,7 +124,7 @@ export function validateTool(raw: unknown): ToolConfig {
         ...(e.op === "metric" ? ["metric"] : []),
       ];
       if (Object.keys(e).some((key) => !allowed.includes(key)))
-        throw Error(`Unexpected property for ${e.op}.`);
+        fail(`Unexpected property for ${e.op}.`, allowed, Object.keys(e));
       // A summary reducer temporarily reads the frame scope; nested reducers would double aggregate.
       if (reducers.includes(e.op)) {
         expect(1);
@@ -88,40 +135,60 @@ export function validateTool(raw: unknown): ToolConfig {
           typeof ref === "number" ||
           ref.op !== "metric"
         )
-          throw Error(
+          fail(
             "Summary reducer needs one earlier frame metric reference.",
+            "one earlier frame metric in a summary reducer",
+            ref,
           );
-        return type(ref, depth + 1, true);
+        return type(ref, depth + 1, true, path + "/args/0");
       }
       if (e.op === "metric") {
         expect(0);
         const ref = known.get(e.metric ?? "");
         const scope = insideReducer ? "frame" : metric.scope;
         if (!ref || ref.scope !== scope)
-          throw Error(
+          fail(
             `Metric reference must name an earlier ${scope} metric${metric.scope === "summary" && !insideReducer ? " (use a reducer for frame metrics)" : ""}.`,
+            [...known]
+              .filter(([, item]) => item.scope === scope)
+              .map(([id]) => id),
+            e.metric,
           );
-        return ref.unit;
+        return ref!.unit;
       }
       if (e.op === "constant") {
         expect(0);
-        if (e.value === undefined) throw Error("Constant needs a value.");
+        if (e.value === undefined)
+          fail(
+            "Constant needs a value.",
+            "finite dimensionless number",
+            e.value,
+          );
         return "number";
       }
       if (
         metric.scope === "summary" &&
         (jointOps.includes(e.op) || e.op === "time")
       )
-        throw Error("Summary measurements must use a frame metric reducer.");
+        fail(
+          "Summary measurements must use a frame metric reducer.",
+          "reducer referencing an earlier frame metric",
+          e.op,
+        );
       if (jointOps.includes(e.op)) {
         if ((e.op === "x" || e.op === "y") && args.length === 1) {
-          if (e.joint || type(args[0], depth + 1) !== "point")
-            throw Error("Coordinate needs one point or a joint.");
+          const unit = type(args[0], depth + 1, false, path + "/args/0");
+          if (e.joint || unit !== "point")
+            fail(
+              "Coordinate needs one point or a joint.",
+              "one point argument without joint",
+              { unit, joint: e.joint },
+            );
           return "length";
         }
         expect(0);
         if (!e.joint || !JOINTS.includes(e.joint))
-          throw Error(`${e.op} needs a supported joint.`);
+          fail(`${e.op} needs a supported joint.`, JOINTS, e.joint);
         return e.op === "point"
           ? "point"
           : e.op === "speed"
@@ -134,11 +201,13 @@ export function validateTool(raw: unknown): ToolConfig {
         expect(0);
         return "time";
       }
-      const units = args.map((value) => type(value, depth + 1));
+      const units = args.map((value, argIndex) =>
+        type(value, depth + 1, false, `${path}/args/${argIndex}`),
+      );
       if (["angle", "distance", "midpoint"].includes(e.op)) {
         expect(e.op === "angle" ? 3 : 2);
         if (units.some((unit) => unit !== "point"))
-          throw Error(`${e.op} needs points.`);
+          fail(`${e.op} needs points.`, "point operands", units);
         return e.op === "angle"
           ? "angle"
           : e.op === "midpoint"
@@ -148,12 +217,20 @@ export function validateTool(raw: unknown): ToolConfig {
       if (e.op === "abs" || e.op === "sqrt") {
         expect(1);
         if (units[0] === "point" || (e.op === "sqrt" && units[0] !== "number"))
-          throw Error("Unsupported unary units.");
+          fail(
+            "Unsupported unary units.",
+            e.op === "sqrt" ? "number" : "scalar",
+            units,
+          );
         return units[0];
       }
       expect(2);
       if (units.includes("point"))
-        throw Error("Use distance, midpoint or angle for points.");
+        fail(
+          "Use distance, midpoint or angle for points.",
+          "scalar operands",
+          units,
+        );
       const [left, right] = units;
       if (["add", "subtract"].includes(e.op) && left === right) return left;
       if (e.op === "multiply") {
@@ -176,17 +253,36 @@ export function validateTool(raw: unknown): ToolConfig {
         if (right === "time" && left === "length") return "speed";
         if (right === "time" && left === "speed") return "acceleration";
       }
-      throw Error(`Unsupported operation or incompatible units: ${e.op}`);
+      return fail(
+        `Unsupported operation or incompatible units: ${e.op}`,
+        ["add", "subtract"].includes(e.op)
+          ? "same scalar units"
+          : e.op === "multiply"
+            ? "one dimensionless operand, speed*time, or acceleration*time"
+            : "division by number, matching units, length/time, or speed/time",
+        units,
+      );
     }
-    if (type(metric.formula) !== metric.unit)
-      throw Error(`Unit mismatch for ${metric.name}.`);
+    const actualUnit = type(metric.formula);
+    if (actualUnit !== metric.unit)
+      throw new ToolValidationError(
+        `/metrics/${index}/formula`,
+        metric.unit,
+        actualUnit,
+        `Unit mismatch for ${metric.name}.`,
+      );
     if (
       metric.target &&
       metric.target.min !== undefined &&
       metric.target.max !== undefined &&
       metric.target.min > metric.target.max
     )
-      throw Error(`Target minimum exceeds maximum for ${metric.name}.`);
+      throw new ToolValidationError(
+        `/metrics/${index}/target/min`,
+        `at most ${metric.target.max}`,
+        metric.target.min,
+        `Target minimum exceeds maximum for ${metric.name}.`,
+      );
     known.set(metric.id, { unit: metric.unit, scope: metric.scope });
   }
   return tool;
@@ -335,7 +431,15 @@ export function unitLabel(unit: string, calibrated: boolean) {
 }
 
 export type JointMeasure =
-  "point" | "x" | "y" | "vx" | "vy" | "ax" | "ay" | "speed" | "acceleration";
+  | "point"
+  | "x"
+  | "y"
+  | "vx"
+  | "vy"
+  | "ax"
+  | "ay"
+  | "speed"
+  | "acceleration";
 /** One confidence, coordinate, and finite-arithmetic policy for both JSON math and the inspector. */
 export function jointMeasurement(
   point: Point | undefined,
