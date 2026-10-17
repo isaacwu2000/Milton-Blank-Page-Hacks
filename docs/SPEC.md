@@ -4,7 +4,7 @@
 Coaches and athletes need a simple way to inspect movement and create reusable sport-specific coaching tools without coding. Reliable tracking and calculations should come from shared software, while AI handles interviewing, configuration, explanation, and drills.
 
 ## Solution
-A local two-screen React/TypeScript application with a Python/FastAPI video backend, a TypeScript agent using Daytona for tool creation and browser inspection, Neon Postgres for records, and private Neon Object Storage for footage. Follow LearnUnlock's existing Clear Path Studio design and reuse its components and bounded review-loop harness. No authentication or deployment in this phase.
+A local two-screen React/TypeScript application in Web/frontend, with backend services in Web/backend and shared contracts in Web/shared with a Python/FastAPI video backend, a TypeScript agent using Daytona for tool creation and browser inspection, Neon Postgres for records, and private Neon Object Storage for footage. Follow LearnUnlock's existing Clear Path Studio design and reuse its components and bounded review-loop harness. No authentication or deployment in this phase.
 
 ## User Stories
 1. As an athlete, I can upload a clip up to 30 seconds and see processing progress and actionable errors.
@@ -42,10 +42,10 @@ A local two-screen React/TypeScript application with a Python/FastAPI video back
 - Locally run Vite, FastAPI, agent service, and OAuth proxy. Railway deployment is documented but not performed.
 
 ## Testing Decisions
-No new committed test suite, per the supplied brief. Verify the numerical engine with known motion/angle/unit/error fixtures, typecheck and build, exercise backend lifecycle and failure boundaries, and run actual desktop/mobile UI journeys. Include one fresh live AI+Daytona build and real video inference if services and footage permit. Keep deterministic sample evidence separate from real inference and disclose unavailable checks. Capture representative screenshots and an acceptance PDF.
+The user subsequently requested pytest and Vitest suites, overriding the original brief’s no-new-suite preference. Add meaningful tests for numerical contracts, provider parity, reviewed-draft acceptance, asynchronous UI state, video validation/derivatives, and atomic session updates. Verify the numerical engine with known motion/angle/unit/error fixtures, typecheck and build, exercise backend lifecycle and failure boundaries, and run actual desktop/mobile UI journeys. Include one fresh live AI+Daytona build and real video inference if services and footage permit. Keep deterministic sample evidence separate from real inference and disclose unavailable checks. Capture representative screenshots and an acceptance PDF.
 
 ## Out of Scope
 Authentication, payments, public deployment, live camera recording, multi-athlete clips, moving-camera compensation, 3D biomechanics, ball/racket detection in this phase, generated UI, post-build tool editing, historical compatibility, Jev, and claims of clinical measurement accuracy.
 
 ## Further Notes
-Neon destination: dedicated SportsBuilder project in Math Audio, AWS N. Virginia, private videos bucket and development branch. Environment files remain ignored; only placeholder examples are committed. Full specification supersedes the pasted NicheKit brief where they differ. Initial footage validation needs a real 30-second-or-shorter single-athlete clip; sample mode is synthetic.
+Neon destination: dedicated SportsBuilder project in Math Audio, AWS N. Virginia, private videos bucket and development branch. Environment files remain ignored; only placeholder credential/connection examples are committed. Nonsecret settings live in typed configuration. Python uses uv, ty, Ruff, pytest, NamedTuples and explicit types; TypeScript uses Vitest. Full specification supersedes the pasted NicheKit brief where they differ. Initial footage validation needs a real 30-second-or-shorter single-athlete clip; sample mode is synthetic.

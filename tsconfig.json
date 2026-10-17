@@ -20,11 +20,12 @@
     ]
   },
   "include": [
-    "Web/src",
-    "shared",
-    "agent",
+    "Web/frontend/src",
+    "Web/shared",
+    "Web/backend/agent",
     "scripts",
-    "Web/vite.config.ts"
+    "Web/frontend/vite.config.ts",
+    "vitest.config.ts"
   ],
   "exclude": [
     ".agents/upstream"

@@ -1,11 +1,22 @@
 import os
 import sys
 from pathlib import Path
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from server import store
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Web/backend"))
 import psycopg
-with psycopg.connect(os.environ.get('DATABASE_URL_UNPOOLED',os.environ['DATABASE_URL']), connect_timeout=15) as con:
+from dotenv import load_dotenv
+from server import config
+
+load_dotenv(config.ROOT / ".env.local")
+load_dotenv(config.ROOT / ".env")
+
+with psycopg.connect(
+    os.getenv("DATABASE_URL_UNPOOLED") or os.environ["DATABASE_URL"],
+    connect_timeout=15,
+) as con:
     con.execute("SET statement_timeout = '20s'")
     con.execute("SET lock_timeout = '10s'")
-    con.execute((store.ROOT/'server/migrations/001_initial.sql').read_text())
-print('Initial database schema ready.')
+    con.execute(
+        (config.BACKEND_ROOT / "server/migrations/001_initial.sql").read_bytes()
+    )
+print("Initial database schema ready.")

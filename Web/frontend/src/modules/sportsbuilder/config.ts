@@ -1,0 +1,21 @@
+import { makeSample } from "../../../../shared";
+import type { HomeData } from "./types";
+export const EMPTY_HOME_DATA: HomeData = {
+  profiles: [],
+  tools: [],
+  sessions: [],
+};
+export const SAMPLE = makeSample();
+export const DEFAULT_SAMPLING_INTERVAL = 0.1;
+export const SAMPLING_INTERVALS = [0.033, 0.05, 0.1, 0.2, 0.5, 1] as const;
+export const BUILDER_WELCOME =
+  "What sport or movement would you like to build a coaching tool for, and what would you like it to help with?";
+export const BUILDER_EXAMPLE =
+  "Build a beginner squat coach. Track knee and hip angles and vertical hip movement, summarize range of motion, and coach a comfortable controlled squat with knees following the direction of the feet. Ask me what else you need.";
+
+export const POLLING = {
+  agentJobMs: 1200,
+  agentStageMs: 1500,
+  videoStatusMs: 1800,
+  signedUrlRefreshMs: 12 * 60 * 1000,
+} as const;

@@ -1,0 +1,17 @@
+"""Nonsecret analysis defaults. Credentials and service endpoints stay in the environment."""
+
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+STORAGE_BUCKET = "videos"
+DETECTOR_MODEL = "PekingU/rtdetr_r50vd_coco_o365"
+POSE_MODEL = "usyd-community/vitpose-plus-small"
+CONFIDENCE_THRESHOLD = 0.35
+MAX_VIDEO_SECONDS = 30.05
+MAX_VIDEO_DIMENSION = 4096
+MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+MAX_QUEUED_JOBS = 3
+DEFAULT_SAMPLE_INTERVAL = 0.1
+TORCH_THREADS = 4
+STORAGE_REGION = "us-east-1"

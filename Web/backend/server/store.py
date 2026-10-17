@@ -1,0 +1,126 @@
+"""Private Neon records and objects. Only credentials and endpoints come from the environment."""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Mapping
+from functools import lru_cache
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+
+import boto3
+from botocore.config import Config
+from dotenv import load_dotenv
+from psycopg.types.json import Jsonb
+from psycopg_pool import ConnectionPool
+
+from server import config
+from server.types import Record, RecordKind
+
+ROOT = config.ROOT
+load_dotenv(ROOT / ".env.local")
+load_dotenv(ROOT / ".env")
+BUCKET = config.STORAGE_BUCKET
+
+
+@lru_cache
+def pool() -> ConnectionPool:
+    """Share at most four database connections; allow a cold Neon compute to wake."""
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        raise RuntimeError("DATABASE_URL is missing. Add Neon credentials to .env.local.")
+    return ConnectionPool(url, min_size=0, max_size=4, timeout=45, kwargs={"connect_timeout": 15})
+
+
+@lru_cache
+def s3() -> S3Client:
+    """Use the S3-compatible protocol against Neon Object Storage; no AWS account is used."""
+    if not os.getenv("NEON_STORAGE_ENDPOINT"):
+        raise RuntimeError("Neon Object Storage credentials are missing.")
+    return boto3.client(
+        "s3",
+        endpoint_url=os.environ["NEON_STORAGE_ENDPOINT"],
+        aws_access_key_id=os.environ["NEON_STORAGE_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["NEON_STORAGE_SECRET_ACCESS_KEY"],
+        region_name=config.STORAGE_REGION,
+        config=Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "path"},
+            request_checksum_calculation="when_required",
+            response_checksum_validation="when_required",
+            connect_timeout=10,
+            read_timeout=40,
+        ),
+    )
+
+
+def records(kind: RecordKind) -> list[Record]:
+    """Read saved JSON records; the kind determines their domain shape."""
+    with pool().connection() as con:
+        return [
+            cast(Record, row[0])
+            for row in con.execute(
+                "SELECT payload FROM sportsbuilder_records WHERE kind=%s ORDER BY created_at DESC",
+                (kind,),
+            )
+        ]
+
+
+def get(kind: RecordKind, record_id: str) -> Record | None:
+    with pool().connection() as con:
+        row = con.execute(
+            "SELECT payload FROM sportsbuilder_records WHERE kind=%s AND id=%s", (kind, record_id)
+        ).fetchone()
+        return cast(Record, row[0]) if row else None
+
+
+def save(kind: RecordKind, value: Mapping[str, object]) -> Record:
+    """Create a record or replace an explicitly supplied complete configuration."""
+    with pool().connection() as con:
+        con.execute(
+            "INSERT INTO sportsbuilder_records(kind,id,payload) VALUES(%s,%s,%s) ON CONFLICT(kind,id) DO UPDATE SET payload=EXCLUDED.payload",
+            (kind, value["id"], Jsonb(value)),
+        )
+    return cast(Record, dict(value))
+
+
+def patch(kind: RecordKind, record_id: str, fields: Mapping[str, object]) -> Record:
+    """Atomically merge only owned fields, preserving concurrent calibration and job updates.
+
+    PostgreSQL locks the row while merging. A deleted record stays deleted.
+    """
+    if "id" in fields:
+        raise ValueError("A record identifier cannot change.")
+    with pool().connection() as con:
+        row = con.execute(
+            "UPDATE sportsbuilder_records SET payload=payload || %s WHERE kind=%s AND id=%s RETURNING payload",
+            (Jsonb(fields), kind, record_id),
+        ).fetchone()
+    if row is None:
+        raise KeyError("Record not found.")
+    return cast(Record, row[0])
+
+
+def delete(kind: RecordKind, record_id: str) -> None:
+    with pool().connection() as con:
+        con.execute("DELETE FROM sportsbuilder_records WHERE kind=%s AND id=%s", (kind, record_id))
+
+
+def put(key: str, data: bytes, content_type: str) -> None:
+    s3().put_object(Bucket=BUCKET, Key=key, Body=data, ContentType=content_type)
+
+
+def read(key: str) -> bytes:
+    return s3().get_object(Bucket=BUCKET, Key=key)["Body"].read()
+
+
+def url(key: str) -> str:
+    return s3().generate_presigned_url(
+        "get_object", Params={"Bucket": BUCKET, "Key": key}, ExpiresIn=900
+    )
+
+
+def remove(key: str) -> None:
+    s3().delete_object(Bucket=BUCKET, Key=key)
