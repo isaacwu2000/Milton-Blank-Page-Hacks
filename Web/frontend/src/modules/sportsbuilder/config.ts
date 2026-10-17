@@ -28,3 +28,9 @@ export const READ_RETRY = {
   baseDelayMs: 500,
   statuses: [500, 502, 503, 504] as readonly number[],
 } as const;
+
+export const PLAYBACK = {
+  clockRefreshMs: 50,
+  bufferingStatusDelayMs: 200,
+  maxPendingClockEchoes: 128,
+} as const;

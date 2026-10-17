@@ -1,3 +1,4 @@
+import { PLAYBACK } from "../config";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Play, Pause, ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
@@ -16,11 +17,17 @@ import {
   Math as AxisMath,
 } from "../../../components";
 import { LoadingStatus } from "./common";
+/**
+ * Plays native footage while reporting its clock for overlays.
+ * onSeek and seekRevision mark user seeks; clock reports must not rewind playback.
+ */
 export function Player({
   analysis,
   url,
   time,
   onTime,
+  onSeek,
+  seekRevision,
   joint,
   onJoint,
   ground,
@@ -39,6 +46,8 @@ export function Player({
   url?: string;
   time: number;
   onTime: (t: number) => void;
+  onSeek?: (t: number) => void;
+  seekRevision?: number;
   joint: Joint;
   onJoint: (j: Joint) => void;
   ground: number;
@@ -63,6 +72,25 @@ export function Player({
     playingChangeRef = useRef(onPlayingChange),
     lastReported = useRef<number | null>(null),
     timeRef = useRef(time);
+  const appliedSeekRevision = useRef(seekRevision);
+  const pendingClockEchoes = useRef<number[]>([]);
+  const waitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function clearVideoLoading() {
+    if (waitTimer.current !== null) clearTimeout(waitTimer.current);
+    waitTimer.current = null;
+    setVideoLoading(false);
+  }
+  function waitForVideo() {
+    if (waitTimer.current !== null || videoLoading) return;
+    waitTimer.current = setTimeout(() => {
+      waitTimer.current = null;
+      setVideoLoading(true);
+    }, PLAYBACK.bufferingStatusDelayMs);
+  }
+  useEffect(() => () => {
+    if (waitTimer.current !== null) clearTimeout(waitTimer.current);
+    waitTimer.current = null;
+  }, [url, analysis.id]);
   onTimeRef.current = onTime;
   playingChangeRef.current = onPlayingChange;
   timeRef.current = time;
@@ -134,6 +162,9 @@ export function Player({
   const marking = Boolean(onCanvasClick);
   const reportTime = (value: number) => {
     lastReported.current = value;
+    pendingClockEchoes.current.push(value);
+    if (pendingClockEchoes.current.length > PLAYBACK.maxPendingClockEchoes)
+      pendingClockEchoes.current.shift();
     onTimeRef.current(value);
   };
   useEffect(() => {
@@ -161,7 +192,11 @@ export function Player({
         reportTime(next >= analysis.duration ? 0 : next);
       } else {
         const video = videoRef.current;
-        if (video && !video.paused && !video.seeking)
+        if (
+          video && !video.paused && !video.seeking &&
+          (lastReported.current === null ||
+            Math.abs(video.currentTime - lastReported.current) >= PLAYBACK.clockRefreshMs / 1000)
+        )
           reportTime(video.currentTime);
       }
       request = requestAnimationFrame(tick);
@@ -172,22 +207,32 @@ export function Player({
   useEffect(() => {
     const video = videoRef.current;
     if (!video || video.readyState === 0) return;
-    // Ignore our own playback updates. A linked player corrects drift, rather than seeking every paint.
-    if (
-      lastReported.current !== null &&
-      Math.abs(lastReported.current - time) < 0.002
-    )
-      return;
+    // Native playback reports update overlays; only user intent should seek the media clock.
+    if (seekRevision !== undefined) {
+      if (appliedSeekRevision.current === seekRevision) return;
+      appliedSeekRevision.current = seekRevision;
+    } else {
+      // Controlled callers may commit an earlier report after a newer native tick.
+      const echo = pendingClockEchoes.current.findIndex(
+        (value) => Math.abs(value - time) < 0.002,
+      );
+      if (echo >= 0) {
+        pendingClockEchoes.current.splice(0, echo + 1);
+        return;
+      }
+    }
     const tolerance =
       !video.paused && linkedPlaying !== undefined ? 0.16 : 0.005;
     if (Math.abs(video.currentTime - time) > tolerance)
       video.currentTime = time;
-  }, [time, videoRef, linkedPlaying]);
+  }, [time, videoRef, linkedPlaying, seekRevision]);
   useEffect(() => {
     setPlaying(false);
     setInspected(false);
     setPlaybackError("");
     lastReported.current = null;
+    pendingClockEchoes.current = [];
+    appliedSeekRevision.current = seekRevision;
   }, [analysis.id]);
   useEffect(() => {
     setPlaybackError("");
@@ -237,7 +282,7 @@ export function Player({
   const step = (delta: number) => {
     setPlaying(false);
     videoRef.current?.pause();
-    onTime(Math.max(0, Math.min(analysis.duration, time + delta)));
+    (onSeek ?? onTime)(Math.max(0, Math.min(analysis.duration, time + delta)));
   };
   return (
     <div className="player">
@@ -278,12 +323,15 @@ export function Player({
             muted={linkedPlaying !== undefined}
             playsInline
             preload="auto"
-            onLoadStart={() => setVideoLoading(true)}
-            onLoadedData={() => setVideoLoading(false)}
-            onCanPlay={() => setVideoLoading(false)}
-            onWaiting={() => setVideoLoading(true)}
-            onPlaying={() => setVideoLoading(false)}
-            onSeeking={() => setVideoLoading(true)}
+            onLoadStart={() => {
+              clearVideoLoading();
+              setVideoLoading(true);
+            }}
+            onLoadedData={clearVideoLoading}
+            onCanPlay={clearVideoLoading}
+            onWaiting={waitForVideo}
+            onPlaying={clearVideoLoading}
+            onSeeking={waitForVideo}
             onLoadedMetadata={(e) => {
               e.currentTarget.currentTime = Math.min(
                 timeRef.current,
@@ -296,7 +344,7 @@ export function Player({
               if (e.currentTarget.paused)
                 reportTime(e.currentTarget.currentTime);
             }}
-            onSeeked={(e) => { setVideoLoading(false); reportTime(e.currentTarget.currentTime); }}
+            onSeeked={(e) => { clearVideoLoading(); reportTime(e.currentTarget.currentTime); }}
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
             onEnded={(e) => {
@@ -304,7 +352,7 @@ export function Player({
               reportTime(e.currentTarget.currentTime);
             }}
             onError={() => {
-              setVideoLoading(false);
+              clearVideoLoading();
               setPlaying(false);
               setPlaybackError(
                 "This video could not be played. The file may have expired or use an unsupported codec. Reload it, or export an H.264 MP4.",
@@ -666,7 +714,7 @@ export function Player({
             max={analysis.duration}
             step="0.01"
             value={time}
-            onChange={(e) => onTime(Number(e.target.value))}
+            onChange={(e) => (onSeek ?? onTime)(Number(e.target.value))}
           />
           <IconButton
             label="Next sample"

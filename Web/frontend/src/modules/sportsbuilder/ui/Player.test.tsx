@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { useState } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { jointMeasurement, type Analysis, type Joint, type Point } from "../../../../../shared";
 import { Player } from "./Player";
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 const point = (overrides: Partial<Point> = {}): Point => ({
   x: 150,
@@ -319,13 +320,15 @@ describe("selected joint derivative vectors", () => {
   });
 });
 
-it("shows video buffering and clears it when playback is ready or fails", () => {
+it("shows sustained video buffering and clears it when playback is ready or fails", () => {
+  vi.useFakeTimers();
   const view = render(<Player analysis={analysis([point()])} url="private.mp4" time={0} onTime={() => {}} joint="right_wrist" onJoint={() => {}} ground={200} />);
   const video = view.container.querySelector("video")!;
   expect(screen.getByRole("status").textContent).toContain("Loading video");
   fireEvent.loadedData(video);
   expect(screen.queryByRole("status")).toBeNull();
   fireEvent.waiting(video);
+  act(() => vi.advanceTimersByTime(200));
   expect(screen.getByRole("status")).toBeTruthy();
   fireEvent.error(video);
   expect(screen.queryByRole("status")).toBeNull();

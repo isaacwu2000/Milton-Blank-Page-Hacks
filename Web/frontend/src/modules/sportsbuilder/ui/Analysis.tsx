@@ -280,6 +280,7 @@ export function Workspace({
   profiles: Profile[];
   sessions: Session[];
 }) {
+  const [seekRevision, setSeekRevision] = useState(0);
   const [time, setTime] = useState(0),
     [joint, setJoint] = useState<Joint>(tool.focusJoint),
     [selectedMetric, setSelectedMetric] = useState(""),
@@ -364,7 +365,10 @@ export function Workspace({
         : measure === "acceleration"
           ? "acceleration"
           : "length");
-  const setCurrentTime = setTime;
+  const setCurrentTime = useCallback((value: number) => {
+    setTime(value);
+    setSeekRevision((revision) => revision + 1);
+  }, []);
   async function copy() {
     if (copying) return;
     setCopying(true);
@@ -472,7 +476,9 @@ export function Workspace({
             analysis={analysis}
             url={url}
             time={time}
-            onTime={setCurrentTime}
+            onTime={setTime}
+            onSeek={setCurrentTime}
+            seekRevision={seekRevision}
             joint={joint}
             onJoint={(j) => {
               setJoint(j);
