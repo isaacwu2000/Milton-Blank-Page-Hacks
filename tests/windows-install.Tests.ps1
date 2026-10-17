@@ -52,6 +52,18 @@ try {
     Set-Content -LiteralPath $checksums -Value "$hash  another.zip"
     Assert-Throws { Install-VerifiedBunArchive $archive $checksums 'windows-x64' $destination } 'Missing matching checksum must be rejected.'
 
+    if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+        $privateDirectory = Join-Path $temporaryDirectory 'private settings'
+        Protect-SetupDirectory $privateDirectory
+        $identity = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        $acl = Get-Acl -LiteralPath $privateDirectory
+        Assert-True $acl.AreAccessRulesProtected 'Private settings must not inherit broad access.'
+        $rules = $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])
+        foreach ($rule in $rules) {
+            Assert-True ($rule.IdentityReference.Value -eq $identity) 'Private settings should grant access only to the current user.'
+        }
+    }
+
     $shell = (Get-Process -Id $PID).Path
     $script = Join-Path $root 'install.ps1'
     $helpOutput = & $shell -NoProfile -File $script -Help 2>&1

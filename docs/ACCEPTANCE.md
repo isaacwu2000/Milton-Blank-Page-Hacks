@@ -270,3 +270,25 @@ is inert while open, and desktop collapse persistence remains separate. Eleven
 focused Home cases cover existing workspace behavior and mobile navigation.
 Captures: `output/screenshots/mobile-sidebar-closed.png` and
 `output/screenshots/mobile-sidebar-open.png`. Local verification only.
+
+
+## Native Windows installer checkpoint
+
+`install.ps1` provides the Windows counterpart to `install.sh`: PowerShell 5.1,
+per-user Bun/uv/Python bootstrap, SHA-checked Bun, private credential-directory
+ACLs, and the same missing-credential interview. Native Windows Intel/AMD x64 is
+the supported target; ARM and 32-bit shells are rejected with guidance. Shared
+runtime changes handle Windows Node ZIP layout, semicolon PATH entries, direct
+Node execution of npm's npx entry point, and owned process-tree cleanup. Vite's
+file URL paths use fileURLToPath for Windows drive letters and spaces.
+
+The offline PowerShell harness passed on macOS using verified Microsoft
+PowerShell 7.6.7. Focused checks passed: 18 Vitest cases and 23 pytest cases,
+TypeScript, Ruff lint/format, ty, and local build. The native cold-bootstrap,
+repeat-install, dependency import, and build workflow is committed in
+`.github/workflows/windows-setup.yml`. GitHub run 39050204063 was rejected before
+any runner/steps started: recent account payments failed or the spending limit
+needs increasing. Native Windows PowerShell 5.1 execution, ACL enforcement, and
+cold-runtime downloads therefore remain unverified until that workflow can run.
+No billing settings were changed. This is local installer implementation,
+not a production deployment.

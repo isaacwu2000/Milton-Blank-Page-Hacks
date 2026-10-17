@@ -4,9 +4,9 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $fixture = Join-Path $env:RUNNER_TEMP ('SportsBuilder cold setup ' + [guid]::NewGuid().ToString('N'))
 $checkout = Join-Path $fixture 'checkout with spaces'
-$profile = Join-Path $fixture 'user home'
+$isolatedHome = Join-Path $fixture 'user home'
 $null = New-Item -ItemType Directory -Path (Join-Path $checkout 'scripts') -Force
-$null = New-Item -ItemType Directory -Path $profile -Force
+$null = New-Item -ItemType Directory -Path $isolatedHome -Force
 Copy-Item -LiteralPath (Join-Path $root 'install.ps1') -Destination $checkout
 @'
 import { spawnSync } from "node:child_process";
@@ -21,8 +21,8 @@ $originalProfile = $env:USERPROFILE
 $originalPythonDirectory = $env:UV_PYTHON_INSTALL_DIR
 try {
     $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot\System32\WindowsPowerShell\v1.0"
-    $env:USERPROFILE = $profile
-    $env:UV_PYTHON_INSTALL_DIR = Join-Path $profile 'managed-python'
+    $env:USERPROFILE = $isolatedHome
+    $env:UV_PYTHON_INSTALL_DIR = Join-Path $isolatedHome 'managed-python'
     $shell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
     & $shell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $checkout 'install.ps1') -NoStart -NonInteractive
     if ($LASTEXITCODE -ne 0) { throw 'Cold native Windows bootstrap failed.' }
@@ -31,8 +31,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Repeat native Windows bootstrap failed.' }
     $proof = Get-Content -LiteralPath (Join-Path $checkout 'proof.json') -Raw | ConvertFrom-Json
     if ($proof.platform -ne 'win32' -or $proof.python -ne 'ok') { throw 'Wrong host or Python runtime.' }
-    $bunDirectory = Join-Path $profile '.bun\bin'
-    $uvDirectory = Join-Path $profile '.local\bin'
+    $bunDirectory = Join-Path $isolatedHome '.bun\bin'
+    $uvDirectory = Join-Path $isolatedHome '.local\bin'
     if (-not (Test-Path (Join-Path $bunDirectory 'bun.exe'))) { throw 'Bun was not installed in the isolated home.' }
     if (-not (Test-Path (Join-Path $uvDirectory 'uv.exe'))) { throw 'uv was not installed in the isolated home.' }
     $bunDirectory | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
