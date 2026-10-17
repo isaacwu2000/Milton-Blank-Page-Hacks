@@ -7,7 +7,7 @@ Coaches and athletes need a simple way to inspect movement and create reusable s
 A local React/TypeScript application with Your profile, Build your coach, and Get coached sections in Web/frontend, with backend services in Web/backend and shared contracts in Web/shared with a Python/FastAPI video backend, a TypeScript agent using Daytona for tool creation and browser inspection, Neon Postgres for records, and private Neon Object Storage for footage. Follow LearnUnlock's existing Clear Path Studio design and reuse its components and bounded review-loop harness. No authentication or deployment in this phase.
 
 ## User Stories
-1. As an athlete, I can upload a clip up to 30 seconds and see processing progress and actionable errors.
+1. As an athlete, I describe my sport, action, and coaching goal before uploading a clip up to 30 seconds. AI prepares a validated coach from that description, then the chosen clip uploads and starts analysis. Build failures retain my description; upload retries reuse the accepted coach for an unchanged description. Saved coaches remain under Build your coach rather than in an upload dropdown.
 2. As a user, I complete height onboarding for one athlete before uploading. Save the canonical Athlete profile with required height in centimeters, edit it under Your profile, and preserve older records and session associations.
 3. As an athlete, I can revisit uploads and choose a reusable coaching tool.
 4. As a builder, I can answer a guided AI interview about sport, audience, desired metrics, and good form.

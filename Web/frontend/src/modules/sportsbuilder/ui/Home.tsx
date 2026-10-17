@@ -20,10 +20,12 @@ import {
   type Profile,
   type Session,
   type ToolConfig,
+  type SavedTool,
 } from "../../../../../shared";
-import { IconButton, DropdownSelect, NumberInput } from "../../../components";
+import { IconButton, NumberInput } from "../../../components";
 import { api, post } from "../services/api";
 import { type HomeData } from "../types";
+import { useAgentJob } from "../hooks/useAgentJob";
 import { Logo, ErrorNote, Empty } from "./common";
 import {
   SAMPLE,
@@ -317,7 +319,6 @@ export function Product() {
           )}
           <div hidden={view !== "coached" || (loaded && !workspaceAvailable)}>
             <UploadPanel
-              data={data}
               profile={profile}
               profileReady={!needsProfile}
               loading={!loaded}
@@ -325,9 +326,14 @@ export function Product() {
                 setOpened(s.id);
                 reload();
               }}
-              onCreateTool={() => {
-                setBuilder(true);
-                setView("builder");
+              onCoachReady={(tool) => {
+                setData((previous) => ({
+                  ...previous,
+                  tools: [
+                    ...previous.tools.filter((t) => t.id !== tool.id),
+                    tool,
+                  ],
+                }));
               }}
             />
             <div className="recent-videos">
@@ -401,52 +407,104 @@ function ToolSummary({ tool }: { tool: ToolConfig }) {
   );
 }
 function UploadPanel({
-  data,
   profile,
   profileReady,
   loading = false,
   onUploaded,
-  onCreateTool,
+  onCoachReady,
 }: {
-  data: HomeData;
   profile?: Profile;
   profileReady: boolean;
   loading?: boolean;
   onUploaded: (s: Session) => void;
-  onCreateTool: () => void;
+  onCoachReady: (tool: SavedTool) => void;
 }) {
-  const [tool, setTool] = useState(""),
+  const [description, setDescription] = useState(""),
+    [job, setJob] = useState<string | null>(null),
+    [phase, setPhase] = useState<"preparing" | "uploading">("preparing"),
     [interval, setInterval] = useState(DEFAULT_SAMPLING_INTERVAL),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const toolId = tool || data.tools[0]?.id || "";
-  async function upload(file: File) {
-    if (loading || busy || !profileReady || !profile) return;
-    if (!toolId) {
-      setError("Build a coaching tool first.");
-      return;
-    }
-    setBusy(true);
-    setError("");
+  const pending = useRef<{
+    file: File;
+    profileId: string;
+    interval: number;
+  } | null>(null);
+  const prepared = useRef<{ description: string; tool: SavedTool } | null>(
+    null,
+  );
+  // Keep the chosen file until the existing AI review has accepted its coach.
+  useAgentJob(
+    job,
+    (result) => {
+      setJob(null);
+      if (!result.tool) {
+        setBusy(false);
+        setError("Your coach was not returned. Try uploading again.");
+        return;
+      }
+      prepared.current = { description: description.trim(), tool: result.tool };
+      onCoachReady(result.tool);
+      void uploadPrepared(result.tool.id);
+    },
+    (message) => {
+      setJob(null);
+      setBusy(false);
+      pending.current = null;
+      setError(message);
+    },
+  );
+  async function uploadPrepared(toolId: string) {
+    const selected = pending.current;
+    if (!selected) return;
+    setPhase("uploading");
     try {
       const form = new FormData();
-      form.set("file", file);
-      form.set("profileId", profile.id);
+      form.set("file", selected.file);
+      form.set("profileId", selected.profileId);
       form.set("toolId", toolId);
-      form.set("interval", String(interval));
-      const s = await api<Session>("/api/upload", {
+      form.set("interval", String(selected.interval));
+      const session = await api<Session>("/api/upload", {
         method: "POST",
         body: form,
       });
-      await post(`/api/sessions/${s.id}/analyze`, {});
-      onUploaded(s);
+      await post(`/api/sessions/${session.id}/analyze`, {});
+      pending.current = null;
+      onUploaded(session);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
+  async function upload(file: File) {
+    if (loading || busy || !profileReady || !profile) return;
+    const prompt = description.trim();
+    if (!prompt) {
+      setError("Describe your sport and action before uploading a video.");
+      return;
+    }
+    setBusy(true);
+    setPhase("preparing");
+    setError("");
+    pending.current = { file, profileId: profile.id, interval };
+    if (prepared.current?.description === prompt) {
+      await uploadPrepared(prepared.current.tool.id);
+      return;
+    }
+    try {
+      const result = await post<{ id: string }>("/agent/build", {
+        messages: [{ role: "user", content: prompt }],
+      });
+      setJob(result.id);
+    } catch (e) {
+      pending.current = null;
+      setBusy(false);
+      setError((e as Error).message);
+    }
+  }
+
   return (
     <section
       className="upload-panel"
@@ -461,23 +519,22 @@ function UploadPanel({
         <CloudUpload size={28} strokeWidth={1.5} />
       </div>
       <h1>Your Athletic Dreams Will Become a Reality</h1>
-      <div className="upload-selects">
-        <div className="flex min-w-0 flex-1 flex-col gap-2 text-[12px] text-(--neutral-dark-400)">
-          <span>Coaching tool</span>
-          <DropdownSelect
-            label="Coaching tool for upload"
-            disabled={loading || busy || !data.tools.length}
-            value={toolId}
-            onChange={setTool}
-            options={
-              loading
-                ? [{ value: toolId, label: "Loading saved workspace…" }]
-                : data.tools.length
-                  ? data.tools.map((t) => ({ value: t.id, label: t.name }))
-                  : [{ value: "", label: "Build a tool first" }]
-            }
-          />
-        </div>
+      <div className="upload-description">
+        <label htmlFor="coaching-description">What are you working on?</label>
+        <textarea
+          id="coaching-description"
+          aria-describedby="coaching-description-help"
+          placeholder="I’m playing basketball and practising my jump shot. Help me improve my elbow alignment and follow-through."
+          rows={4}
+          maxLength={2000}
+          value={description}
+          disabled={loading || busy}
+          onChange={(event) => setDescription(event.target.value)}
+        />
+        <p id="coaching-description-help" className="small muted">
+          Describe your sport, the action, and what you want to improve. AI will
+          prepare your coach when you upload.
+        </p>
       </div>
       <input
         ref={fileRef}
@@ -492,7 +549,7 @@ function UploadPanel({
       />
       <button
         className="button"
-        disabled={loading || busy || !profileReady || !toolId}
+        disabled={loading || busy || !profileReady || !description.trim()}
         onClick={() => fileRef.current?.click()}
       >
         {busy ? (
@@ -500,19 +557,20 @@ function UploadPanel({
         ) : (
           <CloudUpload size={17} />
         )}{" "}
-        {busy ? "Uploading video…" : "Upload video"}
+        {busy
+          ? phase === "preparing"
+            ? "Preparing your coach…"
+            : "Uploading video…"
+          : "Upload video"}
       </button>
       <span className="small muted">
         Up to 30 seconds · MP4, MOV, WebM · 100 MiB
       </span>
-      {!loading && !toolId && (
-        <div className="prerequisites">
-          {!toolId && (
-            <button className="text-button" onClick={onCreateTool}>
-              Build your first tool <ArrowRight size={13} />
-            </button>
-          )}
-        </div>
+      {job && (
+        <p className="small muted" role="status">
+          Preparing a coach for your description. Your video will upload
+          automatically when it’s ready. This can take a few minutes.
+        </p>
       )}
       <div className="w-full max-w-[420px] text-left">
         <label htmlFor="sampling-interval">
