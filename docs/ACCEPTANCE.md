@@ -177,6 +177,10 @@ shadow-swing drill. No pixel units appeared in the rendered page. This is actual
 video evidence, separate from the labeled synthetic calibration walkthrough.
 Private evidence: `output/current-live-coach-browser.json`.
 
+The independent final visual review found no material defects in the requested
+laptop changes. Sidebar collapse and reopening were additionally checked in the
+live browser, including focus restoration.
+
 ## Boundaries and remaining validation
 
 - One athlete, stationary-camera 2D clips up to 30 seconds. Body joints do not track
