@@ -389,3 +389,10 @@ PDF, timing output, raw logs and the journey matrix are under ignored
 not a fresh paid-provider call. A new real optional-reference upload and new video
 inference were not repeated for this configuration/streaming change; no production
 or deployment acceptance is claimed.
+
+
+### Streaming builder adapted into current main
+
+Adapted implementation `b136fe2` preserves the current compact resizable builder rail, darker background, reachable composer, removed builder header X, early-dialog dismissal/focus, mounted background builds, profile metadata, concrete feedback, automatic scale, tracking ownership, native playback, and graph scrubbing. The earlier streaming section records historical source-branch evidence, not new acceptance of this integration.
+
+Integrated checks: 200 Vitest and 182 pytest tests passed, plus build/typecheck, Ruff lint/format, and ty. Independent standards and specification reviews of `2d6f69b..b136fe2` passed. Regression cases cover streaming disconnect cancellation, superseded turn suppression, interrupted streams, bounded formula repair, explicit Save, background recording navigation, and lost save replies. A real two-connection Postgres check stored one disposable coach record, returned the same winning payload to both callers, preserved a later rename and hidden flag on retry, and removed its owned metadata afterward. Evidence: ignored `output/qa-monitor/builder-save-race-verification.json`. New integrated live browser acceptance remains pending here; no deployment is claimed.
