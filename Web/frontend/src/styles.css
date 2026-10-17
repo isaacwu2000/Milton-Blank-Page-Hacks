@@ -672,7 +672,7 @@ dd {
 }
 .analysis-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr) 12px var(--coach-width, 340px);
   min-height: calc(100vh - 72px);
 }
 .analysis-layout.coach-hidden {
@@ -1088,9 +1088,6 @@ progress {
   .home-content {
     padding-top: 40px;
   }
-  .analysis-layout {
-    grid-template-columns: minmax(0, 1fr) 380px;
-  }
   .analysis-main {
     padding: 32px 48px;
   }
@@ -1116,9 +1113,6 @@ progress {
   }
   .home-columns {
     gap: 24px;
-  }
-  .analysis-layout {
-    grid-template-columns: minmax(0, 1fr) 300px;
   }
   .analysis-main {
     padding: 24px;
@@ -1567,5 +1561,35 @@ html,
   }
   .home-content {
     padding-top: 76px;
+  }
+}
+
+/* A quiet grip separates footage and coaching without obscuring either surface. */
+.coach-resize-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  height: calc(100vh - 72px);
+}
+.coach-resize-handle span {
+  width: 3px;
+  height: 40px;
+  border-radius: 3px;
+  background: var(--neutral-dark-500);
+  opacity: 0.5;
+}
+.coach-resize-handle:hover span,
+.coach-resize-handle:focus-visible span {
+  background: var(--accent-700);
+  opacity: 1;
+}
+@media (max-width: 760px) {
+  .coach-resize-handle {
+    display: none;
   }
 }
