@@ -97,10 +97,14 @@ describe("saved workspace loading", () => {
       screen.queryByText("Drop your video here, or choose one to get started."),
     ).toBeNull();
     expect(
-      screen.getByRole("heading", {
-        name: "Your Athletic Dreams Will Become a Reality",
-      }),
-    ).toBeTruthy();
+      screen.queryByRole("heading", { name: "Your first session starts here" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Build your first tool" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("heading", { name: "Before your first video" }),
+    ).toBeNull();
     expect(api).toHaveBeenCalledTimes(1);
   });
   it("requires first-use height before upload and persists the single athlete", async () => {

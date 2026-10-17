@@ -39,6 +39,7 @@ import { SessionWorkspace, Workspace } from "./Analysis";
 export function Product() {
   const [data, setData] = useState<HomeData>(EMPTY_HOME_DATA),
     [loaded, setLoaded] = useState(false),
+    [workspaceAvailable, setWorkspaceAvailable] = useState(false),
     [error, setError] = useState(""),
     [view, setView] = useState<"coached" | "profile" | "builder">("coached"),
     [builder, setBuilder] = useState(false),
@@ -112,8 +113,10 @@ export function Product() {
   }
   const reload = useCallback(async () => {
     setLoaded(false);
+    setError("");
     try {
       setData(await api<HomeData>("/api/home"));
+      setWorkspaceAvailable(true);
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -125,8 +128,9 @@ export function Product() {
     reload();
   }, [reload]);
   useEffect(() => {
-    if (loaded && needsProfile && !error) setView("profile");
-  }, [loaded, needsProfile, error]);
+    if (loaded && workspaceAvailable && needsProfile && !error)
+      setView("profile");
+  }, [loaded, workspaceAvailable, needsProfile, error]);
   if (sample)
     return (
       <Workspace
@@ -280,7 +284,7 @@ export function Product() {
               </button>
             </div>
           )}
-          {loaded && (
+          {loaded && workspaceAvailable && (
             <div hidden={view !== "profile"}>
               <ProfileSetup
                 key={profile?.id ?? "new"}
@@ -311,7 +315,7 @@ export function Product() {
               )}
             </div>
           )}
-          <div hidden={view !== "coached"}>
+          <div hidden={view !== "coached" || (loaded && !workspaceAvailable)}>
             <UploadPanel
               data={data}
               profile={profile}
