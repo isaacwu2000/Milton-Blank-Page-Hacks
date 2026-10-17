@@ -278,9 +278,8 @@ describe("saved workspace loading", () => {
     });
     render(<Product />);
     const open = await screen.findByRole("button", { name: "Open jump.mp4" });
-    expect(
-      open.closest(".session-row")?.querySelectorAll("button").length,
-    ).toBe(1);
+    expect(open.matches("button.session-row")).toBe(true);
+    expect(open.querySelectorAll("button").length).toBe(0);
     expect(screen.queryByText("Ready")).toBeNull();
     expect(screen.queryByText(/^\d+ sessions$/)).toBeNull();
     expect(screen.getByText("Failed")).toBeTruthy();
@@ -412,4 +411,39 @@ it("removes only the confirmed recent video and restores useful keyboard focus",
   await waitFor(() => expect(screen.queryByRole("button", { name: "Open jump.mp4" })).toBeNull());
   expect(screen.getByRole("button", { name: "Open serve.mp4" })).toBeTruthy();
   expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Recent videos" }));
+});
+
+it("removes a selected coach from options and falls back to another visible coach", async () => {
+  const second = { ...saved.tools[0], id: "second", name: "Other coach" };
+  vi.mocked(api).mockResolvedValueOnce({ ...saved, tools: [...saved.tools, second] })
+    .mockResolvedValueOnce({ ...saved.tools[0], hidden: true });
+  render(<Product />);
+  const trigger = await screen.findByRole("combobox", { name: "Coaching tool for upload" });
+  await waitFor(() => expect(trigger.textContent).toBe(sampleTool.name));
+  fireEvent.click(trigger);
+  const remove = screen.getByRole("button", { name: `Remove ${sampleTool.name}` });
+  fireEvent.click(remove);
+  await waitFor(() => expect(trigger.textContent).toBe("Other coach"));
+  expect(api).toHaveBeenCalledWith("/api/tools/tool", { method: "DELETE" });
+  expect(screen.queryByRole("button", { name: `Remove ${sampleTool.name}` })).toBeNull();
+});
+
+it("keeps persisted hidden coaches out of selectable options", async () => {
+  vi.mocked(api).mockResolvedValueOnce({ ...saved, tools: [{ ...saved.tools[0], hidden: true }] });
+  render(<Product />);
+  const trigger = await screen.findByRole("combobox", { name: "Coaching tool for upload" });
+  await waitFor(() => expect(trigger.textContent).toBe("Build a tool first"));
+  expect((trigger as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Upload video" }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it("retains coach selection and reports a failed removal without hiding it", async () => {
+  vi.mocked(api).mockResolvedValueOnce(saved).mockRejectedValueOnce(Error("Could not remove coach"));
+  render(<Product />);
+  const trigger = await screen.findByRole("combobox", { name: "Coaching tool for upload" });
+  await waitFor(() => expect(trigger.textContent).toBe(sampleTool.name));
+  fireEvent.click(trigger);
+  fireEvent.click(screen.getByRole("button", { name: `Remove ${sampleTool.name}` }));
+  await screen.findByText("Could not remove coach");
+  expect(trigger.textContent).toBe(sampleTool.name);
 });

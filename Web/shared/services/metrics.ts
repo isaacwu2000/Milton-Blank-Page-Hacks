@@ -52,8 +52,9 @@ export function validateTool(raw: unknown): ToolConfig {
   const {
     id: _id,
     createdAt: _createdAt,
+    hidden: _hidden,
     ...tool
-  } = parsed as ToolConfig & { id?: string; createdAt?: string };
+  } = parsed as ToolConfig & { id?: string; createdAt?: string; hidden?: boolean };
   let nodes = 0;
   // Ordered metric definitions form an acyclic dependency graph: only earlier entries may be referenced.
   const known = new Map<string, { unit: Unit; scope: string }>();

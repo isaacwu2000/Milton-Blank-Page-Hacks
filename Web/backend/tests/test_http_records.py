@@ -205,3 +205,33 @@ def test_upload_rejects_out_of_range_or_nonfinite_sampling_interval(interval: fl
     )
     assert response.status_code == 422
     assert response.json()["detail"] == "Use a sampling interval between 0.05 and 2 seconds."
+
+
+@pytest.mark.parametrize("premade", [False, True])
+def test_remove_coach_keeps_full_record_and_historical_lookup(
+    monkeypatch: pytest.MonkeyPatch, premade: bool
+):
+    original = deepcopy(store.PREMADE_COACHES[0] if premade else TOOL)
+    saved = {}
+    monkeypatch.setattr(
+        store,
+        "get",
+        lambda kind, key: deepcopy(saved.get(key, original)) if key == original["id"] else None,
+    )
+
+    def save(kind, value):
+        saved[value["id"]] = deepcopy(value)
+        return value
+
+    monkeypatch.setattr(store, "save", save)
+    monkeypatch.setattr(
+        store, "records", lambda kind: list(saved.values()) if kind == "tools" else []
+    )
+    client = TestClient(app)
+    response = client.delete(f"/api/tools/{original['id']}")
+    assert response.status_code == 200
+    assert response.json() == {**original, "hidden": True}
+    assert store.get("tools", str(original["id"])) == response.json()
+    assert client.get("/api/home").json()["tools"] == [response.json()]
+    assert client.delete(f"/api/tools/{original['id']}").json() == response.json()
+    assert client.delete("/api/tools/not-a-uuid").status_code == 404

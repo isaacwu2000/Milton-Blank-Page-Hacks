@@ -13,12 +13,13 @@ import {
   LoaderCircle,
   Menu,
   Target,
+  X,
 } from "lucide-react";
 import {
   sampleTool,
   type Profile,
   type Session,
-  type ToolConfig,
+  type SavedTool,
 } from "../../../../../shared";
 import { IconButton, DropdownSelect, NumberInput } from "../../../components";
 import { api, post } from "../services/api";
@@ -100,6 +101,23 @@ export function Product() {
     (sidebarCollapsed ? expandButton : collapseButton).current?.focus();
     restoreSidebarFocus.current = false;
   }, [sidebarCollapsed]);
+  const [removingTool, setRemovingTool] = useState<string>();
+  const visibleTools = data.tools.filter((tool) => !tool.hidden);
+  async function removeTool(id: string) {
+    if (removingTool) return;
+    setRemovingTool(id);
+    try {
+      const saved = await api<SavedTool>(`/api/tools/${id}`, { method: "DELETE" });
+      setData((previous) => ({
+        ...previous,
+        tools: previous.tools.map((tool) => tool.id === id ? saved : tool),
+      }));
+    } catch (error) {
+      setError((error as Error).message);
+    } finally {
+      setRemovingTool(undefined);
+    }
+  }
   const profile = data.profiles.find((p) => p.name === "Athlete");
   const needsProfile = !profile?.heightCm;
   function profileSaved(saved: Profile) {
@@ -300,12 +318,18 @@ export function Product() {
                   reload();
                 }}
               />
-              {data.tools.length > 0 && (
+              {visibleTools.length > 0 && (
                 <section className="mt-8">
                   <h2>Your coaches</h2>
                   <div className="tool-grid">
-                    {data.tools.map((tool) => (
-                      <ToolSummary key={tool.id} tool={tool} />
+                    {visibleTools.map((tool) => (
+                      <ToolSummary
+                        key={tool.id}
+                        tool={tool}
+                        removing={removingTool === tool.id}
+                        disabled={!!removingTool}
+                        onRemove={() => removeTool(tool.id)}
+                      />
                     ))}
                   </div>
                 </section>
@@ -315,6 +339,8 @@ export function Product() {
           <div hidden={view !== "coached" || (loaded && !workspaceAvailable)}>
             <UploadPanel
               data={data}
+              onRemoveTool={removeTool}
+              removingTool={removingTool}
               profile={profile}
               profileReady={!needsProfile}
               loading={!loaded}
@@ -368,7 +394,12 @@ export function Product() {
     </div>
   );
 }
-function ToolSummary({ tool }: { tool: ToolConfig }) {
+function ToolSummary({ tool, removing, disabled, onRemove }: {
+  tool: SavedTool;
+  removing: boolean;
+  disabled: boolean;
+  onRemove: () => void;
+}) {
   return (
     <article className="tool-summary">
       <div className="tool-symbol">
@@ -380,11 +411,25 @@ function ToolSummary({ tool }: { tool: ToolConfig }) {
           {tool.sport} · {tool.metrics.length} metrics
         </p>
       </div>
+      <IconButton
+        label={`Remove ${tool.name}`}
+        className="ml-auto shrink-0"
+        disabled={disabled}
+        onClick={onRemove}
+      >
+        {removing ? (
+          <LoaderCircle size={17} className="spin" aria-hidden="true" />
+        ) : (
+          <X size={17} aria-hidden="true" />
+        )}
+      </IconButton>
     </article>
   );
 }
 function UploadPanel({
   data,
+  onRemoveTool,
+  removingTool,
   profile,
   profileReady,
   loading = false,
@@ -392,6 +437,8 @@ function UploadPanel({
   onCreateTool,
 }: {
   data: HomeData;
+  onRemoveTool: (id: string) => void;
+  removingTool?: string;
   profile?: Profile;
   profileReady: boolean;
   loading?: boolean;
@@ -403,7 +450,8 @@ function UploadPanel({
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const toolId = tool || data.tools[0]?.id || "";
+  const tools = data.tools.filter((tool) => !tool.hidden);
+  const toolId = tools.some((item) => item.id === tool) ? tool : tools[0]?.id || "";
   async function upload(file: File) {
     if (loading || busy || !profileReady || !profile) return;
     if (!toolId) {
@@ -449,14 +497,16 @@ function UploadPanel({
           <span>Coaching tool</span>
           <DropdownSelect
             label="Coaching tool for upload"
-            disabled={loading || busy || !data.tools.length}
+            disabled={loading || busy || !tools.length}
             value={toolId}
             onChange={setTool}
+            onRemove={onRemoveTool}
+            removingValue={removingTool}
             options={
               loading
                 ? [{ value: toolId, label: "Loading saved workspace…" }]
-                : data.tools.length
-                  ? data.tools.map((t) => ({ value: t.id, label: t.name }))
+                : tools.length
+                  ? tools.map((t) => ({ value: t.id, label: t.name }))
                   : [{ value: "", label: "Build a tool first" }]
             }
           />

@@ -197,6 +197,15 @@ async def save_tool(request: Request) -> ToolRecord:
         return cast(ToolRecord, await asyncio.to_thread(store.save, "tools", value))
 
 
+@app.delete("/api/tools/{tool_id}")
+async def hide_tool(tool_id: str) -> ToolRecord:
+    """Remove a coach from choices while retaining its configuration for existing videos."""
+    async with session_lock:
+        value = await asyncio.to_thread(record, "tools", tool_id)
+        value = {**value, "hidden": True}
+        return cast(ToolRecord, await asyncio.to_thread(store.save, "tools", value))
+
+
 @app.post("/api/upload", response_model=None)
 async def upload(
     file: Annotated[UploadFile, File()],

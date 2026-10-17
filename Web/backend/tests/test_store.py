@@ -117,3 +117,17 @@ def test_home_serves_premade_coaches_without_creating_sample_records(
     assert first.json()["profiles"] == []
     assert first.json()["sessions"] == []
     assert all("SELECT" in call.args[0] for call in connection.execute.call_args_list)
+
+
+def test_hidden_premade_stays_in_history_without_catalog_resurrection(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    hidden = {**store.PREMADE_COACHES[0], "hidden": True}
+    pool = MagicMock()
+    connection = pool.connection.return_value.__enter__.return_value
+    connection.execute.return_value.__iter__.return_value = iter([(hidden,)])
+    connection.execute.return_value.fetchone.return_value = (hidden,)
+    monkeypatch.setattr(store, "pool", lambda: pool)
+    tools = store.records("tools")
+    assert [tool for tool in tools if tool["id"] == hidden["id"]] == [hidden]
+    assert store.get("tools", str(hidden["id"])) == hidden

@@ -21,10 +21,12 @@ A local React/TypeScript application with Your profile, Build your coach, and Ge
 12. As a builder, I can also request custom mathematical calculations represented in checked JSON. Unsupported inputs, units, operations, invalid math, and missing tracking produce explicit unavailable results.
 13. As an athlete, I can ask the coach about form and receive evidence-linked explanations and drills grounded in sampled images, measurements, rubric, profile, and history.
 14. Visual comparison and paired playback are deferred to [issue #4](https://github.com/isaacwu2000/Milton-Blank-Page-Hacks/issues/4). The current analysis shows one athlete video. Optional good-form reference uploads remain available as coaching evidence.
-15. As an athlete, I can record drill completion and see progress/history update.
-16. As a user, my videos and reference files persist in private Neon Object Storage; records and configuration persist in Postgres.
-17. As a user, I can delete a clip and its associated stored analysis and footage.
-18. As a demo presenter, I can explore a clearly labeled deterministic sample without external services; it never masquerades as analyzed uploaded footage.
+15. As an athlete, I receive clear strengths, improvements, evidence limits, and suggested exercises with plain ordered steps. Advice has no completion buttons, checkboxes, completion counts, or task tracking; earlier saved history remains untouched.
+16. As an athlete, I can cancel movement tracking and keep my uploaded video for later.
+17. As an athlete, I can remove a coach from my options and library without breaking videos already linked to that coach.
+18. As a user, my videos and reference files persist in private Neon Object Storage; records and configuration persist in Postgres.
+19. As a user, I can delete a clip and its associated stored analysis and footage.
+20. As a demo presenter, I can explore a clearly labeled deterministic sample without external services; it never masquerades as analyzed uploaded footage.
 
 ## Implementation Decisions
 - Three navigation sections: Build your coach (direct interview) and Get coached (upload, tool selection, history) at the sidebar top, with Your profile (height onboarding/edit) anchored at the bottom. Analysis opens from a recording. Get coached centers the upload task directly on the page background, with no outer card or duplicate heading; full-width recent videos follow below. Omit the duplicate subtitle and sample entry from this screen. The builder section owns saved coaches and creation. Omit workspace breadcrumbs. Preserve draft input and interview state when changing sections. A LearnUnlock-style sidebar hamburger collapses the whole sidebar, with a reachable top-left reopening control and focus restoration.

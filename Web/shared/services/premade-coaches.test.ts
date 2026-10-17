@@ -20,3 +20,9 @@ describe("shipped coaches", () => {
     });
   }
 });
+
+it("retains hidden saved coach compatibility without passing metadata to measurements", () => {
+  const saved = savedToolSchema.parse({ ...coaches[0], hidden: true });
+  expect(saved.hidden).toBe(true);
+  expect(validateTool(saved)).not.toHaveProperty("hidden");
+});
