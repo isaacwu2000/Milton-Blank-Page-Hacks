@@ -101,3 +101,21 @@ it("keeps an early-build failure recoverable", async () => {
       .hasAttribute("disabled"),
   ).toBe(false);
 });
+
+it("restores a rejected interview draft and retries without duplicate user turns", async () => {
+  vi.mocked(post)
+    .mockRejectedValueOnce(Error("The AI returned an incomplete response. Please retry your message."))
+    .mockResolvedValueOnce({ reply: "Who is it for?", ready: false });
+  render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
+  const input = screen.getByRole("textbox", { name: "Answer the builder" }) as HTMLTextAreaElement;
+  const idea = "Build a coaching tool which analyzes my squash serve from the forehand side.";
+  fireEvent.change(input, { target: { value: idea } });
+  fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
+  await screen.findByText(/The AI returned an incomplete response/);
+  expect(input.value).toBe(idea);
+  fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
+  await screen.findByText("Who is it for?");
+  expect(screen.getAllByText(idea)).toHaveLength(1);
+  expect(vi.mocked(post).mock.calls[1][1]).toEqual({ messages: expect.arrayContaining([{ role: "user", content: idea }]) });
+  expect((vi.mocked(post).mock.calls[1][1] as { messages: unknown[] }).messages).toHaveLength(2);
+});
