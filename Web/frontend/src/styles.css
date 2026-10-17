@@ -1846,4 +1846,36 @@ button .loading-status {
   background: #912018;
 }
 
+.builder-columns-resizable {
+  grid-template-columns: minmax(0, 1fr) 12px var(--builder-rail-width, 280px);
+  gap: 12px;
+  align-items: stretch;
+}
+.builder-resize-handle {
+  display: grid;
+  place-items: center;
+  cursor: col-resize;
+  touch-action: none;
+  min-height: 100%;
+  border-radius: 6px;
+}
+.builder-resize-handle > span {
+  width: 3px;
+  height: 40px;
+  border-radius: 3px;
+  background: var(--neutral-light-200);
+}
+.builder-resize-handle:hover > span,
+.builder-resize-handle:focus-visible > span {
+  background: var(--neutral-dark-300);
+}
+.builder-resize-handle:focus-visible {
+  outline: 2px solid var(--accent-900);
+  outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .builder-columns-resizable { grid-template-columns: minmax(0, 1fr); }
+  .builder-resize-handle { display: none; }
+}
+
 .app-shell[hidden] { display: none; }

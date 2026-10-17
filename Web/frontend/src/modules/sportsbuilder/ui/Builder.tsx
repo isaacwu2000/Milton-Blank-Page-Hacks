@@ -16,6 +16,7 @@ import { useAgentJob } from "../hooks/useAgentJob";
 import { useConversationScroll } from "../hooks/useConversationScroll";
 import { ErrorNote } from "./common";
 import { BUILDER_WELCOME } from "../config";
+import { BuilderColumns } from "./BuilderColumns";
 import { BuilderPreview } from "./BuilderPreview";
 
 const starter: ToolConfig = {
@@ -316,7 +317,7 @@ export function Builder({
           <X size={17} />
         </IconButton>
       </div>
-      <div className="builder-columns">
+      <BuilderColumns>
         <div className="interview">
           <div
             ref={conversationRef}
@@ -468,7 +469,7 @@ export function Builder({
           </div>
           <BuilderPreview tool={preview} />
         </section>
-      </div>
+      </BuilderColumns>
       {confirmEarlyBuild && !busy && (
         <ConfirmDialog
           title="Build before finishing the interview?"
