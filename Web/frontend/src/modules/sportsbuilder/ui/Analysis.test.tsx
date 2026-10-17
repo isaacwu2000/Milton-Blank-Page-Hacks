@@ -6,11 +6,22 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeSample, sampleTool, type Session } from "../../../../../shared";
 import { api, post } from "../services/api";
 import { Workspace } from "./Analysis";
 vi.mock("../services/api", () => ({ api: vi.fn(), post: vi.fn() }));
+beforeEach(() => {
+  const values = new Map<string, string>();
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    },
+  });
+});
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
@@ -194,4 +205,72 @@ it("restores a coach question when its background review fails", async () => {
   expect(input.value).toBe("How can I improve my stance?");
   expect(screen.queryByText("How can I improve my stance?", { selector: ".message" })).toBeNull();
   expect(screen.getByRole("button", { name: "Send coach question" }).hasAttribute("disabled")).toBe(false);
+});
+
+it("lets keyboard users widen the coach, remembers the width, and restores it after hiding", () => {
+  window.localStorage.removeItem("sportsbuilder.coach.width");
+  render(
+    <Workspace
+      analysis={makeSample()}
+      tool={sampleTool}
+      sample
+      profiles={[]}
+      sessions={[]}
+      onBack={() => {}}
+    />,
+  );
+  const divider = screen.getByRole("separator", { name: "Resize coach panel" });
+  const initial = Number(divider.getAttribute("aria-valuenow"));
+  fireEvent.keyDown(divider, { key: "ArrowLeft" });
+  expect(Number(divider.getAttribute("aria-valuenow"))).toBe(initial + 24);
+  expect(window.localStorage.getItem("sportsbuilder.coach.width")).toBe(String(initial + 24));
+  fireEvent.click(screen.getByRole("button", { name: "Hide coach" }));
+  expect(screen.queryByRole("separator")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Show coach" }));
+  expect(screen.getByRole("separator").getAttribute("aria-valuenow")).toBe(String(initial + 24));
+  fireEvent.keyDown(screen.getByRole("separator"), { key: "End" });
+  expect(screen.getByRole("separator").getAttribute("aria-valuenow")).toBe(screen.getByRole("separator").getAttribute("aria-valuemax"));
+  fireEvent.keyDown(screen.getByRole("separator"), { key: "Home" });
+  expect(screen.getByRole("separator").getAttribute("aria-valuenow")).toBe("280");
+  window.localStorage.removeItem("sportsbuilder.coach.width");
+});
+
+it("drags the divider left to widen coaching and clamps saved widths to laptop space", () => {
+  window.localStorage.setItem("sportsbuilder.coach.width", "340");
+  render(
+    <Workspace
+      analysis={makeSample()}
+      tool={sampleTool}
+      sample
+      profiles={[]}
+      sessions={[]}
+      onBack={() => {}}
+    />,
+  );
+  const divider = screen.getByRole("separator", { name: "Resize coach panel" });
+  Object.assign(divider, {
+    setPointerCapture: vi.fn(),
+    hasPointerCapture: () => true,
+    releasePointerCapture: vi.fn(),
+  });
+  fireEvent(divider, new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 700 }));
+  fireEvent(divider, new MouseEvent("pointermove", { bubbles: true, clientX: 600 }));
+  expect(divider.getAttribute("aria-valuenow")).toBe("440");
+  fireEvent(divider, new MouseEvent("pointerup", { bubbles: true }));
+  fireEvent(divider, new MouseEvent("pointermove", { bubbles: true, clientX: 500 }));
+  expect(divider.getAttribute("aria-valuenow")).toBe("440");
+  cleanup();
+  window.localStorage.setItem("sportsbuilder.coach.width", "9999");
+  render(
+    <Workspace
+      analysis={makeSample()}
+      tool={sampleTool}
+      sample
+      profiles={[]}
+      sessions={[]}
+      onBack={() => {}}
+    />,
+  );
+  const restored = screen.getByRole("separator", { name: "Resize coach panel" });
+  expect(restored.getAttribute("aria-valuenow")).toBe(restored.getAttribute("aria-valuemax"));
 });

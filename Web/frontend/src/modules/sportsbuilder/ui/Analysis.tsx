@@ -1,3 +1,6 @@
+import type { CSSProperties } from "react";
+import { useCoachWidth } from "../hooks/useCoachWidth";
+import { CoachResizeHandle } from "./CoachResizeHandle";
 import { POLLING } from "../config";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -221,6 +224,7 @@ export function Workspace({
     [coachOpen, setCoachOpen] = useState(true),
     [tab, setTab] = useState<"movement" | "metrics">("movement"),
     [copied, setCopied] = useState(false);
+  const coachWidth = useCoachWidth();
   const ground = session?.ground ?? session?.calibration?.ground ?? analysis.ground;
   const scale = session?.calibration?.metersPerPixel ?? 1;
   const calibrationMetadata = session?.calibration;
@@ -340,7 +344,10 @@ export function Workspace({
           </IconButton>
         </div>
       </header>
-      <div className={`analysis-layout ${coachOpen ? "" : "coach-hidden"}`}>
+      <div
+        className={`analysis-layout ${coachOpen ? "" : "coach-hidden"}`}
+        style={{ "--coach-width": `${coachWidth.width}px` } as CSSProperties}
+      >
         <main className="analysis-main">
           <div className="analysis-title">
             <div>
@@ -598,6 +605,13 @@ export function Workspace({
           )}
         </main>
         {coachOpen && (
+          <CoachResizeHandle
+            width={coachWidth.width}
+            maximum={coachWidth.maximum}
+            onResize={coachWidth.resize}
+          />
+        )}
+        {coachOpen && (
           <CoachPanel
             tool={tool}
             session={session}
@@ -758,7 +772,7 @@ function CoachPanel({
     }
   }
   return (
-    <aside className="coach-panel">
+    <aside className="coach-panel" id="coach-panel">
       <div className="coach-heading">
         <div>
           <h2>Your coach</h2>
