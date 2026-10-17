@@ -198,7 +198,7 @@ export function calculate(
   scale = 1,
   ground = analysis.ground,
 ) {
-  validateTool(tool);
+  tool = validateTool(tool);
   if (!Number.isFinite(scale) || scale <= 0 || !Number.isFinite(ground))
     throw Error("Calibration must have a finite ground and positive scale.");
   const frameValues: Record<string, (number | null)[]> = {};

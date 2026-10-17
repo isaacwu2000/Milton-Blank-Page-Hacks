@@ -186,7 +186,7 @@ assert.equal(metricTarget(threshold, true)?.min, 1);
 const saved: SavedTool = {
   ...sampleTool,
   id: "4ab20613-ef81-4ed9-a14b-3df983cf228c",
-  createdAt: "2026-10-17T12:00:00.000Z",
+  createdAt: "2026-10-17T12:00:00.123456+00:00",
 };
 assert.deepEqual(calculate(saved, analysis), known);
 assert.deepEqual(validateTool(saved), sampleTool);

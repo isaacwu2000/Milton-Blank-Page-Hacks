@@ -109,7 +109,10 @@ export const toolSchema = z
   .strict();
 export type ToolConfig = z.infer<typeof toolSchema>;
 export const savedToolSchema = toolSchema
-  .extend({ id: z.string().uuid(), createdAt: z.string().datetime() })
+  .extend({
+    id: z.string().uuid(),
+    createdAt: z.string().datetime({ offset: true }),
+  })
   .strict();
 export type SavedTool = ToolConfig & { id: string; createdAt: string };
 export type Profile = {

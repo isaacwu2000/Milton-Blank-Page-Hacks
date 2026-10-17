@@ -157,11 +157,13 @@ describe("trusted metric calculations", () => {
     const saved: SavedTool = {
       ...sampleTool,
       id: "4ab20613-ef81-4ed9-a14b-3df983cf228c",
-      createdAt: "2026-10-17T12:00:00.000Z",
+      createdAt: "2026-10-17T12:00:00.123456+00:00",
     };
     expect(calculate(saved, fixture())).toEqual(
       calculate(sampleTool, fixture()),
     );
+    expect(validateTool(saved)).toEqual(sampleTool);
+    expect(() => validateTool({ ...saved, createdAt: "not-a-date" })).toThrow();
     expect(() =>
       validateTool({ ...saved, executable: "process.exit()" }),
     ).toThrow();
