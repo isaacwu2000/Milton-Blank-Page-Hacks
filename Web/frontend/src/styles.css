@@ -654,7 +654,12 @@ dd {
   margin-top: 3px;
 }
 .analysis-shell {
+  --analysis-header-height: 72px;
   min-height: 100vh;
+}
+.analysis-shell > .analysis-header {
+  position: sticky;
+  top: 0;
 }
 .analysis-header {
   @apply flex items-center justify-between gap-4 px-6;
@@ -966,9 +971,22 @@ dd {
   background: white;
   padding: 24px;
   min-width: 0;
-  max-height: calc(100vh - 72px);
+  /* The chat fills the viewport below its persistent header, even before a reply. */
+  height: calc(100dvh - var(--analysis-header-height, 72px));
+  min-height: 0;
   position: sticky;
-  top: 0;
+  top: var(--analysis-header-height, 72px);
+  align-self: start;
+}
+.coach-panel > :not(.coach-conversation):not(.rubric) {
+  flex-shrink: 0;
+}
+.coach-panel .rubric {
+  max-height: 25%;
+  overflow-y: auto;
+}
+.coach-panel .prompt-bar textarea {
+  max-height: min(200px, 20dvh);
 }
 .coach-heading {
   @apply flex items-center gap-3;
@@ -1001,7 +1019,7 @@ dd {
 }
 .coach-conversation {
   overflow: auto;
-  min-height: 150px;
+  min-height: 0;
   flex: 1;
   padding-right: 4px;
 }
@@ -1255,6 +1273,7 @@ progress {
   }
   .coach-panel {
     position: static;
+    height: auto;
     max-height: none;
     min-height: 500px;
     padding: 24px 20px;
