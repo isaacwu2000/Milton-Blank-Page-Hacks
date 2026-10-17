@@ -1,7 +1,8 @@
 # SportsBuilder identity studies
 
 Six logo candidates and two original eight-icon families for comparison. These
-are proposals; the application identity is unchanged.
+remain a comparison archive. Progression is the user-approved app mark and favicon;
+the icon families remain proposals.
 
 - [Figma study](https://www.figma.com/design/llHeNiPGkHeeEtKAqAwibW/SportsBuilder-Logo-Icon-Studies)
 - [Interactive comparison](index.html): serve the repository root, then open

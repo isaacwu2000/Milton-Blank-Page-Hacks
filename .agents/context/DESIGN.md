@@ -144,6 +144,13 @@ hierarchy. `Web/frontend/src/styles.css` copies `--shadow-sm`, `--shadow-md`,
 Reuse these tokens for their existing roles. The dropdown combines a recessed
 trigger with a raised menu; surface depth supports the action hierarchy.
 
+## Brand mark
+
+The approved SportsBuilder mark is Progression: three teal geometric forms in
+`Web/frontend/public/sportsbuilder.svg`. Use that same asset for the app logo and
+SVG favicon. Pair it with the SportsBuilder name in the sidebar. Keep the mark
+unboxed on the existing neutral surface; the other concept marks remain studies.
+
 ## Shapes
 
 Native fields use the field radius; the player and recurring panels use a larger

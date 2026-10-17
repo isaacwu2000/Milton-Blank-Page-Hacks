@@ -204,11 +204,11 @@ small,
   font-size: 16px;
 }
 .brand-mark {
-  @apply inline-grid place-items-center rounded-lg;
+  display: block;
   width: 30px;
   height: 30px;
-  background: var(--accent-700);
-  color: white;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 .brand-link {
   padding: 24px 20px 40px;
@@ -1573,10 +1573,6 @@ html,
   width: 24px;
   height: 24px;
   border-radius: 6px;
-}
-.sidebar-header .brand-mark svg {
-  width: 16px;
-  height: 16px;
 }
 .early-build-actions {
   display: flex;

@@ -1,11 +1,14 @@
-import { Activity, Film, X } from "lucide-react";
+import { Film, X } from "lucide-react";
 import { IconButton } from "../../../components";
 export function Logo() {
   return (
     <span className="brand">
-      <span className="brand-mark">
-        <Activity size={20} />
-      </span>
+      <img
+        className="brand-mark"
+        src="/sportsbuilder.svg"
+        alt=""
+        aria-hidden="true"
+      />
       SportsBuilder
     </span>
   );
