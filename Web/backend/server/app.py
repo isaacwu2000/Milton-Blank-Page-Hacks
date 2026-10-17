@@ -12,10 +12,10 @@ from typing import Annotated, Literal, Self, cast
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field, model_validator
 
-from server import calibration, config, store, vision
+from server import calibration, config, playback, store, vision
 from server.types import (
     Analysis,
     Calibration,
@@ -388,8 +388,18 @@ async def preview(session_id: str) -> RedirectResponse:
 
 @app.get("/api/sessions/{session_id}/video")
 async def video(session_id: str) -> dict[str, str]:
+    await asyncio.to_thread(record, "sessions", session_id)
+    return {"url": f"/api/sessions/{session_id}/playback"}
+
+
+@app.get("/api/sessions/{session_id}/playback")
+async def playback_video(session_id: str) -> FileResponse:
+    """Serve the cached MP4 with byte ranges for scrubbing and paused reloads."""
     session = await asyncio.to_thread(record, "sessions", session_id)
-    return {"url": await asyncio.to_thread(store.url, session["sourceKey"])}
+    path = await asyncio.to_thread(playback.prepare, session["sourceKey"])
+    return FileResponse(
+        path, media_type="video/mp4", headers={"Cache-Control": "private, no-cache"}
+    )
 
 
 @app.get("/api/sessions/{session_id}/analysis")
@@ -493,6 +503,7 @@ async def delete_session(session_id: str) -> dict[str, bool]:
         for key in [value.get("analysisKey"), value.get("sourceKey"), value.get("previewKey")]:
             if key:
                 await asyncio.to_thread(store.remove, key)
+        await asyncio.to_thread(playback.discard, value["sourceKey"])
         await asyncio.to_thread(store.delete, "sessions", session_id)
         cache.pop(session_id, None)
         return {"deleted": True}

@@ -4,6 +4,8 @@ A local prototype with Build your coach, Get coached, and Your profile navigatio
 
 ## Run locally
 
+Video playback also requires FFmpeg available on PATH.
+
 From the downloaded/cloned project folder:
 
 **Windows (64-bit Intel/AMD):** open PowerShell and run:
