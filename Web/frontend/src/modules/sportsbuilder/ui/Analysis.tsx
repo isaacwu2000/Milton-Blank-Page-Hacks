@@ -42,6 +42,7 @@ import { scaleFromAthleteHeight } from "../runtime/calibration";
 import { api, post } from "../services/api";
 import { type HomeData, type AgentJob } from "../types";
 import { useAgentJob } from "../hooks/useAgentJob";
+import { useConversationScroll } from "../hooks/useConversationScroll";
 import { Logo, ErrorNote } from "./common";
 import { fmt } from "../runtime/format";
 import { Player, Chart } from "./Player";
@@ -968,6 +969,7 @@ function CoachPanel({
           }
         : null,
     );
+  const { conversationRef, latestRef } = useConversationScroll(messages, busy);
   const pendingQuestion = useRef<{ messages: Message[]; text: string } | null>(null);
   /** Restores the unanswered question after either request or background-review failure. */
   function rejectQuestion(message: string) {
@@ -1075,7 +1077,7 @@ function CoachPanel({
         <summary>What we’re working towards</summary>
         <p>{tool.rubric}</p>
       </details>
-      <div className="coach-conversation" aria-live="polite">
+      <div ref={conversationRef} className="coach-conversation" aria-live="polite">
         {messages.map((m, i) => (
           <div className={`coach-message ${m.role}`} key={i}>
             <span className="small muted">
@@ -1085,6 +1087,7 @@ function CoachPanel({
             {m.feedback && <CoachFeedback feedback={m.feedback} />}
           </div>
         ))}
+        <div ref={latestRef} />
         {drill && <CoachExercises drill={drill} session={session} />}
       </div>
       {busy && (

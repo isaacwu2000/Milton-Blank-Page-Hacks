@@ -486,3 +486,16 @@ it("separates evidence-grounded feedback from a practice checklist without inven
   expect(screen.getAllByRole("checkbox")).toHaveLength(2);
   expect(screen.queryByRole("button", { name: "Mark complete" })).toBeNull();
 });
+
+it("reveals the newest coach response inside its conversation", async () => {
+  vi.mocked(post).mockResolvedValue({ id: "coach-job" });
+  vi.mocked(api).mockResolvedValue({ status: "complete", reply: "At 1.2 seconds, your knee bends." });
+  const view = render(<Workspace analysis={{ ...makeSample(), source: "video" }} tool={sampleTool}
+    session={{ id: "practice", name: "Practice", createdAt: "2026-10-17T12:00:00Z", profileId: "athlete", toolId: "tool", status: "complete", progress: 1, duration: 5, interval: 0.1, sourceKey: "private.mov" }}
+    onBack={() => {}} profiles={[]} sessions={[]} />);
+  const conversation = view.container.querySelector(".coach-conversation") as HTMLDivElement;
+  Object.defineProperty(conversation, "scrollHeight", { value: 1000 });
+  fireEvent.click(screen.getByRole("button", { name: "Review my form" }));
+  await screen.findByText("At 1.2 seconds, your knee bends.");
+  expect(conversation.scrollTop).toBe(1000);
+});

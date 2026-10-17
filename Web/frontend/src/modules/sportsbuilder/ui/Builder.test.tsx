@@ -119,3 +119,26 @@ it("restores a rejected interview draft and retries without duplicate user turns
   expect(vi.mocked(post).mock.calls[1][1]).toEqual({ messages: expect.arrayContaining([{ role: "user", content: idea }]) });
   expect((vi.mocked(post).mock.calls[1][1] as { messages: unknown[] }).messages).toHaveLength(2);
 });
+
+it("shows concise activity while preparing the next interview question", async () => {
+  vi.mocked(post).mockReturnValue(new Promise(() => {}));
+  render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
+  fireEvent.change(screen.getByRole("textbox", { name: "Answer the builder" }), {
+    target: { value: "Help me build one for situps" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
+  expect(screen.getByRole("status").textContent).toContain("Preparing your next question");
+});
+
+it("reveals the newest interview reply inside the chat scroller", async () => {
+  vi.mocked(post).mockResolvedValue({ reply: "Who is the sit-up coach for?", ready: false });
+  const view = render(<Builder onClose={vi.fn()} onBuilt={vi.fn()} />);
+  const conversation = view.container.querySelector(".conversation") as HTMLDivElement;
+  Object.defineProperty(conversation, "scrollHeight", { value: 900 });
+  fireEvent.change(screen.getByRole("textbox", { name: "Answer the builder" }), {
+    target: { value: "Help me build one for situps" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
+  await screen.findByText("Who is the sit-up coach for?");
+  expect(conversation.scrollTop).toBe(900);
+});
