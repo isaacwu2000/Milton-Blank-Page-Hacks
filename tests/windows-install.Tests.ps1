@@ -54,13 +54,30 @@ try {
 
     if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
         $privateDirectory = Join-Path $temporaryDirectory 'private settings'
-        Protect-SetupDirectory $privateDirectory
+        # Fail if setup returns to the broad setter that requests audit privileges.
+        function Set-Acl { throw "The process does not possess the 'SeSecurityPrivilege' privilege which is required for this operation." }
+        try {
+            Protect-SetupDirectory $privateDirectory
+            $secretFile = Join-Path $privateDirectory 'credentials.json'
+            Set-Content -LiteralPath $secretFile -Value 'private fixture'
+            $owner = (Get-Acl -LiteralPath $privateDirectory).Owner
+            Protect-SetupDirectory $privateDirectory
+            Assert-True ((Get-Content -LiteralPath $secretFile -Raw).Trim() -eq 'private fixture') 'Repeated protection must preserve existing credentials.'
+            Assert-True ((Get-Acl -LiteralPath $privateDirectory).Owner -eq $owner) 'Protection must not change the directory owner.'
+        } finally {
+            Remove-Item Function:\Set-Acl
+        }
         $identity = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
         $acl = Get-Acl -LiteralPath $privateDirectory
         Assert-True $acl.AreAccessRulesProtected 'Private settings must not inherit broad access.'
         $rules = $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])
+        Assert-True ($rules.Count -gt 0) 'Private settings must remain accessible to the current user.'
         foreach ($rule in $rules) {
             Assert-True ($rule.IdentityReference.Value -eq $identity) 'Private settings should grant access only to the current user.'
+        }
+        $fileRules = (Get-Acl -LiteralPath $secretFile).GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])
+        foreach ($rule in $fileRules) {
+            Assert-True ($rule.IdentityReference.Value -eq $identity) 'New credentials must inherit user-only access.'
         }
     }
 

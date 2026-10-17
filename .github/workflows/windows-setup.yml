@@ -32,6 +32,9 @@ jobs:
       - name: PowerShell 5.1 installer checks
         shell: powershell
         run: .\tests\windows-install.Tests.ps1
+      - name: PowerShell 7 installer checks
+        shell: pwsh
+        run: .\tests\windows-install.Tests.ps1
       - name: Cold bootstrap and repeat install
         shell: powershell
         run: .\tests\windows-bootstrap-smoke.ps1

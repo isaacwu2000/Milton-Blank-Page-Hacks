@@ -85,12 +85,18 @@ function Protect-SetupDirectory {
     $null = New-Item -ItemType Directory -Path $Path -Force
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent().User
     $acl = New-Object Security.AccessControl.DirectorySecurity
-    $acl.SetOwner($identity)
     $acl.SetAccessRuleProtection($true, $false)
     $inheritance = [Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
     $rule = New-Object Security.AccessControl.FileSystemAccessRule($identity, 'FullControl', $inheritance, 'None', 'Allow')
     $acl.AddAccessRule($rule)
-    Set-Acl -LiteralPath $Path -AclObject $acl
+    # Persist only the changed access rules; Set-Acl also requests audit privileges.
+    # Leave ownership and auditing untouched so a normal user can run setup.
+    if ($PSVersionTable.PSEdition -eq 'Desktop') {
+        [IO.Directory]::SetAccessControl($Path, $acl)
+    } else {
+        $directory = New-Object IO.DirectoryInfo($Path)
+        [IO.FileSystemAclExtensions]::SetAccessControl($directory, $acl)
+    }
 }
 
 function Start-SportsBuilderSetup {
