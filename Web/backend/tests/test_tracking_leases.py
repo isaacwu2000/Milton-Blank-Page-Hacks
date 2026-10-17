@@ -341,3 +341,22 @@ def test_cleanup_waits_for_pending_terminal_transaction_before_deleting(monkeypa
     assert parameters == (ID,)
     connection.execute.return_value.fetchone.return_value = ("analyses/clip/replacement.json",)
     assert store.analysis_result_unreferenced(ID, key)
+
+
+def test_assumed_height_calibration_requires_current_run_and_preserves_real_height(monkeypatch):
+    pool = MagicMock()
+    connection = pool.connection.return_value.__enter__.return_value
+    connection.execute.return_value.fetchone.return_value = (ID,)
+    monkeypatch.setattr(store, "pool", lambda: pool)
+    assert store.save_height_calibration(
+        ID,
+        {"metersPerPixel": 0.004, "ground": 940, "source": "assumed_height_auto"},
+        None,
+        "owned-run",
+    )
+    query, parameters = connection.execute.call_args.args
+    sql = query.as_string()
+    assert "IN ('assumed_height_auto')" in sql
+    assert "payload->>'analysisRunId'=%s" in sql
+    assert "> EXTRACT(EPOCH FROM clock_timestamp())" in sql
+    assert parameters[-1] == "owned-run"

@@ -387,7 +387,9 @@ async def work(session_id: str) -> None:
                     scale = calibration.automatic_scale(
                         athlete.get("heightCm") if athlete else None, reference, analysis["ground"]
                     )
-                    await asyncio.to_thread(store.save_height_calibration, session_id, scale, None, run_id)
+                    await asyncio.to_thread(
+                        store.save_height_calibration, session_id, scale, None, run_id
+                    )
                 job_fields: Record = {
                     "status": "complete",
                     "progress": 1,

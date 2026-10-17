@@ -73,7 +73,7 @@ def test_saved_tracking_gets_scale_without_reanalysis_and_preserves_existing(
         assert len(writes) == 1
 
 
-def test_tracking_without_profile_height_publishes_assumed_scale(monkeypatch):
+def test_tracking_without_profile_height_publishes_assumed_scale(monkeypatch, tracking_store):
     session = {
         "id": SESSION_ID,
         "sourceKey": "owned-test.mp4",
@@ -86,11 +86,13 @@ def test_tracking_without_profile_height_publishes_assumed_scale(monkeypatch):
     monkeypatch.setattr(
         store, "patch", lambda kind, key, fields: session.update(fields) or deepcopy(session)
     )
-    monkeypatch.setattr(
-        store,
-        "save_height_calibration",
-        lambda key, value: session.update(calibration=value) or True,
-    )
+
+    def save_owned(key, value, expected, run_id):
+        assert run_id == session["analysisRunId"]
+        session.update(calibration=value)
+        return True
+
+    monkeypatch.setattr(store, "save_height_calibration", save_owned)
     monkeypatch.setattr(
         vision, "analyze", lambda *args: {"frames": [], "ground": 940, "heightReference": REFERENCE}
     )
