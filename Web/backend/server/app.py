@@ -31,6 +31,13 @@ log = logging.getLogger("sportsbuilder")
 tracking_lock = asyncio.Lock()
 session_lock = asyncio.Lock()
 active: set[str] = set()
+cancelled: set[str] = set()
+CANCELLED_FIELDS: Record = {
+    "status": "uploaded",
+    "progress": 0,
+    "stage": "Analysis cancelled. Your video is saved.",
+    "error": None,
+}
 cache: dict[str, Analysis] = {}
 
 
@@ -277,12 +284,13 @@ async def work(session_id: str) -> None:
     path = None
     try:
         async with tracking_lock:
-            session = await asyncio.to_thread(record, "sessions", session_id)
-            if session_id not in active:
-                return
-            await asyncio.to_thread(
-                store.patch, "sessions", session_id, {"status": "processing", "progress": 0.01}
-            )
+            async with session_lock:
+                session = await asyncio.to_thread(record, "sessions", session_id)
+                if session_id not in active or session_id in cancelled:
+                    return
+                await asyncio.to_thread(
+                    store.patch, "sessions", session_id, {"status": "processing", "progress": 0.01}
+                )
             suffix = Path(session["sourceKey"]).suffix
             with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as h:
                 path = Path(h.name)
@@ -290,24 +298,30 @@ async def work(session_id: str) -> None:
             last = [0.0]
 
             def progress(value: float, message: str) -> bool:
-                if session_id not in active:
+                if session_id not in active or session_id in cancelled:
                     return False
                 if value - last[0] > 0.05:
                     last[0] = value
                     store.patch("sessions", session_id, {"progress": value, "stage": message})
                 return True
 
+            if session_id in cancelled:
+                return
             analysis = await asyncio.to_thread(
                 vision.analyze, path, session_id, session["interval"], progress
             )
-            if session_id not in active:
-                return
-            key = f"analyses/{session_id}.json"
-            await asyncio.to_thread(
-                store.put, key, json.dumps(analysis, allow_nan=False).encode(), "application/json"
-            )
             reference = analysis.get("heightReference")
             async with session_lock:
+                # Cancellation and publishing share this lock; a late result cannot revive a stopped job.
+                if session_id not in active or session_id in cancelled:
+                    return
+                key = f"analyses/{session_id}.json"
+                await asyncio.to_thread(
+                    store.put,
+                    key,
+                    json.dumps(analysis, allow_nan=False).encode(),
+                    "application/json",
+                )
                 if reference is not None and session.get("profileId"):
                     athlete = await asyncio.to_thread(record, "profiles", session["profileId"])
                     height_cm = athlete.get("heightCm")
@@ -328,8 +342,9 @@ async def work(session_id: str) -> None:
             if len(cache) > 8:
                 cache.pop(next(iter(cache)))
     except Exception as e:
-        log.exception("Tracking failed")
-        if session and session_id in active:
+        if session_id not in cancelled:
+            log.exception("Tracking failed")
+        if session and session_id in active and session_id not in cancelled:
             await asyncio.to_thread(
                 store.patch,
                 "sessions",
@@ -342,16 +357,41 @@ async def work(session_id: str) -> None:
                 },
             )
     finally:
-        active.discard(session_id)
-        if path:
-            path.unlink(missing_ok=True)
+        try:
+            if session_id in cancelled:
+                async with session_lock:
+                    await asyncio.to_thread(store.patch, "sessions", session_id, CANCELLED_FIELDS)
+        finally:
+            active.discard(session_id)
+            cancelled.discard(session_id)
+            if path:
+                path.unlink(missing_ok=True)
+
+
+@app.post("/api/sessions/{session_id}/cancel", response_model=None)
+async def cancel_tracking(session_id: str) -> SessionRecord:
+    """Stop queued or active tracking while retaining the uploaded clip for retry.
+
+    Completed recordings are unchanged. The worker stops at its next frame boundary
+    and removes its temporary file before allowing another job for this recording.
+    """
+    async with session_lock:
+        session = await asyncio.to_thread(record, "sessions", session_id)
+        if session["status"] not in ("queued", "processing"):
+            return cast(SessionRecord, session)
+        saved = await asyncio.to_thread(store.patch, "sessions", session_id, CANCELLED_FIELDS)
+        if session_id in active:
+            cancelled.add(session_id)
+        return cast(SessionRecord, saved)
 
 
 @app.post("/api/sessions/{session_id}/analyze", response_model=None)
 async def start(session_id: str) -> SessionRecord:
     async with session_lock:
         session = await asyncio.to_thread(record, "sessions", session_id)
-        if session_id in active:
+        if session_id in cancelled:
+            raise HTTPException(409, "The previous analysis is stopping. Retry in a moment.")
+        if session_id in active or session["status"] == "complete":
             return cast(SessionRecord, session)
         if len(active) >= config.MAX_QUEUED_JOBS:
             raise HTTPException(429, "Three clips are already queued. Wait for one to finish.")
