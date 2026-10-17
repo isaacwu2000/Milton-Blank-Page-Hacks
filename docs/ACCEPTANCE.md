@@ -7,15 +7,18 @@ working tree; captures do not all represent one immutable final commit.
 
 ## Verification results
 
-The latest build/typecheck and all 35 Vitest tests passed after the single-athlete
-UI change. The ground-estimate backend passed 35 pytest tests, ty, and Ruff.
+The latest TypeScript typecheck and behavioral tests passed after height onboarding,
+custom numeric entry, three-section navigation, and thumbnail changes. The profile/calibration backend passed 62 pytest tests, ty, and Ruff.
 
-- **Vitest:** 35 tests across 7 files passed in the final regression run.
+- **Vitest:** 54 tests across 11 files passed with the latest build/typecheck.
+  Coverage includes nine Home, eight Player, and three Analysis cases, including
+  sidebar reopening, canonical-height selection, calibration pause and seek reset.
   Coverage includes metric units/dependencies, provider parity/no paid fallback,
   private reasoning replay, exact reviewed-draft acceptance, async UI jobs,
   reference timing, home flows, and selected-joint arrows.
-- **Python:** 35 pytest tests, Ruff, and ty passed after the ground-estimate
-  correction; earlier typed runtime evidence is in `output/backend-evidence.json`.
+- **Python:** 62 pytest tests, Ruff, and ty passed after profile, height-calibration
+  and private-thumbnail changes; latest live evidence is in `output/height-live-evidence.json`.
+  Earlier typed runtime evidence is in `output/backend-evidence.json`.
   Python uses uv and 3.12.
 - **Live builder:** local OAuth GPT-6.1 Sol with medium reasoning created
   **Overhead Reach**, including composed final-minus-initial wrist rise. The unchanged
@@ -48,13 +51,14 @@ Recorded pose confidence scores are model outputs, not calibrated probabilities.
 
 | Journey | Tested state/environment | Evidence and limits |
 | --- | --- | --- |
-| Home, uploads/history | Local browser and persistent records; home lists all sessions; latest UI hides athlete management | `output/backend-evidence.json`; `output/screenshots/final-home-laptop.png` |
-| Single-athlete upload and tool selector | Canonical Athlete reused or created on first upload, cached across failed retries; no athlete picker/navigation/footer. LearnUnlock tool menu retains disabled/loading, keyboard, outside dismissal and focus behavior | Six Home regression cases; no new runtime dependency |
+| Home, uploads/history | Current local browser: three actual 512×288 JPEG previews loaded, full-width history, arrow actions, central upload and sampling slider | `output/backend-evidence.json`; `output/screenshots/current-get-coached.png` |
+| Single-athlete onboarding and navigation | Required height saved before upload; canonical Athlete reused, height edited under Your profile. Three sections preserve drafts; Get coached has upload/history and tool selection | Nine Home cases cover onboarding, editing, navigation, arrow-only completed rows, custom menu behavior and sidebar collapse/reopen |
+| Numeric entry and thumbnails | Recessed decimal text input with cm suffix; private first-frame JPEG, fixed skeleton until load, static error placeholder | Three NumberInput and two SessionPreview cases; no full-video thumbnail fetch |
 | Video analysis | Real 4K MOVs, queue/progress, detector rejection/corrected retry, stored image evidence | Backend evidence and private per-session analysis JSON in `output/` |
 | Interview/build | Fresh OAuth interview; tool calls, math validation, Daytona pixels, exact revision acceptance, Neon save | `output/uv-build-result.json`; `output/builds/5198ef99-23b9-44cc-8aa8-b7920d962661/accepted.json` and screenshots |
 | Player/joint inspection | Playback/scrub, selected point/measurements; deterministic vector fixtures | Player tests and earlier sample browser captures |
-| Latest joint panel and velocity/acceleration arrows | Click-open/close panel, plain Speed/Acceleration labels, selected-only overlay geometry; six Player cases cover directions, stable scale, missing evidence, edge fitting, arrowheads fitting short shafts, and white-backed KaTeX zero-axis labels | Final laptop capture on real stored footage; earlier builder/sample captures predate these last UI additions |
-| Calibration, alignment, drills | Invalid inputs rejected; concurrent ground/drill edits preserved; reference timing fixtures | Backend evidence; reference-video Vitest tests |
+| Latest joint panel and velocity/acceleration arrows | Click-open/close panel, plain Speed/Acceleration labels, selected-only overlay geometry; eight Player cases cover directions, stable scale, missing evidence, edge fitting, arrowheads fitting short shafts, and white-backed KaTeX zero-axis labels | Final laptop capture on real stored footage; earlier builder/sample captures predate these last UI additions |
+| Calibration, alignment, drills | Invalid inputs rejected; concurrent edits preserved; calibration pauses playback and seeking clears marks; exact canonical Athlete height wins over legacy test profiles | Backend evidence; calibration/Analysis/reference Vitest cases; synthetic browser walkthrough |
 | Coach | 276 actual images in 9 batches; earlier measured session; unavailable optional reference | `output/live-coach-final-request.json`; `output/live-coach-final-result.json` |
 | Final frontend/backend/shared layout | Real Daytona browser, final paths, uv-managed Python | `output/final-layout-smoke.json`; `output/builds/final-layout-smoke/desktop.png` and `mobile.png` |
 
@@ -66,13 +70,32 @@ exercise, not a correction inferred from the unrelated footage.
 
 ## Visual evidence scope
 
-Laptop use is the current priority. The final verified CSS viewport is 1152×720
+The current browser walkthrough used CSS 1152×720 at zoom 1.3. Genuine PNG
+headers confirm `current-get-coached.png` at 1481×1325, `current-profile.png` at
+1497×935, and `current-synthetic-calibration.png` at 1481×1864, all under
+`output/screenshots/`. Raster dimensions depend on page content and do not replace
+the CSS viewport. These current captures show the final central upload task,
+sidebar hamburger, one-athlete profile and custom height entry, and the separately
+labeled synthetic calibration result. All three real first-frame previews loaded;
+profile height 178 cm retained three inset shadow layers; saving returned to
+Get coached. Builder interview, sidebar collapse/reopen focus, and slider 2-second
+selection followed by restoration to 0.1 were browser-verified.
+
+The synthetic walkthrough used 178 cm and produced a selected scalar speed of
+0.361 m/s and acceleration of 1.07 m/s², with KaTeX unit fractions. This is
+explicitly synthetic UI/calculation evidence, not physical measurement of a
+supplied clip. The fresh real-clip capture `output/screenshots/current-real-analysis.png` shows
+the saved 178 cm profile, scale prompt, visible axes, and withheld dimensional
+readings; a DOM check found no visible pixel units. All three supplied clips still
+lack a qualifying automatic height reference.
+
+Laptop use is the current priority. An earlier laptop check recorded CSS 1152×720
 at zoom 1.3. `output/screenshots/final-laptop-viewport.json` records the actual
 viewport, content dimensions, sample time 5.01s, and revision `0d2a331 plus final
-frontend working tree`, using live Neon-stored IMG_0508.MOV. The genuine full-page
+frontend working tree`, using live Neon-stored IMG_0508.MOV. Its historical full-page
 PNGs are `final-home-laptop.png` (1481×1457), `final-joint-panel-laptop.png`
-(1481×1762), and `final-ground-laptop.png` (1481×1582). Home shows one athlete
-implicitly, the open coaching-tool menu, and no sidebar footer. The browser check
+(1481×1762), and `final-ground-laptop.png` (1481×1582). That home capture shows the previous shell with one athlete implicitly, the open
+coaching-tool menu, and no sidebar footer; it predates the current three-tab layout. The browser check
 opened and closed joint details and verified plain scalar readings without
 persistent joint text, with white-backed KaTeX axis labels. The first-frame ground
 capture shows the repaired line at estimated shoe contact. Raster size
@@ -93,13 +116,13 @@ earlier captures.
 
 The coordinate axes now use LearnUnlock grapher styling with white-backed KaTeX
 `x=0`/`y=0` labels; joint details still show plain Speed/Acceleration values and
-units. The reusable Math component exposes accessible MathML with trusted HTML
+units, with compact physical-unit fractions. The reusable Math component exposes accessible MathML with trusted HTML
 commands disabled. Five shadow tokens were copied exactly from LearnUnlock's
 canonical stylesheet, replacing the earlier single-layer approximation; dropdown
 triggers use the three-layer inset token and menus use the medium raised token.
 A whitespace-normalized source comparison passed, and the live dropdown trigger
-showed all three inset layers in computed browser styles. These changes appear in
-the latest laptop captures; the earlier live builder/coach evidence predates them.
+showed all three inset layers in computed browser styles. These styles appear in
+the historical laptop captures; the earlier live builder/coach evidence predates them.
 
 The automatic ground line now estimates initial shoe contact from the earliest
 clear detected person lower bound, with a confident ankle in the box's lower half
@@ -113,10 +136,36 @@ Stored ground metadata was repaired for all three supplied clips: IMG_0507 at
 `output/ground-repair-evidence.json` records unchanged frame/joint/image hashes
 and preserved manual-override fields; this repair did not rerun pose inference.
 
-The latest home simplification removes athlete management and the sidebar footer.
-It preserves older data and video associations; new uploads use the default Athlete
-record without importing biography from prior test profiles. The latest home
-capture verifies this layout; older captures show historical athlete controls.
+The latest shell has Build your coach and Get coached at the sidebar top, with
+Your profile anchored at the bottom. Required
+height onboarding saves the single Athlete profile before upload; editing height
+reuses its identity. Custom numeric inputs preserve decimal drafts and validate
+range/step without browser spinners. Get coached centers an unframed upload task on the page background, with full-width
+video history below and a quiet sample link. Workspace breadcrumbs and duplicate
+builder controls are removed. Completed recent rows show an arrow action and a
+private first-frame preview, with no aggregate count or Ready label. A visible
+pre-upload slider selects 0.05–2 seconds in 0.05-second steps (default 0.1), applied
+to both tracking and coach images. Home tests verify the default and 2-second
+value in uploaded form data. The `current-*` captures represent these latest shell
+changes; older laptop captures remain historical. Older session links are retained.
+
+Live height/profile checks persisted 178 cm on the canonical Athlete record and
+verified all three private JPEG previews. The existing clips remain physically
+uncalibrated: no stable upright, uncropped head-to-shoe span meets automatic scale
+requirements. Automatic height calibration requires three stable upright samples,
+with uncropped bounds and wrists below the head. The manual head/sole fallback
+with saved height was tested without relabeling pixel data as physical evidence.
+See `output/height-live-evidence.json`.
+
+AGENTS.md now explicitly carries unfinished requests forward across user feedback,
+reconciles conflicts using the latest direction, and allows cancellation/deferment
+only on an explicit request. This records the user’s correction about cumulative
+work: the failure mode was treating a new message as replacement scope; the small
+intervention is the explicit carry-forward rule, checked by reviewing remaining
+requests before completion. Guidance link validation passed; no new visual taste
+policy was added.
+
+Dark mode is deferred to [issue #3](https://github.com/isaacwu2000/Milton-Blank-Page-Hacks/issues/3); no dark theme or theme control is implemented.
 
 ## Boundaries and remaining validation
 

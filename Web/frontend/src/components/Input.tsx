@@ -7,7 +7,7 @@ import {
 
 const inputSurfaceClassName = [
   "rounded-xl border-0 bg-(--neutral-light-100) text-(--neutral-dark-150)",
-  "shadow-inner outline-none transition-[background-color,box-shadow] duration-150",
+  "shadow-(--shadow-inner) outline-none transition-[background-color,box-shadow] duration-150",
   "focus-visible:bg-(--neutral-light-400) focus-visible:outline-none",
   "disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none",
 ].join(" ");

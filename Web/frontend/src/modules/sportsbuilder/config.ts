@@ -7,7 +7,7 @@ export const EMPTY_HOME_DATA: HomeData = {
 };
 export const SAMPLE = makeSample();
 export const DEFAULT_SAMPLING_INTERVAL = 0.1;
-export const SAMPLING_INTERVALS = [0.033, 0.05, 0.1, 0.2, 0.5, 1] as const;
+export const SAMPLING_RANGE = { min: 0.05, max: 2, step: 0.05 } as const;
 export const BUILDER_WELCOME =
   "What sport or movement would you like to build a coaching tool for, and what would you like it to help with?";
 export const BUILDER_EXAMPLE =

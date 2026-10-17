@@ -3,16 +3,15 @@ import {
   useEffect,
   useRef,
   useState,
+  type FormEvent,
 } from "react";
 import {
-  Activity,
   ArrowRight,
-  ChevronRight,
   CloudUpload,
-  Film,
   Home,
+  UserRound,
   LoaderCircle,
-  Plus,
+  Menu,
   Target,
 } from "lucide-react";
 import {
@@ -22,28 +21,70 @@ import {
   type Session,
   type ToolConfig,
 } from "../../../../../shared";
-import { IconButton, DropdownSelect } from "../../../components";
+import { IconButton, DropdownSelect, NumberInput } from "../../../components";
 import { api, post } from "../services/api";
 import { type HomeData } from "../types";
 import { Logo, ErrorNote, Empty } from "./common";
 import {
   SAMPLE,
   EMPTY_HOME_DATA,
-  SAMPLING_INTERVALS,
+  SAMPLING_RANGE,
   DEFAULT_SAMPLING_INTERVAL,
 } from "../config";
 import { formatDate } from "../runtime/format";
 import { Builder } from "./Builder";
+import { SessionPreview } from "./SessionPreview";
 import { SessionWorkspace, Workspace } from "./Analysis";
 
 export function Product() {
   const [data, setData] = useState<HomeData>(EMPTY_HOME_DATA),
     [loaded, setLoaded] = useState(false),
     [error, setError] = useState(""),
-    [view, setView] = useState<"home" | "tools">("home"),
+    [view, setView] = useState<"coached" | "profile" | "builder">("coached"),
     [builder, setBuilder] = useState(false),
     [opened, setOpened] = useState<string | null>(null),
-    [sample, setSample] = useState(false);
+    [sample, setSample] = useState(false),
+    [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+      try {
+        return (
+          window.localStorage.getItem("sportsbuilder.sidebar.collapsed") ===
+          "true"
+        );
+      } catch {
+        return false;
+      }
+    });
+  const collapseButton = useRef<HTMLButtonElement>(null);
+  const expandButton = useRef<HTMLButtonElement>(null);
+  const restoreSidebarFocus = useRef(false);
+  function toggleSidebar() {
+    const collapsed = !sidebarCollapsed;
+    try {
+      window.localStorage.setItem(
+        "sportsbuilder.sidebar.collapsed",
+        String(collapsed),
+      );
+    } catch {
+      /* Navigation still works if browser storage is unavailable. */
+    }
+    restoreSidebarFocus.current = true;
+    setSidebarCollapsed(collapsed);
+  }
+  useEffect(() => {
+    if (!restoreSidebarFocus.current) return;
+    (sidebarCollapsed ? expandButton : collapseButton).current?.focus();
+    restoreSidebarFocus.current = false;
+  }, [sidebarCollapsed]);
+  const profile = data.profiles.find((p) => p.name === "Athlete");
+  const needsProfile = !profile?.heightCm;
+  function profileSaved(saved: Profile) {
+    setData((previous) => ({
+      ...previous,
+      profiles: [...previous.profiles.filter((p) => p.id !== saved.id), saved],
+    }));
+    setView("coached");
+    reload();
+  }
   const reload = useCallback(async () => {
     setLoaded(false);
     try {
@@ -58,6 +99,9 @@ export function Product() {
   useEffect(() => {
     reload();
   }, [reload]);
+  useEffect(() => {
+    if (loaded && needsProfile && !error) setView("profile");
+  }, [loaded, needsProfile, error]);
   if (sample)
     return (
       <Workspace
@@ -81,24 +125,54 @@ export function Product() {
       />
     );
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <a className="brand-link" href="/" aria-label="SportsBuilder home">
-          <Logo />
-        </a>
-        <nav aria-label="Main navigation">
+    <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      {sidebarCollapsed && (
+        <IconButton
+          ref={expandButton}
+          label="Expand sidebar"
+          className="sidebar-expand"
+          aria-controls="sportsbuilder-sidebar"
+          aria-expanded={false}
+          onClick={toggleSidebar}
+        >
+          <Menu size={18} strokeWidth={1.75} />
+        </IconButton>
+      )}
+      <aside
+        id="sportsbuilder-sidebar"
+        className="sidebar"
+        hidden={sidebarCollapsed}
+      >
+        <div className="sidebar-header">
+          <a className="brand-link" href="/" aria-label="SportsBuilder home">
+            <Logo />
+          </a>
+          <IconButton
+            ref={collapseButton}
+            label="Collapse sidebar"
+            surface="transparent"
+            className="sidebar-collapse"
+            aria-controls="sportsbuilder-sidebar"
+            aria-expanded={true}
+            onClick={toggleSidebar}
+          >
+            <Menu size={18} strokeWidth={1.75} />
+          </IconButton>
+        </div>
+        <nav aria-label="Main navigation" className="flex-1 pb-4">
           {(
             [
-              { id: "home", label: "Home", icon: Home },
-              { id: "tools", label: "Coaching tools", icon: Target },
+              { id: "builder", label: "Build your coach", icon: Target },
+              { id: "coached", label: "Get coached", icon: Home },
+              { id: "profile", label: "Your profile", icon: UserRound },
             ] as const
           ).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              className={`nav-item ${view === id ? "active" : ""}`}
+              className={`nav-item ${view === id ? "active" : ""} ${id === "profile" ? "mt-auto" : ""}`}
               onClick={() => {
                 setView(id);
-                setBuilder(false);
+                if (id === "builder") setBuilder(true);
               }}
             >
               <Icon size={18} />
@@ -108,42 +182,27 @@ export function Product() {
         </nav>
       </aside>
       <main className="home-main">
-        <header className="topbar">
-          <span className="muted">
-            Workspace <ChevronRight size={13} />
-            <span className="ink">
-              {view === "home" ? "Home" : "Coaching tools"}
-            </span>
-          </span>
-        </header>
         <div className="home-content">
-          <div className="page-heading">
-            <div>
-              <h1>
-                {builder
-                  ? "Build your coaching tool"
-                  : view === "tools"
-                      ? "Your coaching tools"
+          {view !== "coached" && (
+            <div className="page-heading">
+              <div>
+                <h1>
+                  {view === "profile"
+                    ? "Your profile"
+                    : view === "builder"
+                      ? "Build your coach"
                       : "See your next move."}
-              </h1>
-              <p>
-                {builder
-                  ? "A few questions. A coach built around what matters to you."
-                  : view === "tools"
-                      ? "Reusable metrics, a clear rubric, and a coach for your sport."
+                </h1>
+                <p>
+                  {view === "profile"
+                    ? "A little context for measurements that make sense."
+                    : view === "builder"
+                      ? "A few questions. A coach built around what matters to you."
                       : "Look closer at your movement. Find one thing to practise."}
-              </p>
+                </p>
+              </div>
             </div>
-            {!builder && view === "home" && (
-              <button
-                className="button secondary"
-                onClick={() => setBuilder(true)}
-              >
-                <Plus size={16} />
-                Build a tool
-              </button>
-            )}
-          </div>
+          )}
           {!loaded && (
             <p className="small muted" role="status" aria-live="polite">
               Loading saved workspace…
@@ -161,150 +220,110 @@ export function Product() {
               </button>
             </div>
           )}
-          {builder ? (
-            <Builder
-              onClose={() => setBuilder(false)}
-              onBuilt={() => {
-                setBuilder(false);
-                reload();
-              }}
-            />
-          ) : (
-            <>
-              {view === "home" && (
-                <>
-                  <UploadPanel
-                    data={data}
-                    loading={!loaded}
-                    onUploaded={(s) => {
-                      setOpened(s.id);
-                      reload();
-                    }}
-                    onCreateTool={() => setBuilder(true)}
-                  />
-                  <div className="home-columns">
-                    <section>
-                      <div className="section-heading">
-                        <h2>Recent videos</h2>
-                        <span className="muted small">
-                          {
-                            data.sessions.filter(
-                              (s) =>
-                                !(s as Session & { reference?: boolean })
-                                  .reference,
-                            ).length
-                          }{" "}
-                          sessions
-                        </span>
-                      </div>
-                      {!loaded ? (
-                        <div className="skeleton" />
-                      ) : data.sessions.filter(
-                          (s) =>
-                            !(s as Session & { reference?: boolean }).reference,
-                        ).length ? (
-                        <div className="session-list">
-                          {data.sessions
-                            .filter(
-                              (s) =>
-                                !(s as Session & { reference?: boolean })
-                                  .reference,
-                            )
-                            .map((s) => (
-                              <button
-                                className="session-row"
-                                key={s.id}
-                                onClick={() => setOpened(s.id)}
-                              >
-                                <span className="video-icon">
-                                  <Film size={20} />
-                                </span>
-                                <span className="session-copy">
-                                  <strong>{s.name}</strong>
-                                  <small>
-                                    {s.duration.toFixed(1)}s ·{" "}
-                                    {formatDate(s.createdAt)}
-                                  </small>
-                                </span>
-                                <span
-                                  className={`small ${s.status === "failed" ? "error-text" : "muted"}`}
-                                >
-                                  {s.status === "complete"
-                                    ? "Ready"
-                                    : pretty(s.status)}
-                                </span>
-                                <ChevronRight size={16} />
-                              </button>
-                            ))}
-                        </div>
-                      ) : (
-                        <Empty title="Your first session starts here">
-                          Upload a short video to see your movement, frame by
-                          frame.
-                        </Empty>
-                      )}
-                    </section>
-                    <section className="tools-aside">
-                      <div className="section-heading">
-                        <h2>Your tools</h2>
-                        <IconButton
-                          label="Build a coaching tool"
-                          surface="transparent"
-                          onClick={() => setBuilder(true)}
-                        >
-                          <Plus size={17} />
-                        </IconButton>
-                      </div>
-                      {data.tools.slice(0, 3).map((t) => (
-                        <ToolSummary tool={t} key={t.id} />
-                      ))}
-                      {!data.tools.length && (
-                        <p className="muted">
-                          Create a coach for your sport. Choose what to measure
-                          and what good form means.
-                        </p>
-                      )}
-                      <button
-                        className="sample-link"
-                        onClick={() => setSample(true)}
-                      >
-                        <span className="sample-symbol">
-                          <Activity size={21} />
-                        </span>
-                        <span>
-                          <strong>Try a sample analysis</strong>
-                          <small>Explore the player and motion graphs</small>
-                        </span>
-                        <ArrowRight size={17} />
-                      </button>
-                      <p className="small muted">
-                        Synthetic movement. No video upload needed.
-                      </p>
-                    </section>
-                  </div>
-                </>
-              )}
-              {view === "tools" && (
-                <>
-                  <button className="button" onClick={() => setBuilder(true)}>
-                    <Plus size={16} />
-                    Build a coaching tool
-                  </button>
+          {loaded && (
+            <div hidden={view !== "profile"}>
+              <ProfileSetup
+                key={profile?.id ?? "new"}
+                profile={profile}
+                onSaved={profileSaved}
+                editing={!needsProfile}
+              />
+            </div>
+          )}
+          {builder && (
+            <div hidden={view !== "builder"}>
+              <Builder
+                onClose={() => setView("coached")}
+                onBuilt={() => {
+                  setView("coached");
+                  reload();
+                }}
+              />
+              {data.tools.length > 0 && (
+                <section className="mt-8">
+                  <h2>Your coaches</h2>
                   <div className="tool-grid">
-                    {data.tools.map((t) => (
-                      <ToolSummary tool={t} key={t.id} />
+                    {data.tools.map((tool) => (
+                      <ToolSummary key={tool.id} tool={tool} />
                     ))}
                   </div>
-                  {!data.tools.length && (
-                    <Empty title="A coach for your kind of movement">
-                      Start with your sport, the movement, and what you want to
-                      improve.
-                    </Empty>
-                  )}
-                </>
+                </section>
               )}
-            </>
+            </div>
           )}
+          <div hidden={view !== "coached"}>
+            <UploadPanel
+              data={data}
+              profile={profile}
+              profileReady={!needsProfile}
+              loading={!loaded}
+              onUploaded={(s) => {
+                setOpened(s.id);
+                reload();
+              }}
+              onCreateTool={() => {
+                setBuilder(true);
+                setView("builder");
+              }}
+            />
+            <div className="recent-videos">
+              <section>
+                <div className="section-heading">
+                  <h2>Recent videos</h2>
+                </div>
+                {!loaded ? (
+                  <div className="skeleton" />
+                ) : data.sessions.filter(
+                    (s) => !(s as Session & { reference?: boolean }).reference,
+                  ).length ? (
+                  <div className="session-list">
+                    {data.sessions
+                      .filter(
+                        (s) =>
+                          !(s as Session & { reference?: boolean }).reference,
+                      )
+                      .map((s) => (
+                        <div className="session-row" key={s.id}>
+                          <SessionPreview sessionId={s.id} />
+                          <span className="session-copy">
+                            <strong>{s.name}</strong>
+                            <small>
+                              {s.duration.toFixed(1)}s ·{" "}
+                              {formatDate(s.createdAt)}
+                            </small>
+                          </span>
+                          {s.status !== "complete" && (
+                            <span
+                              className={`small ${s.status === "failed" ? "error-text" : "muted"}`}
+                            >
+                              {pretty(s.status)}
+                            </span>
+                          )}
+                          <IconButton
+                            label={`Open ${s.name}`}
+                            onClick={() => setOpened(s.id)}
+                          >
+                            <ArrowRight size={17} />
+                          </IconButton>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <Empty title="Your first session starts here">
+                    Upload a short video to see your movement, frame by frame.
+                  </Empty>
+                )}
+              </section>
+            </div>
+            <div className="sample-entry">
+              <button className="text-button" onClick={() => setSample(true)}>
+                Try a sample analysis <ArrowRight size={15} />
+              </button>
+              <p className="small muted">
+                Synthetic movement. No video upload needed.
+              </p>
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -327,11 +346,15 @@ function ToolSummary({ tool }: { tool: ToolConfig }) {
 }
 function UploadPanel({
   data,
+  profile,
+  profileReady,
   loading = false,
   onUploaded,
   onCreateTool,
 }: {
   data: HomeData;
+  profile?: Profile;
+  profileReady: boolean;
   loading?: boolean;
   onUploaded: (s: Session) => void;
   onCreateTool: () => void;
@@ -341,10 +364,9 @@ function UploadPanel({
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const createdProfile = useRef<Profile | null>(null);
   const toolId = tool || data.tools[0]?.id || "";
   async function upload(file: File) {
-    if (loading || busy) return;
+    if (loading || busy || !profileReady || !profile) return;
     if (!toolId) {
       setError("Build a coaching tool first.");
       return;
@@ -352,9 +374,6 @@ function UploadPanel({
     setBusy(true);
     setError("");
     try {
-      const profile = data.profiles.find((p) => p.name === "Athlete") ?? createdProfile.current ??
-        await post<Profile>("/api/profiles", { name: "Athlete" });
-      createdProfile.current = profile;
       const form = new FormData();
       form.set("file", file);
       form.set("profileId", profile.id);
@@ -385,7 +404,7 @@ function UploadPanel({
       <div className="upload-icon">
         <CloudUpload size={28} strokeWidth={1.5} />
       </div>
-      <h2>A little footage. A clearer picture.</h2>
+      <h1>A little footage. A clearer picture.</h1>
       <p>Drop your video here, or choose one to get started.</p>
       <div className="upload-selects">
         <div className="flex min-w-0 flex-1 flex-col gap-2 text-[12px] text-(--neutral-dark-400)">
@@ -395,7 +414,13 @@ function UploadPanel({
             disabled={loading || busy || !data.tools.length}
             value={toolId}
             onChange={setTool}
-            options={loading ? [{value: toolId, label: "Loading saved workspace…"}] : data.tools.length ? data.tools.map(t => ({value: t.id, label: t.name})) : [{value: "", label: "Build a tool first"}]}
+            options={
+              loading
+                ? [{ value: toolId, label: "Loading saved workspace…" }]
+                : data.tools.length
+                  ? data.tools.map((t) => ({ value: t.id, label: t.name }))
+                  : [{ value: "", label: "Build a tool first" }]
+            }
           />
         </div>
       </div>
@@ -412,15 +437,15 @@ function UploadPanel({
       />
       <button
         className="button"
-        disabled={loading || busy || !toolId}
+        disabled={loading || busy || !profileReady || !toolId}
         onClick={() => fileRef.current?.click()}
       >
         {busy ? (
           <LoaderCircle className="spin" size={17} />
         ) : (
-          <Plus size={17} />
+          <CloudUpload size={17} />
         )}{" "}
-        {busy ? "Uploading video…" : "Choose video"}
+        {busy ? "Uploading video…" : "Upload video"}
       </button>
       <span className="small muted">
         Up to 30 seconds · MP4, MOV, WebM · 100 MiB
@@ -434,28 +459,106 @@ function UploadPanel({
           )}
         </div>
       )}
-      <details className="upload-settings">
-        <summary>Sampling settings</summary>
-        <label>
-          Track a frame every{" "}
-          <select
-            aria-label="Tracking interval"
-            value={interval}
-            onChange={(e) => setInterval(Number(e.target.value))}
-          >
-            {SAMPLING_INTERVALS.map((v) => (
-              <option key={v} value={v}>
-                {v} seconds
-              </option>
-            ))}
-          </select>
-        </label>
-        <p className="small muted">
-          The same interval supplies frames to the coach. Shorter intervals
-          capture more detail and take longer.
-        </p>
-      </details>
+      <div className="w-full max-w-[420px] text-left">
+        <label htmlFor="sampling-interval">One frame every {interval} s</label>
+        <input
+          id="sampling-interval"
+          aria-label="Frame sampling interval"
+          aria-valuetext={`One frame every ${interval} seconds`}
+          type="range"
+          min={SAMPLING_RANGE.min}
+          max={SAMPLING_RANGE.max}
+          step={SAMPLING_RANGE.step}
+          value={interval}
+          disabled={loading || busy}
+          className="h-8 w-full appearance-none bg-transparent! p-0! accent-(--accent-700) [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-(--neutral-light-500) [&::-webkit-slider-runnable-track]:shadow-(--shadow-inner) [&::-webkit-slider-thumb]:-mt-[5px] [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-(--accent-700) [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-(--neutral-light-500) [&::-moz-range-track]:shadow-(--shadow-inner) [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-(--accent-700)"
+          onChange={(event) => setInterval(Number(event.target.value))}
+        />
+        <div className="flex justify-between gap-6 text-[10px] text-(--neutral-dark-500)">
+          <span>
+            0.05 s
+            <span className="mt-1 block">Slower loading, more precision</span>
+          </span>
+          <span className="text-right">
+            2 s
+            <span className="mt-1 block">Faster loading, less precision</span>
+          </span>
+        </div>
+      </div>
       {error && <ErrorNote message={error} />}
     </section>
+  );
+}
+
+function ProfileSetup({
+  profile,
+  onSaved,
+  editing = false,
+}: {
+  profile?: Profile;
+  onSaved: (profile: Profile) => void;
+  editing?: boolean;
+}) {
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!form.reportValidity()) return;
+    const fields = new FormData(form);
+    const payload = { heightCm: Number(fields.get("heightCm")) };
+    if (
+      !Number.isFinite(payload.heightCm) ||
+      payload.heightCm < 30 ||
+      payload.heightCm > 300
+    ) {
+      setError("Enter a height between 30 and 300 cm.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const saved = profile
+        ? await api<Profile>(`/api/profiles/${profile.id}`, {
+            method: "PATCH",
+            body: JSON.stringify(payload),
+          })
+        : await post<Profile>("/api/profiles", { name: "Athlete", ...payload });
+      onSaved(saved);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="inline-form" onSubmit={save}>
+      <h2>{editing ? "Your height" : "Before your first video"}</h2>
+      <p className="small muted">
+        Your height helps estimate a scale for movement measurements. You can
+        adjust it later.
+      </p>
+      <div className="form-pair">
+        <label htmlFor="profile-height">
+          Height (cm)
+          <NumberInput
+            id="profile-height"
+            name="heightCm"
+            required
+            min={30}
+            max={300}
+            step="any"
+            suffix="cm"
+            defaultValue={profile?.heightCm ?? ""}
+            placeholder="178"
+            disabled={busy}
+          />
+        </label>
+      </div>
+      {error && <ErrorNote message={error} />}
+      <button className="button" disabled={busy}>
+        {busy ? "Saving…" : editing ? "Save profile" : "Save and continue"}
+      </button>
+    </form>
   );
 }

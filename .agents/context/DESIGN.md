@@ -98,9 +98,18 @@ stretching them across the analysis surface.
 
 ## Layout
 
-Two primary surfaces remain: home and analysis. Home has one athlete implicitly;
-its navigation exposes Home and Coaching tools. Sampling settings sit below upload. The builder interview opens within
-home; the athlete's coach belongs beside analysis. Feature composition lives in
+Build your coach and Get coached sit at the sidebar top; Your profile anchors its
+bottom without a workspace footer. LearnUnlock-style header and floating
+hamburgers collapse the entire sidebar and reopen it at the page’s top-left,
+restoring keyboard focus and the saved preference. Height onboarding
+and editing belong in Your profile; the builder opens directly in its own section;
+upload and video history belong in Get coached. The central upload task sits directly
+on the workspace background, followed by full-width history and a quiet sample
+link. Breadcrumbs and nested upload cards are absent. Saved coaches belong in the
+builder section. The visible pre-upload sampling slider sits below the upload action. It uses the
+grapher’s native range interaction, a teal thumb, and the three-layer inset track;
+its value labels are plain seconds.
+The athlete's coach belongs beside analysis. Feature composition lives in
 `Web/frontend/src/modules/sportsbuilder/ui/`.
 
 Laptop use is the current review priority. Analysis gives the recording and
@@ -126,10 +135,10 @@ hierarchy. `Web/frontend/src/styles.css` copies `--shadow-sm`, `--shadow-md`,
 
 | Token | Layers: x / y / blur / opacity | Shipped use |
 | --- | --- | --- |
-| `--shadow-sm` | -1px / 1px / 1px / 7.5%; -1px / 1px / 3px / 4%; -1px / 2px / 6px / 2% | Small cards, active items, white Build tool action |
+| `--shadow-sm` | -1px / 1px / 1px / 7.5%; -1px / 1px / 3px / 4%; -1px / 2px / 6px / 2% | Small cards and active items |
 | `--shadow-md` | -0.5px / 0.5px / 2px / 7.5%; -0.5px / 0.5px / 5px / 2%; -0.5px / 1.5px / 10px / 2% | Menus, forms, charts, settings; `--shadow` aliases this token |
 | `--shadow-mdlg` | -1px / 1px / 2px / 7.5%; -1px / 2px / 8px / 4%; -1px / 4px / 16px / 2% | Player surface |
-| `--shadow-lg` | -1px / 1.5px / 3px / 5%; -1px / 3px / 10px / 4%; -1px / 6px / 20px / 2% | Upload and builder surfaces |
+| `--shadow-lg` | -1px / 1.5px / 3px / 5%; -1px / 3px / 10px / 4%; -1px / 6px / 20px / 2% | Builder surfaces |
 | `--shadow-inner` | inset -1px / 1px / 1px / 2.5%; inset -1px / 1px / 4px / 2.5%; inset -1px / 2px / 8px / 2% | Recessed fields, dropdown triggers, composer |
 
 Reuse these tokens for their existing roles. The dropdown combines a recessed
@@ -151,15 +160,17 @@ Keep sports presentation in its feature and use the feature's public entry.
 - **Buttons:** teal primary actions, quiet text actions, white secondary surfaces;
   preserve disabled state, visible focus, and icon-only accessible names.
 - **Fields:** borderless neutral surfaces, associated labels, and visible focus.
-  Use Input for its supported text types; number/file/range/select/textarea controls
-  retain native semantics.
+  Use Input for supported text types and NumberInput for decimal drafts and unit
+  suffixes. NumberInput preserves the grapher’s Input-based chrome and editable
+  text behavior; file/range/select/textarea controls retain native semantics.
 - **Navigation:** compact labels, Lucide icons, tonal separation, restrained elevation.
 - **Player:** selectable body joints identify the source measurement. Velocity and
   acceleration arrows belong to the selected joint/current sampled frame. Their
   separate scales stay fixed within a clip. A joint click opens its closable custom
   details panel; plain scalar Speed/Acceleration readings, units, and missing evidence
   belong there, alongside the joint name. Keep formulas and vector-component
-  notation out of that panel. The video carries neutral axes and
+  notation out of that panel; physical units may use compact KaTeX fractions.
+  The video carries neutral axes and
   white-backed KaTeX `x=0`/`y=0` chips, inspired by LearnUnlock’s grapher. Its origin
   stays at the left frame edge and estimated initial shoe-contact line; positive y
   points upward. Components use truthful units.

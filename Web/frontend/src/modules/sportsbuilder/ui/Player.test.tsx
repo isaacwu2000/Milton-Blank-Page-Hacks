@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { type Analysis, type Joint, type Point } from "../../../../../shared";
 import { Player } from "./Player";
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 const point = (overrides: Partial<Point> = {}): Point => ({
   x: 150,
   y: 150,
@@ -83,13 +86,16 @@ describe("selected joint derivative vectors", () => {
       x2: 149,
       y2: 152,
     });
-    expect(screen.getByLabelText("Speed").textContent).toBe("0.5 m/s");
-    expect(screen.getByLabelText("Acceleration").textContent).toBe("2.24 m/s²");
+    expect(screen.getByLabelText("Speed").textContent).toContain("0.5");
+    expect(
+      screen.getByLabelText("m/s").querySelector("annotation")!.textContent,
+    ).toBe(String.raw`\frac{\mathrm{m}}{\mathrm{s}}`);
+    expect(screen.getByLabelText("Acceleration").textContent).toContain("2.24");
     expect(
       screen
         .getByRole("region", { name: "Right wrist details" })
-        .querySelector("math"),
-    ).toBeNull();
+        .querySelectorAll("math").length,
+    ).toBe(2);
     expect(screen.queryByText(/Components:/)).toBeNull();
     const marker = screen
       .getByRole("button", { name: "Select Right wrist" })
@@ -211,13 +217,15 @@ describe("selected joint derivative vectors", () => {
       y2: 146,
     });
   });
-  it("typesets zero-axis labels on white chips without changing the physical image origin or scalar panel", () => {
+  it("typesets zero-axis labels on white chips without changing the physical image origin or adding equations to scalar measurements", () => {
     const view = render(<InteractivePlayer data={analysis([point()])} />);
     const ground = view.container.querySelector(
       '[aria-label="Ground baseline"]',
     )!;
     expect(ground.getAttribute("y1")).toBe("200");
     expect(ground.getAttribute("y2")).toBe("200");
+    expect(ground.getAttribute("stroke-width")).toBe("2");
+    expect(ground.getAttribute("marker-end")).toContain("-axis");
     expect(
       view.container
         .querySelector('[aria-label="Left image edge"]')!
@@ -233,8 +241,78 @@ describe("selected joint derivative vectors", () => {
     expect(
       screen
         .getByRole("region", { name: "Right wrist details" })
-        .querySelector("math"),
-    ).toBeNull();
-    expect(screen.getByLabelText("Speed").textContent).toBe("0.5 m/s");
+        .querySelectorAll("math").length,
+    ).toBe(2);
+    expect(screen.getByLabelText("Speed").textContent).toContain("0.5");
+    expect(
+      screen.getByLabelText("m/s").querySelector("annotation")!.textContent,
+    ).toBe(String.raw`\frac{\mathrm{m}}{\mathrm{s}}`);
+  });
+  it("requires real calibration before showing physical readings and renders only calibrated units as fractions", () => {
+    render(
+      <Player
+        analysis={analysis([point()])}
+        time={0}
+        onTime={() => {}}
+        joint="right_wrist"
+        onJoint={() => {}}
+        ground={200}
+        requireCalibration
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Select Right wrist" }));
+    expect(screen.getByLabelText("Speed").textContent).toBe("Set scale");
+    expect(screen.getByLabelText("Acceleration").textContent).toBe("Set scale");
+    expect(
+      screen.getByRole("region", { name: "Right wrist details" }).textContent,
+    ).not.toContain("px");
+  });
+  it("pauses an already playing video and locks Play while marking one calibration frame", () => {
+    const pause = vi
+      .spyOn(HTMLMediaElement.prototype, "pause")
+      .mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, "paused", "get").mockReturnValue(
+      false,
+    );
+    vi.spyOn(HTMLMediaElement.prototype, "readyState", "get").mockReturnValue(
+      1,
+    );
+    const view = render(
+      <Player
+        analysis={analysis([point()])}
+        time={0}
+        onTime={() => {}}
+        joint="right_wrist"
+        onJoint={() => {}}
+        ground={200}
+        onCanvasClick={() => {}}
+      />,
+    );
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(
+      (screen.getByRole("button", { name: "Play video" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(
+      (
+        screen.getByRole("slider", {
+          name: "Video timeline",
+        }) as HTMLInputElement
+      ).disabled,
+    ).toBe(false);
+    view.rerender(
+      <Player
+        analysis={analysis([point()])}
+        time={0}
+        onTime={() => {}}
+        joint="right_wrist"
+        onJoint={() => {}}
+        ground={200}
+      />,
+    );
+    expect(
+      (screen.getByRole("button", { name: "Play video" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
   });
 });

@@ -291,11 +291,9 @@ small,
   font-size: 12px;
 }
 .upload-panel {
-  @apply flex flex-col items-center gap-4 rounded-2xl;
+  @apply flex flex-col items-center gap-4;
   text-align: center;
-  background: white;
-  box-shadow: var(--shadow-lg);
-  padding: 40px 24px 24px;
+  padding: 64px 0 32px;
 }
 .upload-icon {
   @apply grid place-items-center rounded-full;
@@ -315,7 +313,7 @@ small,
 .upload-selects {
   @apply flex gap-4;
   text-align: left;
-  max-width: 520px;
+  max-width: 420px;
   width: 100%;
   margin: 8px 0;
 }
@@ -1509,4 +1507,75 @@ progress {
 }
 .joint-detail-panel .vector-axis-note {
   margin: 14px 0 0;
+}
+
+/* Get coached is the page's main task, directly on the quiet workspace surface. */
+.upload-panel > h1 {
+  font-size: 24px;
+  line-height: 32px;
+  max-width: 520px;
+}
+.upload-panel .upload-settings {
+  max-width: 420px;
+}
+.recent-videos {
+  width: 100%;
+  margin-top: 32px;
+}
+.sample-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 24px;
+}
+.sample-entry p {
+  font-size: 11px;
+}
+
+/* LearnUnlock shell: header hamburger, full collapse, floating top-left reopen. */
+.sidebar[hidden] {
+  display: none;
+}
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 20px 8px 28px;
+}
+.sidebar-header .brand-link {
+  padding: 0;
+  min-width: 0;
+}
+.sidebar-header .brand {
+  font-size: 14px;
+  gap: 6px;
+}
+.sidebar-collapse,
+.sidebar-expand {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+.sidebar-expand {
+  position: fixed;
+  z-index: 20;
+  left: 16px;
+  top: 16px;
+  background: var(--neutral-light-100);
+  box-shadow: var(--shadow-sm);
+}
+.sidebar-collapsed .home-content {
+  padding-top: 76px;
+}
+@media (max-width: 760px) {
+  .sidebar-header {
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 8px 24px;
+  }
+  .sidebar-header .brand {
+    font-size: 0;
+  }
 }

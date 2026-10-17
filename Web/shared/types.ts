@@ -140,7 +140,14 @@ export type Session = {
   sourceKey: string;
   analysisKey?: string;
   ground?: number;
-  calibration?: { metersPerPixel: number; ground: number };
+  calibration?: {
+    metersPerPixel: number;
+    ground: number;
+    source?: "athlete_height_auto" | "athlete_height_manual" | "known_distance";
+    heightCm?: number;
+    bodyHeightPixels?: number;
+    frameTime?: number;
+  };
   alignment?: { current: number; reference: number };
   completedDrills?: string[];
 };

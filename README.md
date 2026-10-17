@@ -1,6 +1,6 @@
 # SportsBuilder
 
-A local prototype for inspecting sports footage and building reusable coaching tools through an interview. The fixed analysis workspace handles clickable body joints, position/velocity/acceleration, custom metrics, reference comparison, one athlete’s history, and image-grounded coaching.
+A local prototype with Build your coach, Get coached, and Your profile navigation for inspecting sports footage and building reusable coaching tools through an interview. The fixed analysis workspace handles clickable body joints, position/velocity/acceleration, custom metrics, reference comparison, one athlete’s history, and image-grounded coaching.
 
 ## Run locally
 
@@ -54,6 +54,8 @@ uv run --directory Web/backend pytest
 
 Upload one athlete filmed with a stationary camera, up to 30 seconds and 100 MiB. Body tracking uses Hugging Face ViTPose++ Small with a person detector. Ball/racket modules, live recording, authentication, post-build editing, and compatibility/version migrations are deferred. [Future editing/compatibility issue](https://github.com/isaacwu2000/Milton-Blank-Page-Hacks/issues/1).
 
-The adjustable interval (default 0.1s) controls both body tracking and coach images. Measurements are sampled 2D estimates; pixels become approximate physical units only after manual calibration. Missing points and unsupported calculations remain unavailable. Tracking scores are model scores, not calibrated probabilities. Sample mode is clearly synthetic and works without external services.
+The pre-upload slider selects 0.05–2 seconds in 0.05-second steps (default 0.1s) for both body tracking and coach images. Complete one-athlete height onboarding before uploading; Your profile stays at the sidebar bottom. Measurements are sampled 2D estimates. A valid upright, uncropped height reference can establish an approximate planar scale; otherwise use manual calibration or keep pixel units. The saved athlete height is 178 cm, and all three supplied clips remain physically uncalibrated because the required full-body reference is cropped. Missing points and unsupported calculations remain unavailable. Tracking scores are model scores, not calibrated probabilities. Sample mode is clearly synthetic and works without external services.
+
+[Dark mode is deferred to issue #3](https://github.com/isaacwu2000/Milton-Blank-Page-Hacks/issues/3); no theme control is implemented.
 
 The application has not been deployed. See `docs/RAILWAY.md` for the future hosting plan.

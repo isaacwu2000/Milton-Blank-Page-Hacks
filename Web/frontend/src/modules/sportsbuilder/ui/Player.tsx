@@ -10,7 +10,11 @@ import {
   type Analysis,
   type Joint,
 } from "../../../../../shared";
-import { IconButton, Math as AxisMath } from "../../../components";
+import {
+  IconButton,
+  MeasurementUnit,
+  Math as AxisMath,
+} from "../../../components";
 export function Player({
   analysis,
   url,
@@ -27,6 +31,7 @@ export function Player({
   linkedPlaying,
   metersPerPixel = 1,
   calibrated = false,
+  requireCalibration = false,
 }: {
   analysis: Analysis;
   url?: string;
@@ -43,6 +48,7 @@ export function Player({
   linkedPlaying?: boolean;
   metersPerPixel?: number;
   calibrated?: boolean;
+  requireCalibration?: boolean;
 }) {
   const ownRef = useRef<HTMLVideoElement>(null),
     videoRef = externalRef ?? ownRef;
@@ -120,6 +126,7 @@ export function Player({
     };
   });
   const sample = analysis.source === "sample";
+  const marking = Boolean(onCanvasClick);
   const reportTime = (value: number) => {
     lastReported.current = value;
     onTimeRef.current(value);
@@ -127,6 +134,17 @@ export function Player({
   useEffect(() => {
     playingChangeRef.current?.(playing);
   }, [playing]);
+  // Both calibration marks must refer to the same paused image.
+  useEffect(() => {
+    if (!marking) return;
+    const video = videoRef.current;
+    if (!sample && video) {
+      if (!video.paused) video.pause();
+      if (video.readyState > 0 && Number.isFinite(video.currentTime))
+        reportTime(video.currentTime);
+    }
+    setPlaying(false);
+  }, [marking, sample, videoRef]);
   useEffect(() => {
     if (!playing) return;
     let request = 0,
@@ -191,6 +209,7 @@ export function Player({
     };
   }, [linkedPlaying, sample, url, videoRef]);
   async function toggle() {
+    if (marking) return;
     setPlaybackError("");
     if (sample) {
       setPlaying((current) => !current);
@@ -323,30 +342,86 @@ export function Player({
                 />
               </marker>
             ))}
+            <marker
+              id={`${markerId}-axis`}
+              viewBox="0 0 10 10"
+              refX="10"
+              refY="5"
+              markerWidth={analysis.width / 90}
+              markerHeight={analysis.width / 90}
+              markerUnits="userSpaceOnUse"
+              orient="auto"
+            >
+              <path
+                d="M 1 1 L 10 5 L 1 9"
+                fill="none"
+                stroke="#35494d"
+                strokeWidth="1.7"
+              />
+            </marker>
           </defs>
-          <g
-            aria-label="Coordinate axes"
-            stroke="#657779"
-            strokeWidth="1.5"
-            vectorEffect="non-scaling-stroke"
-            opacity=".85"
-          >
+          <g aria-label="Coordinate axes" fill="none">
+            <line
+              x1="0"
+              y1={ground}
+              x2={analysis.width}
+              y2={ground}
+              stroke="white"
+              strokeWidth="5"
+              vectorEffect="non-scaling-stroke"
+            />
+            <line
+              x1="0"
+              y1={analysis.height}
+              x2="0"
+              y2="0"
+              stroke="white"
+              strokeWidth="5"
+              vectorEffect="non-scaling-stroke"
+            />
             <line
               aria-label="Ground baseline"
               x1="0"
               y1={ground}
               x2={analysis.width}
               y2={ground}
+              stroke="#35494d"
+              strokeWidth="2"
               vectorEffect="non-scaling-stroke"
+              markerEnd={`url(#${markerId}-axis)`}
             />
             <line
               aria-label="Left image edge"
               x1="0"
-              y1="0"
+              y1={analysis.height}
               x2="0"
-              y2={analysis.height}
+              y2="0"
+              stroke="#35494d"
+              strokeWidth="2"
               vectorEffect="non-scaling-stroke"
+              markerEnd={`url(#${markerId}-axis)`}
             />
+            {[0.25, 0.5, 0.75].map((f) => (
+              <g key={f} stroke="#35494d" strokeWidth="1.5">
+                <line
+                  x1="0"
+                  y1={analysis.height * f}
+                  x2={analysis.width * 0.012}
+                  y2={analysis.height * f}
+                  vectorEffect="non-scaling-stroke"
+                />
+                <line
+                  x1={analysis.width * f}
+                  y1={Math.max(0, ground - analysis.height * 0.009)}
+                  x2={analysis.width * f}
+                  y2={Math.min(
+                    analysis.height,
+                    ground + analysis.height * 0.009,
+                  )}
+                  vectorEffect="non-scaling-stroke"
+                />
+              </g>
+            ))}
           </g>
           {EDGES.map(([a, b]) => {
             const p = frame?.joints[a],
@@ -532,10 +607,12 @@ export function Player({
               >
                 <h4>{vector.label}</h4>
                 <output aria-label={vector.label}>
-                  {typeof vector.value === "number" ? (
+                  {requireCalibration && !calibrated ? (
+                    "Set scale"
+                  ) : typeof vector.value === "number" ? (
                     <strong>
                       {formatVectorValue(vector.value)}{" "}
-                      <span>{vector.unit}</span>
+                      <MeasurementUnit unit={vector.unit} />
                     </strong>
                   ) : (
                     "Unavailable"
@@ -544,12 +621,18 @@ export function Player({
               </div>
             ))}
           </div>
+          {requireCalibration && !calibrated && (
+            <p className="small muted">
+              Set scale from your height to see measurements.
+            </p>
+          )}
         </section>
       )}
       {!compact && (
         <div className="player-controls">
           <IconButton
             label={playing ? "Pause video" : "Play video"}
+            disabled={marking}
             onClick={toggle}
           >
             {playing ? <Pause size={17} /> : <Play size={17} />}
@@ -674,7 +757,9 @@ export function Chart({
     <div className="chart">
       <div className="section-heading">
         <h3>{label}</h3>
-        <span className="muted small">{unit} · click graph to seek</span>
+        <span className="muted small">
+          <MeasurementUnit unit={unit} /> · click graph to seek
+        </span>
       </div>
       <svg
         role="img"

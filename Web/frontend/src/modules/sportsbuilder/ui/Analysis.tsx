@@ -30,7 +30,8 @@ import {
   metricTarget,
   jointMeasurement,
 } from "../../../../../shared";
-import { IconButton } from "../../../components";
+import { IconButton, MeasurementUnit, NumberInput } from "../../../components";
+import { scaleFromAthleteHeight } from "../runtime/calibration";
 import { api, post } from "../services/api";
 import { type HomeData, type AgentJob } from "../types";
 import { useAgentJob } from "../hooks/useAgentJob";
@@ -220,10 +221,16 @@ export function Workspace({
     ),
     [scale, setScale] = useState(session?.calibration?.metersPerPixel ?? 1),
     [calibrated, setCalibrated] = useState(!!session?.calibration),
+    [calibrationMetadata, setCalibrationMetadata] = useState<
+      Session["calibration"]
+    >(session?.calibration),
     [calibrationMode, setCalibrationMode] = useState<
-      "none" | "distance" | "ground"
+      "none" | "distance" | "ground" | "height"
     >("none"),
     [points, setPoints] = useState<[number, number][]>([]),
+    [calibrationFrameTime, setCalibrationFrameTime] = useState<number | null>(
+      null,
+    ),
     [length, setLength] = useState("1"),
     [error, setError] = useState(""),
     [settings, setSettings] = useState(false),
@@ -234,6 +241,8 @@ export function Workspace({
     [reference, setReference] = useState<Analysis | null>(null),
     [refTime, setRefTime] = useState(0),
     [referenceDuration, setReferenceDuration] = useState(30),
+    [referenceCalibration, setReferenceCalibration] =
+      useState<Session["calibration"]>(),
     [paired, setPaired] = useState(
       session?.alignment ?? { current: 0, reference: 0 },
     ),
@@ -241,6 +250,20 @@ export function Workspace({
     [mainPlaying, setMainPlaying] = useState(false),
     [notice, setNotice] = useState(""),
     [copied, setCopied] = useState(false);
+  const athlete =
+    profiles.find((profile) => profile.id === session?.profileId) ??
+    (sample ? profiles.find((profile) => profile.name === "Athlete") : undefined);
+  const athleteHeight = athlete?.heightCm;
+  const needsScale = !calibrated;
+  const needsPhysicalScale = (unit: string) =>
+    needsScale && ["length", "speed", "acceleration"].includes(unit);
+  function startHeightCalibration() {
+    setCalibrationMode("height");
+    setMainPlaying(false);
+    setCalibrationFrameTime(null);
+    setPoints([]);
+    setError("");
+  }
   const data = useMemo(
     () => calculate(tool, analysis, scale, ground),
     [tool, analysis, scale, ground],
@@ -279,6 +302,13 @@ export function Workspace({
           : "length");
   const setCurrentTime = useCallback(
     (t: number) => {
+      if (
+        (calibrationMode === "height" || calibrationMode === "distance") &&
+        Math.abs(t - time) > 0.0005
+      ) {
+        setPoints([]);
+        setCalibrationFrameTime(null);
+      }
       setTime(t);
       if (sync && refId)
         setRefTime(
@@ -291,11 +321,12 @@ export function Workspace({
           ),
         );
     },
-    [sync, reference, referenceDuration, refId, paired],
+    [sync, reference, referenceDuration, refId, paired, calibrationMode, time],
   );
   useEffect(() => {
     setRefUrl("");
     setReference(null);
+    setReferenceCalibration(undefined);
     setRefTime(0);
     if (!refId) return;
     let cancelled = false;
@@ -315,6 +346,7 @@ export function Workspace({
         const session = await api<Session>(`/api/sessions/${refId}`);
         if (cancelled) return;
         setReferenceDuration(session.duration);
+        setReferenceCalibration(session.calibration);
         if (session.status === "complete") {
           const a = await api<Analysis>(`/api/sessions/${refId}/analysis`);
           if (!cancelled) setReference(a);
@@ -341,7 +373,11 @@ export function Workspace({
       });
   }
   async function saveCalibration() {
-    if (points.length !== 2 || Number(length) <= 0) return;
+    if (points.length !== 2) return;
+    if (!Number.isFinite(Number(length)) || Number(length) <= 0) {
+      setError("Enter a valid positive distance.");
+      return;
+    }
     const distance = Math.hypot(
       points[0][0] - points[1][0],
       points[0][1] - points[1][1],
@@ -352,7 +388,13 @@ export function Workspace({
     }
     const next = Number(length) / distance;
     try {
-      await persist({ calibration: { metersPerPixel: next, ground } });
+      const calibration: NonNullable<Session["calibration"]> = {
+        metersPerPixel: next,
+        ground,
+        source: "known_distance",
+      };
+      await persist({ calibration });
+      setCalibrationMetadata(calibration);
       setScale(next);
       setCalibrated(true);
       setCalibrationMode("none");
@@ -364,13 +406,43 @@ export function Workspace({
       setError((e as Error).message);
     }
   }
+  async function saveHeightCalibration() {
+    if (points.length !== 2 || !athleteHeight || calibrationFrameTime === null)
+      return;
+    try {
+      const converted = scaleFromAthleteHeight(
+        athleteHeight,
+        points[0],
+        points[1],
+        analysis.width,
+        analysis.height,
+      );
+      const calibration: NonNullable<Session["calibration"]> = {
+        ...converted,
+        ground,
+        source: "athlete_height_manual",
+        heightCm: athleteHeight,
+        frameTime: calibrationFrameTime,
+      };
+      await persist({ calibration });
+      setCalibrationMetadata(calibration);
+      setScale(converted.metersPerPixel);
+      setCalibrated(true);
+      setCalibrationMode("none");
+      setPoints([]);
+      setNotice("Height scale saved. Measurements now use meters.");
+    } catch (error) {
+      setError((error as Error).message);
+    }
+  }
   async function clearCalibration() {
     try {
       await persist({ calibration: null, ground: analysis.ground });
       setScale(1);
+      setCalibrationMetadata(undefined);
       setCalibrated(false);
       setGround(analysis.ground);
-      setNotice("Calibration cleared. Showing pixels.");
+      setNotice("Scale cleared. Set it again to see measurements in meters.");
     } catch (e) {
       setError((e as Error).message);
     }
@@ -380,15 +452,20 @@ export function Workspace({
       const next = p[1];
       setGround(next);
       setCalibrationMode("none");
-      persist({
-        ground: next,
-        ...(calibrated
-          ? { calibration: { metersPerPixel: scale, ground: next } }
-          : {}),
-      }).catch((e) => setError(e.message));
+      const calibration = calibrated
+        ? { ...calibrationMetadata, metersPerPixel: scale, ground: next }
+        : undefined;
+      persist({ ground: next, ...(calibration ? { calibration } : {}) })
+        .then(() => {
+          if (calibration) setCalibrationMetadata(calibration);
+        })
+        .catch((e) => setError(e.message));
       setNotice("Ground line updated.");
-    } else
+    } else {
+      if (points.length === 0 || points.length === 2)
+        setCalibrationFrameTime(time);
       setPoints((current) => (current.length === 2 ? [p] : [...current, p]));
+    }
   }
   async function copy() {
     const text = JSON.stringify(tool, null, 2);
@@ -473,6 +550,22 @@ export function Workspace({
               </IconButton>
             </div>
           )}
+          {needsScale && calibrationMode === "none" && (
+            <div className="notice">
+              <span>
+                {athleteHeight
+                  ? `Use your ${athleteHeight} cm height to measure movement in meters.`
+                  : "Add your height to the athlete profile to measure movement in meters."}
+              </span>
+              <button
+                className="button secondary"
+                disabled={!athleteHeight}
+                onClick={startHeightCalibration}
+              >
+                Set scale from your height
+              </button>
+            </div>
+          )}
           {settings && (
             <section className="analysis-settings">
               <h2>Measurement settings</h2>
@@ -483,8 +576,17 @@ export function Workspace({
               <div className="wrap-actions">
                 <button
                   className="button secondary"
+                  disabled={!athleteHeight}
+                  onClick={startHeightCalibration}
+                >
+                  Calibrate from height
+                </button>
+                <button
+                  className="button secondary"
                   onClick={() => {
                     setCalibrationMode("distance");
+                    setMainPlaying(false);
+                    setCalibrationFrameTime(null);
                     setPoints([]);
                   }}
                 >
@@ -493,7 +595,10 @@ export function Workspace({
                 </button>
                 <button
                   className="button secondary"
-                  onClick={() => setCalibrationMode("ground")}
+                  onClick={() => {
+                    setMainPlaying(false);
+                    setCalibrationMode("ground");
+                  }}
                 >
                   Set ground line
                 </button>
@@ -527,15 +632,28 @@ export function Workspace({
               <span>
                 {calibrationMode === "ground"
                   ? "Click the video at the initial foot position."
-                  : `Click two ends of a known distance (${points.length}/2).`}
+                  : calibrationMode === "height"
+                    ? `Choose a frame standing upright. Click the top of your head, then the bottom of your shoes (${points.length}/2).`
+                    : `Click two ends of a known distance (${points.length}/2).`}
               </span>
+              {calibrationMode === "height" && (
+                <>
+                  <span>Using your {athleteHeight} cm height</span>
+                  <button
+                    className="button"
+                    disabled={points.length !== 2}
+                    onClick={saveHeightCalibration}
+                  >
+                    Apply height scale
+                  </button>
+                </>
+              )}
               {calibrationMode === "distance" && (
                 <>
                   <label>
                     Distance (m)
-                    <input
-                      type="number"
-                      min="0.001"
+                    <NumberInput
+                      min={0.001}
                       step="any"
                       value={length}
                       onChange={(e) => setLength(e.target.value)}
@@ -554,6 +672,7 @@ export function Workspace({
                 label="Cancel calibration"
                 onClick={() => {
                   setCalibrationMode("none");
+                  setCalibrationFrameTime(null);
                   setPoints([]);
                 }}
               >
@@ -577,6 +696,7 @@ export function Workspace({
                 ground={ground}
                 metersPerPixel={scale}
                 calibrated={calibrated}
+                requireCalibration
                 onPlayingChange={setMainPlaying}
                 onCanvasClick={
                   calibrationMode === "none" ? undefined : canvasClick
@@ -595,7 +715,10 @@ export function Workspace({
                     onTime={setRefTime}
                     joint={joint}
                     onJoint={setJoint}
-                    ground={reference.ground}
+                    ground={referenceCalibration?.ground ?? reference.ground}
+                    metersPerPixel={referenceCalibration?.metersPerPixel}
+                    calibrated={!!referenceCalibration}
+                    requireCalibration
                     linkedPlaying={sync ? mainPlaying : undefined}
                   />
                 ) : (
@@ -686,7 +809,7 @@ export function Workspace({
             <span className="small muted">
               {calibrated
                 ? "Calibrated · approximate 2D"
-                : "Pixels · calibrate for meters"}
+                : "Set scale for measurements"}
             </span>
           </div>
           {tab === "movement" ? (
@@ -720,26 +843,32 @@ export function Workspace({
                   <div>
                     <dt>Position x, y</dt>
                     <dd>
-                      {available
+                      {available && calibrated
                         ? `${fmt(position[0])}, ${fmt(position[1])}`
                         : "—"}{" "}
-                      <small>{calibrated ? "m" : "px"}</small>
+                      <small>{calibrated ? "m" : ""}</small>
                     </dd>
                   </div>
                   <div>
                     <dt>Speed</dt>
                     <dd>
-                      {typeof velocity === "number" ? fmt(velocity) : "—"}{" "}
-                      <small>{calibrated ? "m/s" : "px/s"}</small>
+                      {calibrated && typeof velocity === "number"
+                        ? fmt(velocity)
+                        : "—"}{" "}
+                      <small>
+                        {calibrated && <MeasurementUnit unit="m/s" />}
+                      </small>
                     </dd>
                   </div>
                   <div>
                     <dt>Acceleration</dt>
                     <dd>
-                      {typeof acceleration === "number"
+                      {calibrated && typeof acceleration === "number"
                         ? fmt(acceleration)
                         : "—"}{" "}
-                      <small>{calibrated ? "m/s²" : "px/s²"}</small>
+                      <small>
+                        {calibrated && <MeasurementUnit unit="m/s²" />}
+                      </small>
                     </dd>
                   </div>
                 </dl>
@@ -775,12 +904,18 @@ export function Workspace({
                 >
                   <span>{m.name}</span>
                   <strong>
-                    {fmt(
-                      m.scope === "frame"
-                        ? data.frames[m.id]?.[idx]
-                        : data.summaries[m.id],
-                    )}
-                    <small>{unitLabel(m.unit, calibrated)}</small>
+                    {needsPhysicalScale(m.unit)
+                      ? "Set scale"
+                      : fmt(
+                          m.scope === "frame"
+                            ? data.frames[m.id]?.[idx]
+                            : data.summaries[m.id],
+                        )}
+                    <small>
+                      {!needsPhysicalScale(m.unit) && (
+                        <MeasurementUnit unit={unitLabel(m.unit, calibrated)} />
+                      )}
+                    </small>
                   </strong>
                   <small>
                     {m.scope === "summary"
@@ -803,18 +938,24 @@ export function Workspace({
             </div>
           )}
           {tab === "movement" || selectedMetric ? (
-            <Chart
-              times={analysis.frames.map((f) => f.time)}
-              values={values}
-              time={time}
-              onTime={setCurrentTime}
-              label={
-                selectedMetric
-                  ? (graphMetric?.name ?? "Metric")
-                  : `${pretty(joint)} · ${pretty(measure)}`
-              }
-              unit={unitLabel(graphUnit, calibrated)}
-            />
+            needsPhysicalScale(graphUnit) ? (
+              <p className="muted small">
+                Set scale from your height to see this measurement.
+              </p>
+            ) : (
+              <Chart
+                times={analysis.frames.map((f) => f.time)}
+                values={values}
+                time={time}
+                onTime={setCurrentTime}
+                label={
+                  selectedMetric
+                    ? (graphMetric?.name ?? "Metric")
+                    : `${pretty(joint)} · ${pretty(measure)}`
+                }
+                unit={unitLabel(graphUnit, calibrated)}
+              />
+            )
           ) : (
             <p className="muted small metric-hint">
               Choose a frame metric to plot it over time.
