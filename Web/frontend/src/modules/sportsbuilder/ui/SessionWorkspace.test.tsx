@@ -57,3 +57,18 @@ it("keeps cancellation visibly pending and prevents duplicate cancellation reque
   finish({ status: "uploaded" });
   await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1));
 });
+
+it("shows loading activity while the saved recording has not arrived", () => {
+  vi.mocked(api).mockReturnValue(new Promise(() => {}));
+  render(<SessionWorkspace sessionId="practice" data={{ profiles: [], sessions: [], tools: [] }} onBack={() => {}} />);
+  expect(screen.getByRole("status").textContent).toContain("Loading your video");
+});
+it("shows a pending analysis start and prevents starting twice", async () => {
+  vi.mocked(api).mockImplementation(async (path) => path.endsWith("/video") ? { url: "private" } : { ...session, status: "uploaded" });
+  vi.mocked(post).mockReturnValue(new Promise(() => {}));
+  render(<SessionWorkspace sessionId="practice" data={{ profiles: [], sessions: [], tools: [] }} onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Analyze video" }));
+  expect(screen.getByRole("status").textContent).toContain("Starting analysis");
+  expect((screen.getByRole("button", { name: "Starting analysis…" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(post).toHaveBeenCalledTimes(1);
+});

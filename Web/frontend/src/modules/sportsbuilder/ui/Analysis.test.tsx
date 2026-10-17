@@ -26,6 +26,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -438,11 +439,12 @@ it("keeps review progress visible outside the conversation and lets the athlete 
     session={{ id: "practice", name: "Practice", createdAt: "2026-10-17T12:00:00Z", profileId: "athlete", toolId: "tool", status: "complete", progress: 1, duration: 5, interval: 0.1, sourceKey: "private.mov" }}
     onBack={() => {}} profiles={[]} sessions={[]} />);
   fireEvent.click(screen.getByRole("button", { name: "Review my form" }));
-  const progress = await screen.findByRole("status");
+  const progress = await screen.findByText("Reviewing athlete footage frames 1–32 of 42");
   expect(progress.closest(".coach-conversation")).toBeNull();
   await waitFor(() => expect(progress.textContent).toContain("Reviewing athlete footage"));
   fireEvent.click(screen.getByRole("button", { name: "Stop review" }));
-  expect(screen.queryByRole("status")).toBeNull();
+  expect(screen.queryByText("Starting your review…")).toBeNull();
+  expect(screen.queryByText("Reviewing athlete footage frames 1–32 of 42")).toBeNull();
   const input = screen.getByRole("textbox", { name: "Question for the coach" }) as HTMLTextAreaElement;
   expect(input.disabled).toBe(false);
   expect(input.value).toContain("Review my overall form");
@@ -464,7 +466,8 @@ it("restores the question if starting a review never responds and cancels a late
   expect((screen.getByRole("textbox", { name: "Question for the coach" }) as HTMLTextAreaElement).disabled).toBe(false);
   await act(async () => { finishStart({ id: "late-job" }); });
   expect(post).toHaveBeenCalledWith("/agent/jobs/late-job/cancel", {});
-  expect(screen.queryByRole("status")).toBeNull();
+  expect(screen.queryByText("Starting your review…")).toBeNull();
+  expect(screen.queryByText("Reviewing athlete footage frames 1–32 of 42")).toBeNull();
 });
 
 it("separates evidence-grounded feedback from a suggested exercise steps without inventing strengths", async () => {
@@ -500,4 +503,17 @@ it("reveals the newest coach response inside its conversation", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Review my form" }));
   await screen.findByText("At 1.2 seconds, your knee bends.");
   expect(conversation.scrollTop).toBe(1000);
+});
+
+it("announces deletion while preventing duplicate delete requests", async () => {
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  vi.mocked(api).mockReturnValue(new Promise(() => {}));
+  render(<Workspace analysis={makeSample()} tool={sampleTool} sample
+    session={{ id: "practice", name: "Practice", createdAt: "2026-10-17T12:00:00Z", profileId: "athlete", toolId: "tool", status: "complete", progress: 1, duration: 5, interval: 0.1, sourceKey: "private.mov" }}
+    onBack={() => {}} profiles={[]} sessions={[]} />);
+  fireEvent.click(screen.getByRole("button", { name: "Video options" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete video" }));
+  expect(screen.getByText("Deleting video…").getAttribute("role")).toBe("status");
+  expect((screen.getByRole("button", { name: "Deleting video…" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(api).toHaveBeenCalledTimes(1);
 });

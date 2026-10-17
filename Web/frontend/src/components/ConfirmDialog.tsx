@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { X } from "lucide-react";
+import { IconButton } from "./IconButton";
 
 /** Native modal supplies focus trapping, Escape dismissal and background inertness. */
 export function ConfirmDialog({
@@ -12,13 +14,13 @@ export function ConfirmDialog({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  const previousFocus = useRef(document.activeElement as HTMLElement | null);
   useEffect(() => {
     const element = dialog.current;
-    const previousFocus = document.activeElement as HTMLElement | null;
     element?.showModal();
     return () => {
       element?.close();
-      previousFocus?.focus();
+      previousFocus.current?.focus();
     };
   }, []);
   return (
@@ -28,7 +30,12 @@ export function ConfirmDialog({
       aria-labelledby={titleId}
       onCancel={onClose}
     >
-      <h2 id={titleId}>{title}</h2>
+      <div className="confirm-dialog-heading">
+        <h2 id={titleId}>{title}</h2>
+        <IconButton label="Close dialog" surface="transparent" onClick={onClose}>
+          <X size={18} aria-hidden="true" />
+        </IconButton>
+      </div>
       {children}
     </dialog>
   );

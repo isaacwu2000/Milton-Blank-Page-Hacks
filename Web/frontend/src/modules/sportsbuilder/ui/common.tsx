@@ -1,4 +1,4 @@
-import { Film, X } from "lucide-react";
+import { Film, LoaderCircle, X } from "lucide-react";
 import { IconButton } from "../../../components";
 export function Logo() {
   return (
@@ -49,4 +49,12 @@ export function Empty({
       <p>{children}</p>
     </div>
   );
+}
+
+/** Announces an ongoing action without inventing a percentage or completion time. */
+export function LoadingStatus({ children }: { children: React.ReactNode }) {
+  return <span className="loading-status small muted" role="status">
+    <LoaderCircle className="spin" size={14} aria-hidden="true" />
+    {children}
+  </span>;
 }

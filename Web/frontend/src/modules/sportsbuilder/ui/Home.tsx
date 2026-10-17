@@ -24,7 +24,7 @@ import {
 import { IconButton, DropdownSelect, NumberInput } from "../../../components";
 import { api, post } from "../services/api";
 import { type HomeData } from "../types";
-import { Logo, ErrorNote, Empty } from "./common";
+import { Logo, ErrorNote, Empty, LoadingStatus } from "./common";
 import {
   SAMPLE,
   EMPTY_HOME_DATA,
@@ -268,9 +268,7 @@ export function Product() {
             </div>
           )}
           {!loaded && (
-            <p className="small muted" role="status" aria-live="polite">
-              Loading saved workspace…
-            </p>
+            <LoadingStatus>Loading saved workspace…</LoadingStatus>
           )}
           {error && (
             <div>
@@ -360,7 +358,7 @@ export function Product() {
                             <span
                               className={`small ${s.status === "failed" ? "error-text" : "muted"}`}
                             >
-                              {pretty(s.status)}
+                              {["queued", "processing"].includes(s.status) && <LoaderCircle className="spin inline" size={12} aria-hidden="true" />} {pretty(s.status)}
                             </span>
                           )}
                           <IconButton
@@ -620,7 +618,7 @@ function ProfileSetup({
       </div>
       {error && <ErrorNote message={error} />}
       <button className="button" disabled={busy}>
-        {busy ? "Saving…" : editing ? "Save profile" : "Save and continue"}
+        {busy ? <LoadingStatus>Saving your profile…</LoadingStatus> : editing ? "Save profile" : "Save and continue"}
       </button>
     </form>
   );
