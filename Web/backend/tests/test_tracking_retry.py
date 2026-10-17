@@ -73,3 +73,78 @@ def test_failed_worker_can_be_requeued_without_recomputing_completed_analysis(
         runtime.active.discard(SESSION_ID)
         runtime.cancelled.discard(SESSION_ID)
         runtime.cache.pop(SESSION_ID, None)
+
+
+def test_retry_during_failed_worker_cleanup_reports_busy_instead_of_silent_success(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    session = {
+        "id": SESSION_ID,
+        "status": "failed",
+        "error": "Analysis was interrupted. Retry this video.",
+    }
+    monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(session))
+    runtime.active.add(SESSION_ID)
+    try:
+        response = TestClient(runtime.app).post(f"/api/sessions/{SESSION_ID}/analyze")
+        assert response.status_code == 409
+        assert "Retry" in response.json()["detail"]
+        assert session["status"] == "failed"
+    finally:
+        runtime.active.discard(SESSION_ID)
+
+
+def test_interrupted_video_retry_starts_once_after_worker_cleanup(monkeypatch: pytest.MonkeyPatch):
+    import httpx
+
+    session = {
+        "id": SESSION_ID,
+        "status": "failed",
+        "progress": 0.5,
+        "error": "Analysis was interrupted. Retry this video.",
+        "sourceKey": "videos/original.mov",
+    }
+    calls = []
+    monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(session))
+
+    def patch(kind, identifier, fields):
+        session.update(fields)
+        return deepcopy(session)
+
+    monkeypatch.setattr(store, "patch", patch)
+
+    async def scenario():
+        finish = asyncio.Event()
+
+        async def work(identifier):
+            calls.append(identifier)
+            try:
+                await finish.wait()
+            finally:
+                runtime.active.discard(identifier)
+
+        monkeypatch.setattr(runtime, "work", work)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=runtime.app), base_url="http://test"
+        ) as client:
+            # A failed record cannot start another worker until the existing one releases it.
+            runtime.active.add(SESSION_ID)
+            busy = await client.post(f"/api/sessions/{SESSION_ID}/analyze")
+            assert busy.status_code == 409
+            runtime.active.discard(SESSION_ID)
+            accepted = await client.post(f"/api/sessions/{SESSION_ID}/analyze")
+            assert accepted.status_code == 200
+            assert accepted.json()["status"] == "queued"
+            assert accepted.json()["error"] is None
+            assert accepted.json()["sourceKey"] == "videos/original.mov"
+            again = await client.post(f"/api/sessions/{SESSION_ID}/analyze")
+            assert again.json()["status"] == "queued"
+            await asyncio.sleep(0)
+            assert calls == [SESSION_ID]
+            finish.set()
+            await asyncio.sleep(0)
+
+    try:
+        asyncio.run(asyncio.wait_for(scenario(), 3))
+    finally:
+        runtime.active.discard(SESSION_ID)

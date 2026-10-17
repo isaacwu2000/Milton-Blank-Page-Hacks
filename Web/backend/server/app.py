@@ -424,7 +424,12 @@ async def start(session_id: str) -> SessionRecord:
         session = await asyncio.to_thread(record, "sessions", session_id)
         if session_id in cancelled:
             raise HTTPException(409, "The previous analysis is stopping. Retry in a moment.")
-        if session_id in active or session["status"] == "complete":
+        if session_id in active:
+            # Refuse a retry until the previous worker releases the failed recording.
+            if session["status"] not in ("queued", "processing", "complete"):
+                raise HTTPException(409, "The previous analysis is finishing. Retry in a moment.")
+            return cast(SessionRecord, session)
+        if session["status"] == "complete":
             return cast(SessionRecord, session)
         if len(active) >= config.MAX_QUEUED_JOBS:
             raise HTTPException(429, "Three clips are already queued. Wait for one to finish.")

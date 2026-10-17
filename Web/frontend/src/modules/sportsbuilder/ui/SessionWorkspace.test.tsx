@@ -142,3 +142,23 @@ it("ignores an old recording response after navigating to another recording", as
   expect(screen.getByText("New recording")).toBeTruthy();
   expect(screen.queryByText("Old recording")).toBeNull();
 });
+
+it("explains a worker still finishing and lets the interrupted recording start on the next retry", async () => {
+  let status = "failed";
+  vi.mocked(api).mockImplementation(async (path) => path.endsWith("/video") ? { url: "private" } : {
+    ...session, status, error: status === "failed" ? "Analysis was interrupted. Retry this video." : null,
+  });
+  vi.mocked(post).mockRejectedValueOnce(Error("The previous analysis is finishing. Retry in a moment."))
+    .mockImplementationOnce(async () => {
+      status = "queued";
+      return { ...session, status, error: null };
+    });
+  render(<SessionWorkspace sessionId="practice" data={{ profiles: [], sessions: [], tools: [] }} onBack={() => {}} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Analyze video" }));
+  await screen.findByText("The previous analysis is finishing. Retry in a moment.");
+  fireEvent.click(screen.getByRole("button", { name: "Analyze video" }));
+  await screen.findByRole("progressbar", { name: "Video analysis progress" });
+  expect(screen.queryByText("The previous analysis is finishing. Retry in a moment.")).toBeNull();
+  expect(screen.queryByText("Analysis was interrupted. Retry this video.")).toBeNull();
+  expect(post).toHaveBeenCalledTimes(2);
+});
