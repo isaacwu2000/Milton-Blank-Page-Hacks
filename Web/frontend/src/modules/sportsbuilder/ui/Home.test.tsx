@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, post } from "../services/api";
@@ -25,6 +26,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  vi.restoreAllMocks();
   window.localStorage.clear();
 });
 const saved = {
@@ -397,4 +399,17 @@ it("announces profile saving until the saved height returns", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
   expect(screen.getByRole("status").textContent).toContain("Saving your profile");
   expect((screen.getByRole("textbox", { name: "Height (cm)" }) as HTMLInputElement).disabled).toBe(true);
+});
+
+it("removes only the confirmed recent video and restores useful keyboard focus", async () => {
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  vi.mocked(api).mockResolvedValueOnce({ ...saved, sessions: [
+    { id: "clip", name: "jump.mp4", duration: 12, createdAt: "2026-10-17T12:00:00Z", status: "complete" },
+    { id: "other", name: "serve.mp4", duration: 10, createdAt: "2026-10-17T12:00:00Z", status: "complete" },
+  ] }).mockResolvedValueOnce({ deleted: true });
+  render(<Product />);
+  fireEvent.click(await screen.findByRole("button", { name: "Delete jump.mp4" }));
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Open jump.mp4" })).toBeNull());
+  expect(screen.getByRole("button", { name: "Open serve.mp4" })).toBeTruthy();
+  expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Recent videos" }));
 });

@@ -1696,3 +1696,21 @@ button .loading-status {
 .confirm-dialog-heading button {
   flex-shrink: 0;
 }
+
+.recent-video-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.recent-video-actions > .session-row {
+  flex: 1;
+  width: auto;
+}
+.recent-video-actions > button:last-child {
+  flex-shrink: 0;
+}
+.recent-video > [role="status"],
+.recent-video > [role="alert"] {
+  margin: 0 8px 12px;
+}
+
