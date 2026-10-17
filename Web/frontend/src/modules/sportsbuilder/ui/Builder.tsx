@@ -1,12 +1,10 @@
 import { POLLING, DEFAULT_SAMPLING_INTERVAL } from "../config";
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowRight,
   Check,
   ChevronRight,
   Plus,
   LoaderCircle,
-  Target,
   X,
 } from "lucide-react";
 import { type Message, type Session } from "../../../../../shared";
@@ -20,7 +18,7 @@ import { api, post } from "../services/api";
 import { type Brief, type AgentJob } from "../types";
 import { useAgentJob } from "../hooks/useAgentJob";
 import { ErrorNote } from "./common";
-import { BUILDER_WELCOME, BUILDER_EXAMPLE } from "../config";
+import { BUILDER_WELCOME } from "../config";
 
 export function Builder({
   onClose,
@@ -166,16 +164,6 @@ export function Builder({
               </p>
             )}
           </div>
-          {messages.length === 1 && (
-            <button
-              className="example-prompt"
-              onClick={() => send(BUILDER_EXAMPLE)}
-            >
-              <Target size={16} />
-              Try a squat coaching tool
-              <ArrowRight size={15} />
-            </button>
-          )}
           <PromptBar
             value={text}
             onChange={setText}
