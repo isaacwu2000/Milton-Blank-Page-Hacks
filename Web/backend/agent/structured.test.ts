@@ -129,3 +129,10 @@ it("continues accepting an earlier instruction-only drill", () => {
   const result = coachResponseSchema.parse({ reply: "Try this practice.", drill: { title: "Balance", instructions: "Pause before resetting." } });
   expect(result.drill?.steps).toBeUndefined();
 });
+
+it("rejects repeated checklist goals so each check remains independent", () => {
+  expect(coachResponseSchema.safeParse({
+    reply: "Try this practice.",
+    drill: { title: "Balance", instructions: "Pause comfortably.", steps: ["Hold for two seconds.", "Hold for two seconds."] },
+  }).success).toBe(false);
+});

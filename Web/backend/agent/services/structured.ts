@@ -26,7 +26,9 @@ export const coachResponseSchema = z.object({
     .object({
       title: z.string().min(1).max(120),
       instructions: z.string().min(1).max(2000),
-      steps: z.array(z.string().min(1).max(300)).min(2).max(6).optional(),
+      steps: z.array(z.string().min(1).max(300)).min(2).max(6)
+        .refine((steps) => new Set(steps).size === steps.length, "Practice steps must be distinct.")
+        .optional(),
     })
     .nullish()
     .transform((drill) => drill ?? undefined),
