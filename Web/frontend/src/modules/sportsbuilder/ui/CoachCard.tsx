@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   EllipsisVertical,
   LoaderCircle,
@@ -23,6 +30,7 @@ export function CoachCard({
   onUpdated: (tool: SavedTool) => void;
 }) {
   const [menu, setMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(tool.name);
   const [busy, setBusy] = useState<"rename" | "delete" | null>(null);
@@ -35,6 +43,41 @@ export function CoachCard({
   const restoreFocus = useRef(false);
   const menuId = useId(),
     nameId = useId();
+  useLayoutEffect(() => {
+    if (!menu) return;
+    function positionMenu() {
+      const anchor = trigger.current?.getBoundingClientRect();
+      const popup = menuRef.current?.getBoundingClientRect();
+      if (!anchor || !popup) return;
+      const gutter = 8,
+        gap = 4;
+      const below = anchor.bottom + gap;
+      const preferredTop =
+        below + popup.height <= window.innerHeight - gutter
+          ? below
+          : anchor.top - popup.height - gap;
+      setMenuPosition({
+        top: Math.max(
+          gutter,
+          Math.min(preferredTop, window.innerHeight - popup.height - gutter),
+        ),
+        left: Math.max(
+          gutter,
+          Math.min(
+            anchor.right - popup.width,
+            window.innerWidth - popup.width - gutter,
+          ),
+        ),
+      });
+    }
+    positionMenu();
+    window.addEventListener("resize", positionMenu);
+    window.addEventListener("scroll", positionMenu, true);
+    return () => {
+      window.removeEventListener("resize", positionMenu);
+      window.removeEventListener("scroll", positionMenu, true);
+    };
+  }, [menu]);
   useEffect(() => {
     if (!menu) return;
     menuRef.current
@@ -46,7 +89,7 @@ export function CoachCard({
     document.addEventListener("pointerdown", outside);
     return () => document.removeEventListener("pointerdown", outside);
   }, [menu]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (renaming) {
       input.current?.focus();
       input.current?.select();
@@ -190,6 +233,7 @@ export function CoachCard({
           role="menu"
           aria-label={`Actions for ${tool.name}`}
           className="coach-card-menu"
+          style={menuPosition}
           onKeyDown={(event) => {
             const items = Array.from(
               menuRef.current?.querySelectorAll<HTMLButtonElement>("button") ??

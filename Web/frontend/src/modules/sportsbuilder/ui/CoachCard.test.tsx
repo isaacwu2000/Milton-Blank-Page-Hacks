@@ -15,6 +15,8 @@ vi.mock("../services/api", () => ({ api: vi.fn() }));
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 const tool: SavedTool = {
   ...sampleTool,
@@ -132,4 +134,42 @@ it("reports a failed delete and leaves the card available for retry", async () =
   expect(document.activeElement).toBe(trigger);
   fireEvent.click(trigger);
   expect(screen.getByRole("menuitem", { name: "Delete" })).toBeTruthy();
+});
+
+it("keeps the whole menu inside viewport boundaries and follows its anchor on scroll", () => {
+  const { trigger } = setup();
+  vi.stubGlobal("innerHeight", 720);
+  vi.stubGlobal("innerWidth", 1280);
+  let anchorTop = 650;
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: HTMLElement) {
+      return (
+        this.getAttribute("role") === "menu"
+          ? {
+              top: 0,
+              bottom: 112,
+              left: 0,
+              right: 180,
+              width: 180,
+              height: 112,
+            }
+          : {
+              top: anchorTop,
+              bottom: anchorTop + 44,
+              left: 1230,
+              right: 1274,
+              width: 44,
+              height: 44,
+            }
+      ) as DOMRect;
+    },
+  );
+  fireEvent.click(trigger);
+  const menu = screen.getByRole("menu");
+  expect(menu.style.top).toBe("534px");
+  expect(Number.parseFloat(menu.style.top) + 112).toBeLessThanOrEqual(712);
+  expect(Number.parseFloat(menu.style.left) + 180).toBeLessThanOrEqual(1272);
+  anchorTop = 100;
+  fireEvent.scroll(window);
+  expect(menu.style.top).toBe("148px");
 });
