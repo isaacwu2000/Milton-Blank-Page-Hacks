@@ -1714,3 +1714,5 @@ button .loading-status {
   margin: 0 8px 12px;
 }
 
+
+.app-shell[hidden] { display: none; }

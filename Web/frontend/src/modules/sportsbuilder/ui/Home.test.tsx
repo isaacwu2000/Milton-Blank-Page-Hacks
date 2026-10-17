@@ -447,3 +447,35 @@ it("retains coach selection and reports a failed removal without hiding it", asy
   await screen.findByText("Could not remove coach");
   expect(trigger.textContent).toBe(sampleTool.name);
 });
+
+it("keeps a deferred build and its completed review across recording navigation", async () => {
+  HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
+  HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
+  const clip = { id: "clip", name: "jump.mp4", duration: 12, createdAt: "2026-10-17T12:00:00Z", status: "failed", error: "Tracking needs retry" };
+  const home = { ...saved, sessions: [clip] };
+  let started!: (value: { id: string }) => void;
+  let reviewed!: (value: unknown) => void;
+  vi.mocked(post).mockImplementationOnce(() => new Promise((resolve) => { started = resolve; }));
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === "/api/home") return home;
+    if (path === "/agent/jobs/background-build") return new Promise((resolve) => { reviewed = resolve; });
+    if (path === "/api/sessions/clip") return clip;
+    if (path.endsWith("/video")) return { url: "clip.mp4" };
+    return {};
+  });
+  render(<Product />);
+  await screen.findByRole("button", { name: "Open jump.mp4" });
+  fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
+  fireEvent.click(screen.getByRole("button", { name: "Build my tool" }));
+  fireEvent.click(screen.getByRole("button", { name: "Build anyway" }));
+  fireEvent.click(screen.getByRole("button", { name: "Get coached" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open jump.mp4" }));
+  await screen.findByRole("button", { name: "All videos" });
+  await act(async () => started({ id: "background-build" }));
+  await waitFor(() => expect(reviewed).toBeTypeOf("function"));
+  await act(async () => reviewed({ status: "complete", stage: "Ready", preview: sampleTool }));
+  fireEvent.click(screen.getByRole("button", { name: "All videos" }));
+  fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
+  expect(screen.getByRole("button", { name: "Build my tool" }).hasAttribute("disabled")).toBe(false);
+  expect(post).toHaveBeenCalledTimes(1);
+});

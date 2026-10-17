@@ -148,8 +148,9 @@ export function Product() {
     if (loaded && workspaceAvailable && needsProfile && !error)
       setView("profile");
   }, [loaded, workspaceAvailable, needsProfile, error]);
-  if (sample)
-    return (
+  return (
+    <>
+      {sample && (
       <Workspace
         analysis={SAMPLE}
         tool={sampleTool}
@@ -158,9 +159,8 @@ export function Product() {
         profiles={data.profiles}
         sessions={data.sessions}
       />
-    );
-  if (opened)
-    return (
+      )}
+      {opened && (
       <SessionWorkspace
         sessionId={opened}
         data={data}
@@ -169,9 +169,8 @@ export function Product() {
           reload();
         }}
       />
-    );
-  return (
-    <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      )}
+    <div hidden={sample || !!opened} className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       {sidebarCollapsed && (
         <IconButton
           ref={expandButton}
@@ -392,6 +391,7 @@ export function Product() {
         </div>
       </main>
     </div>
+    </>
   );
 }
 function ToolSummary({ tool, removing, disabled, onRemove }: {
