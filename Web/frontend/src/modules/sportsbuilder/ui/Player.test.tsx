@@ -217,7 +217,7 @@ describe("selected joint derivative vectors", () => {
       y2: 146,
     });
   });
-  it("typesets zero-axis labels on white chips without changing the physical image origin or adding equations to scalar measurements", () => {
+  it("typesets zero-axis labels on translucent blurred chips without adding equations to scalar measurements", () => {
     const view = render(<InteractivePlayer data={analysis([point()])} />);
     const ground = view.container.querySelector(
       '[aria-label="Ground baseline"]',
@@ -230,12 +230,13 @@ describe("selected joint derivative vectors", () => {
       view.container
         .querySelector('[aria-label="Left image edge"]')!
         .getAttribute("x1"),
-    ).toBe("0");
+    ).toBe("2.4");
     const label = screen.getByLabelText("y equals zero");
     expect(label.querySelector("math")).toBeTruthy();
     expect((label.parentElement as HTMLElement).style.background).toBe(
-      "rgb(255, 255, 255)",
+      "rgba(255, 255, 255, 0.72)",
     );
+    expect((label.parentElement as HTMLElement).style.backdropFilter).toBe("blur(8px)");
     expect(label.querySelector("annotation")!.textContent).toBe("y=0");
     fireEvent.click(screen.getByRole("button", { name: "Select Right wrist" }));
     expect(

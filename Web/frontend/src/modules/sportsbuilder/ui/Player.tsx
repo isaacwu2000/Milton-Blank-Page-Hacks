@@ -70,6 +70,8 @@ export function Player({
     analysis.frames[0],
   );
   const markerId = useId().replaceAll(":", "");
+  // Inset the drawn axis so both arrowhead wings fit; measurements keep their image-edge origin.
+  const verticalAxisX = analysis.width * 0.006;
   const selectedPoint = frame?.joints[joint];
   const vectorScale = calibrated ? metersPerPixel : 1;
   // Keep each derivative's scale stable across the clip so arrow length reflects changing magnitude.
@@ -384,10 +386,10 @@ export function Player({
               vectorEffect="non-scaling-stroke"
             />
             <line
-              x1="0"
+              x1={verticalAxisX}
               y1={analysis.height}
-              x2="0"
-              y2="0"
+              x2={verticalAxisX}
+              y2={analysis.height * 0.012}
               stroke="white"
               strokeWidth="5"
               vectorEffect="non-scaling-stroke"
@@ -405,10 +407,10 @@ export function Player({
             />
             <line
               aria-label="Left image edge"
-              x1="0"
+              x1={verticalAxisX}
               y1={analysis.height}
-              x2="0"
-              y2="0"
+              x2={verticalAxisX}
+              y2={analysis.height * 0.012}
               stroke="#35494d"
               strokeWidth="2"
               vectorEffect="non-scaling-stroke"
@@ -417,9 +419,9 @@ export function Player({
             {[0.25, 0.5, 0.75].map((f) => (
               <g key={f} stroke="#35494d" strokeWidth="1.5">
                 <line
-                  x1="0"
+                  x1={verticalAxisX}
                   y1={analysis.height * f}
-                  x2={analysis.width * 0.012}
+                  x2={verticalAxisX + analysis.width * 0.012}
                   y2={analysis.height * f}
                   vectorEffect="non-scaling-stroke"
                 />
@@ -558,7 +560,9 @@ export function Player({
             position: "absolute",
             top: 8,
             left: 8,
-            background: "#fff",
+            background: "rgba(255, 255, 255, 0.72)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
             borderRadius: 3,
             padding: "2px 6px",
             fontSize: 12,
@@ -575,7 +579,9 @@ export function Player({
             top: `${Math.min(98, Math.max(12, (ground / analysis.height) * 100))}%`,
             right: 8,
             transform: "translateY(calc(-100% - 5px))",
-            background: "#fff",
+            background: "rgba(255, 255, 255, 0.72)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
             borderRadius: 3,
             padding: "2px 6px",
             fontSize: 12,
