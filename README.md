@@ -9,8 +9,14 @@ From the downloaded/cloned project folder:
 **Windows (64-bit Intel/AMD):** open PowerShell and run:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File "./install.ps1"
 ```
+
+Run it from the extracted project folder containing `install.ps1`. You can also
+double-click `install.cmd` there; it finds the installer even when the folder name
+contains spaces. Do not copy a leading `$` prompt. If an error mentions
+`.install.ps1`, a shell removed the backslash; use the quoted forward-slash path
+above. If `install.ps1` is missing, download/extract the current project first.
 
 This uses the execution policy only for that installer process; it does not change
 your saved PowerShell policy. No WSL, administrator account, or preinstalled

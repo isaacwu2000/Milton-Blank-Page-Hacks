@@ -164,7 +164,7 @@ function Start-SportsBuilderSetup {
 if ($MyInvocation.InvocationName -ne '.') {
     if ($Help) {
         Write-Host @'
-Usage: powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 [-NoStart] [-NonInteractive]
+Usage: powershell -NoProfile -ExecutionPolicy Bypass -File "./install.ps1" [-NoStart] [-NonInteractive]
 
 Installs missing tools and SportsBuilder, then starts the app.
   -NoStart         Install and configure without starting the app.

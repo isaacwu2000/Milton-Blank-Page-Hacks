@@ -257,3 +257,70 @@ it("uses the automatically saved height scale immediately without manual setup",
   expect(screen.getAllByLabelText("m/s").length).toBeGreaterThan(0);
   expect(vi.mocked(api)).not.toHaveBeenCalled();
 });
+
+describe("motion measurement recovery", () => {
+  it("explains missing scale beside the readings and opens manual scale setup", () => {
+    render(
+      <Workspace
+        analysis={makeSample()}
+        tool={sampleTool}
+        sample
+        onBack={() => {}}
+        profiles={[{ id: "athlete", name: "Athlete", heightCm: 178 }]}
+        sessions={[]}
+      />,
+    );
+    expect(screen.getAllByText("Set scale").length).toBe(3);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Set measurement scale" }),
+    );
+    expect(screen.getByText("Using your 178 cm height")).toBeTruthy();
+  });
+  it("explains absent derivatives and seeks to a frame with measured acceleration", () => {
+    const analysis = makeSample();
+    const joint = sampleTool.focusJoint;
+    for (const frame of analysis.frames.slice(0, 2)) {
+      frame.joints[joint] = {
+        ...frame.joints[joint]!,
+        vx: null,
+        vy: null,
+        ax: null,
+        ay: null,
+      };
+    }
+    render(
+      <Workspace
+        analysis={analysis}
+        tool={sampleTool}
+        onBack={() => {}}
+        session={{
+          id: "s",
+          profileId: "athlete",
+          toolId: "tool",
+          sourceKey: "clip.mov",
+          name: "clip",
+          status: "complete",
+          progress: 1,
+          interval: 0.1,
+          duration: analysis.duration,
+          createdAt: "2026-10-17",
+          calibration: { metersPerPixel: 0.01, ground: analysis.ground },
+        }}
+        profiles={[]}
+        sessions={[]}
+      />,
+    );
+    expect(screen.getAllByText("Need nearby frames").length).toBe(2);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Go to measured frame" }),
+    );
+    expect(screen.queryByText("Need nearby frames")).toBeNull();
+    expect(
+      (
+        screen.getByRole("slider", {
+          name: "Video timeline",
+        }) as HTMLInputElement
+      ).value,
+    ).toBe(String(analysis.frames[2].time));
+  });
+});

@@ -64,6 +64,19 @@ try {
         }
     }
 
+    # The launcher must resolve its own folder and forward flags from another directory.
+    if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+        $launcher = Join-Path $root 'install.cmd'
+        Push-Location -LiteralPath $temporaryDirectory
+        try {
+            $launcherOutput = & $launcher -Help 2>&1
+            Assert-True ($LASTEXITCODE -eq 0) 'The launcher must find install.ps1 outside the project folder.'
+            Assert-True (($launcherOutput -join "`n") -match 'NoStart') 'The launcher must forward arguments.'
+        } finally {
+            Pop-Location
+        }
+    }
+
     $shell = (Get-Process -Id $PID).Path
     $script = Join-Path $root 'install.ps1'
     $helpOutput = & $shell -NoProfile -File $script -Help 2>&1

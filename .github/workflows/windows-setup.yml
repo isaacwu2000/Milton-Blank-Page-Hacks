@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - install.ps1
+      - install.cmd
       - install.sh
       - scripts/**
       - tests/windows-*.ps1
@@ -13,6 +14,7 @@ on:
   pull_request:
     paths:
       - install.ps1
+      - install.cmd
       - scripts/**
       - tests/windows-*.ps1
       - Web/frontend/vite.config.ts

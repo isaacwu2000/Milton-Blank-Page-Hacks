@@ -20,7 +20,7 @@ done
 
 case "$(uname -s)" in
   Darwin|Linux) ;;
-  MINGW*|MSYS*|CYGWIN*) fail 'On Windows, run: powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 (or use Windows WSL with bash install.sh).' ;;
+  MINGW*|MSYS*|CYGWIN*) fail 'On Windows, run: powershell -NoProfile -ExecutionPolicy Bypass -File "./install.ps1" (or use Windows WSL with bash install.sh).' ;;
   *) fail 'Use macOS/Linux with bash install.sh, or Windows with install.ps1.' ;;
 esac
 

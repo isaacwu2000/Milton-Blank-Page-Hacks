@@ -2,7 +2,8 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { resolve } from "node:path";
 import { homedir } from "node:os";
-import { config, provider } from "../Web/backend/agent";
+import { provider } from "../Web/backend/agent";
+import { ensureLocalProxy } from "./local-proxy";
 import {
   installCommand,
   managedNodeDirectory,
@@ -30,7 +31,7 @@ function stop(code = 0) {
   setTimeout(() => {
     for (const child of children) signalChild(child, "SIGKILL");
     process.exit(code);
-  }, 1500).unref();
+  }, 1500);
 }
 function start(name: string, command: string, args: string[]) {
   const child = spawn(command, args, {
@@ -67,42 +68,44 @@ if (
   process.exit(1);
 }
 if (selectedProvider === "chatgpt") {
-  const ready = await fetch(`${config.localProxyUrl}/models`, {
-    signal: AbortSignal.timeout(2000),
-  })
-    .then((r) => r.ok)
-    .catch(() => false);
-  if (!ready) {
-    const npx = npxCommand(env.PATH ?? "");
-    if (!npx) {
-      console.error(
-        `Codex sign-in needs Node. Run ${installCommand()} to finish setup.`,
-      );
-      process.exit(1);
-    }
-    start("ChatGPT sign-in proxy", npx.command, [
-      ...npx.args,
-      "openai-oauth@2.0.0",
-      "--no-open",
-    ]);
+  try {
+    await ensureLocalProxy(() => {
+      const npx = npxCommand(env.PATH ?? "");
+      if (!npx)
+        throw Error(
+          `Codex sign-in needs Node. Run ${installCommand()} to finish setup.`,
+        );
+      console.log("Connecting ChatGPT. Complete sign-in if prompted…");
+      start("ChatGPT sign-in proxy", npx.command, [
+        ...npx.args,
+        "openai-oauth@2.0.0",
+        "--no-open",
+      ]);
+    });
+  } catch (error) {
+    console.error((error as Error).message);
+    stop(1);
   }
 }
-const backendDirectory = resolve("Web/backend");
-start("Video service", "uv", [
-  "run",
-  "--project",
-  backendDirectory,
-  "--directory",
-  backendDirectory,
-  "uvicorn",
-  "server.app:app",
-  "--host",
-  "127.0.0.1",
-  "--port",
-  "8080",
-]);
-start("AI service", process.execPath, ["Web/backend/agent/server.ts"]);
-start("Frontend", process.execPath, ["run", "web"]);
-console.log(
-  `SportsBuilder is starting at http://127.0.0.1:5173.${selectedProvider === "chatgpt" ? " Complete ChatGPT sign-in in the proxy instructions if prompted." : " AI provider: OpenRouter."}`,
-);
+
+if (!stopping) {
+  const backendDirectory = resolve("Web/backend");
+  start("Video service", "uv", [
+    "run",
+    "--project",
+    backendDirectory,
+    "--directory",
+    backendDirectory,
+    "uvicorn",
+    "server.app:app",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8080",
+  ]);
+  start("AI service", process.execPath, ["Web/backend/agent/server.ts"]);
+  start("Frontend", process.execPath, ["run", "web"]);
+  console.log(
+    `SportsBuilder is starting at http://127.0.0.1:5173.${selectedProvider === "chatgpt" ? " Complete ChatGPT sign-in in the proxy instructions if prompted." : " AI provider: OpenRouter."}`,
+  );
+}

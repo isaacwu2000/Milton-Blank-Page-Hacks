@@ -69,7 +69,7 @@ export function nodeArchive(
 
 export function installCommand(platform = process.platform): string {
   return platform === "win32"
-    ? "powershell -NoProfile -ExecutionPolicy Bypass -File .\\install.ps1"
+    ? 'powershell -NoProfile -ExecutionPolicy Bypass -File "./install.ps1"'
     : "bash install.sh";
 }
 

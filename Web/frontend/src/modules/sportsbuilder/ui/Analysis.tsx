@@ -277,6 +277,27 @@ export function Workspace({
   const available = Array.isArray(position);
   const velocity = jointMeasurement(point, "speed", scale, ground);
   const acceleration = jointMeasurement(point, "acceleration", scale, ground);
+  const missingReading = !calibrated
+    ? "Set scale"
+    : !available
+      ? "Not tracked"
+      : "Need nearby frames";
+  // Seek within this joint's measured samples; never borrow another frame's reading.
+  const measuredFrame =
+    calibrated && typeof acceleration !== "number"
+      ? analysis.frames.reduce<number | null>((best, candidate, i) => {
+          if (
+            typeof jointMeasurement(candidate.joints[joint], "acceleration") !==
+            "number"
+          )
+            return best;
+          return best === null ||
+            Math.abs(candidate.time - time) <
+              Math.abs(analysis.frames[best].time - time)
+            ? i
+            : best;
+        }, null)
+      : null;
   const values = selectedMetric
     ? (data.frames[selectedMetric] ?? [])
     : analysis.frames.map((frame) => {
@@ -501,6 +522,20 @@ export function Workspace({
                   ? `We couldn’t estimate a reliable scale from this clip. Keep your head and feet visible so we can use your ${athleteHeight} cm height and joint angles automatically.`
                   : "Add your height to the athlete profile to measure movement in meters."}
               </span>
+              <button
+                className="button secondary"
+                onClick={() => {
+                  setSettings(true);
+                  if (athleteHeight) startHeightCalibration();
+                  else {
+                    setCalibrationMode("distance");
+                    setCalibrationFrameTime(null);
+                    setPoints([]);
+                  }
+                }}
+              >
+                Set measurement scale
+              </button>
               {onReanalyze && athleteHeight && (
                 <button
                   className="button secondary"
@@ -704,8 +739,8 @@ export function Workspace({
                     <dd>
                       {available && calibrated
                         ? `${fmt(position[0])}, ${fmt(position[1])}`
-                        : "—"}{" "}
-                      <small>{calibrated ? "m" : ""}</small>
+                        : missingReading}{" "}
+                      <small>{available && calibrated ? "m" : ""}</small>
                     </dd>
                   </div>
                   <div>
@@ -713,9 +748,11 @@ export function Workspace({
                     <dd>
                       {calibrated && typeof velocity === "number"
                         ? fmt(velocity)
-                        : "—"}{" "}
+                        : missingReading}{" "}
                       <small>
-                        {calibrated && <MeasurementUnit unit="m/s" />}
+                        {calibrated && typeof velocity === "number" && (
+                          <MeasurementUnit unit="m/s" />
+                        )}
                       </small>
                     </dd>
                   </div>
@@ -724,14 +761,35 @@ export function Workspace({
                     <dd>
                       {calibrated && typeof acceleration === "number"
                         ? fmt(acceleration)
-                        : "—"}{" "}
+                        : missingReading}{" "}
                       <small>
-                        {calibrated && <MeasurementUnit unit="m/s²" />}
+                        {calibrated && typeof acceleration === "number" && (
+                          <MeasurementUnit unit="m/s²" />
+                        )}
                       </small>
                     </dd>
                   </div>
                 </dl>
               </div>
+              {calibrated && typeof acceleration !== "number" && (
+                <div className="notice">
+                  <span>
+                    {available
+                      ? "Acceleration needs five consecutive tracked frames. The clip edges and tracking gaps may have no reading."
+                      : "This body point is not tracked clearly at this time. Choose another point or frame."}
+                  </span>
+                  {measuredFrame !== null && (
+                    <button
+                      className="button secondary"
+                      onClick={() =>
+                        setCurrentTime(analysis.frames[measuredFrame].time)
+                      }
+                    >
+                      Go to measured frame
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="graph-controls">
                 <label>
                   Plot

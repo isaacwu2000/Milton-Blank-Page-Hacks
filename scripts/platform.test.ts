@@ -49,7 +49,7 @@ describe("native Windows setup", () => {
   });
   it("gives a process-local execution policy recovery command", () => {
     expect(installCommand("win32")).toBe(
-      "powershell -NoProfile -ExecutionPolicy Bypass -File .\\install.ps1",
+      'powershell -NoProfile -ExecutionPolicy Bypass -File "./install.ps1"',
     );
   });
   it("terminates only its owned process tree by PID", () => {
