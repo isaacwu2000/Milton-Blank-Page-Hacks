@@ -31,7 +31,7 @@ def pool() -> ConnectionPool:
     url = os.getenv("DATABASE_URL")
     if not url:
         raise RuntimeError("DATABASE_URL is missing. Add Neon credentials to .env.local.")
-    return ConnectionPool(url, min_size=0, max_size=4, timeout=45, kwargs={"connect_timeout": 15})
+    return ConnectionPool(url, min_size=0, max_size=4, timeout=45, kwargs={"connect_timeout": 3})
 
 
 @lru_cache

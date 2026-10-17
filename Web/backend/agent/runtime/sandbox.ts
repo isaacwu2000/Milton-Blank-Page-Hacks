@@ -189,9 +189,9 @@ export class BuildSandbox {
     const pixels = await this.instance.fs.downloadFile(`${WORK}/preview.png`);
     if (pixels.length < 1000)
       throw Error("The browser returned an empty screenshot.");
-    await mkdir(`output/builds/${this.jobId}`, { recursive: true });
+    await mkdir(`${config.evidenceDirectory}/builds/${this.jobId}`, { recursive: true });
     const filename = mobile ? "mobile.png" : "desktop.png";
-    await writeFile(`output/builds/${this.jobId}/${filename}`, pixels);
+    await writeFile(`${config.evidenceDirectory}/builds/${this.jobId}/${filename}`, pixels);
     return {
       ...info,
       screenshot: `data:image/png;base64,${pixels.toString("base64")}`,

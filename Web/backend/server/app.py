@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import math
+import os
 import tempfile
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -15,7 +16,15 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from server import config, store, vision
-from server.types import Analysis, Record, RecordKind
+from server.types import (
+    Analysis,
+    HomeData,
+    ProfileRecord,
+    Record,
+    RecordKind,
+    SessionRecord,
+    ToolRecord,
+)
 
 log = logging.getLogger("sportsbuilder")
 tracking_lock = asyncio.Lock()
@@ -82,17 +91,21 @@ async def failure(request: Request, exc: Exception) -> JSONResponse:
 async def health() -> dict[str, bool]:
     return {
         "ok": True,
-        "database": bool(store.os.getenv("DATABASE_URL")),
-        "storage": bool(store.os.getenv("NEON_STORAGE_ENDPOINT")),
+        "database": bool(os.getenv("DATABASE_URL")),
+        "storage": bool(os.getenv("NEON_STORAGE_ENDPOINT")),
     }
 
 
 @app.get("/api/home")
-async def home() -> dict[str, list[Record]]:
+async def home() -> HomeData:
     values = await asyncio.gather(
         *[asyncio.to_thread(store.records, k) for k in ("profiles", "tools", "sessions")]
     )
-    return dict(zip(["profiles", "tools", "sessions"], values))
+    return {
+        "profiles": cast(list[ProfileRecord], values[0]),
+        "tools": cast(list[ToolRecord], values[1]),
+        "sessions": cast(list[SessionRecord], values[2]),
+    }
 
 
 class ProfileInput(BaseModel):
@@ -105,13 +118,13 @@ class ProfileInput(BaseModel):
 
 
 @app.post("/api/profiles")
-async def profile(data: ProfileInput) -> Record:
+async def profile(data: ProfileInput) -> ProfileRecord:
     value = {**data.model_dump(), "id": str(uuid4())}
-    return await asyncio.to_thread(store.save, "profiles", value)
+    return cast(ProfileRecord, await asyncio.to_thread(store.save, "profiles", value))
 
 
 @app.post("/api/tools")
-async def save_tool(request: Request) -> Record:
+async def save_tool(request: Request) -> ToolRecord:
     # Only the loopback agent service can publish a reviewed configuration.
     import hmac
     import os
@@ -126,17 +139,17 @@ async def save_tool(request: Request) -> Record:
     async with session_lock:
         if value.get("referenceId"):
             await asyncio.to_thread(record, "sessions", value["referenceId"])
-        return await asyncio.to_thread(store.save, "tools", value)
+        return cast(ToolRecord, await asyncio.to_thread(store.save, "tools", value))
 
 
-@app.post("/api/upload")
+@app.post("/api/upload", response_model=None)
 async def upload(
     file: Annotated[UploadFile, File()],
     profileId: str = Form(""),
     toolId: str = Form(""),
     interval: float = Form(config.DEFAULT_SAMPLE_INTERVAL),
     reference: bool = Form(False),
-) -> Record:
+) -> SessionRecord:
     if not math.isfinite(interval) or not 0.033 <= interval <= 1:
         raise HTTPException(422, "Use a sampling interval between 0.033 and 1 second.")
     if not reference:
@@ -192,7 +205,7 @@ async def upload(
         except Exception:
             await asyncio.to_thread(store.remove, key)
             raise
-        return value
+        return cast(SessionRecord, value)
     finally:
         if path:
             path.unlink(missing_ok=True)
@@ -266,12 +279,12 @@ async def work(session_id: str) -> None:
             path.unlink(missing_ok=True)
 
 
-@app.post("/api/sessions/{session_id}/analyze")
-async def start(session_id: str) -> Record:
+@app.post("/api/sessions/{session_id}/analyze", response_model=None)
+async def start(session_id: str) -> SessionRecord:
     async with session_lock:
         session = await asyncio.to_thread(record, "sessions", session_id)
         if session_id in active:
-            return session
+            return cast(SessionRecord, session)
         if len(active) >= config.MAX_QUEUED_JOBS:
             raise HTTPException(429, "Three clips are already queued. Wait for one to finish.")
         active.add(session_id)
@@ -287,12 +300,12 @@ async def start(session_id: str) -> Record:
             raise
         task = asyncio.create_task(work(session_id))
         task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
-        return session
+        return cast(SessionRecord, session)
 
 
-@app.get("/api/sessions/{session_id}")
-async def session_get(session_id: str) -> Record:
-    return await asyncio.to_thread(record, "sessions", session_id)
+@app.get("/api/sessions/{session_id}", response_model=None)
+async def session_get(session_id: str) -> SessionRecord:
+    return cast(SessionRecord, await asyncio.to_thread(record, "sessions", session_id))
 
 
 @app.get("/api/sessions/{session_id}/video")
@@ -337,8 +350,8 @@ class SessionUpdate(BaseModel):
     completedDrills: list[str] | None = Field(default=None, max_length=100)
 
 
-@app.patch("/api/sessions/{session_id}")
-async def update_session(session_id: str, update: SessionUpdate) -> Record:
+@app.patch("/api/sessions/{session_id}", response_model=None)
+async def update_session(session_id: str, update: SessionUpdate) -> SessionRecord:
     """Validate and atomically save user fields without overwriting running job state."""
     value = await asyncio.to_thread(record, "sessions", session_id)
     height = config.MAX_VIDEO_DIMENSION
@@ -356,8 +369,11 @@ async def update_session(session_id: str, update: SessionUpdate) -> Record:
             reference = await asyncio.to_thread(record, "sessions", tool["referenceId"])
             if update.alignment.reference > reference["duration"]:
                 raise HTTPException(422, "Choose alignment times inside the clips.")
-    return await asyncio.to_thread(
-        store.patch, "sessions", session_id, update.model_dump(exclude_unset=True)
+    return cast(
+        SessionRecord,
+        await asyncio.to_thread(
+            store.patch, "sessions", session_id, update.model_dump(exclude_unset=True)
+        ),
     )
 
 

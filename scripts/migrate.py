@@ -5,6 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Web/backend"))
 import psycopg
 from dotenv import load_dotenv
+
 from server import config
 
 load_dotenv(config.ROOT / ".env.local")
@@ -12,7 +13,7 @@ load_dotenv(config.ROOT / ".env")
 
 with psycopg.connect(
     os.getenv("DATABASE_URL_UNPOOLED") or os.environ["DATABASE_URL"],
-    connect_timeout=15,
+    connect_timeout=3,
 ) as con:
     con.execute("SET statement_timeout = '20s'")
     con.execute("SET lock_timeout = '10s'")

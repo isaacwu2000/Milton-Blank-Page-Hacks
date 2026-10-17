@@ -21,6 +21,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "boto3-stubs[s3]>=1.40,<1.41",
+    "httpx>=0.28.1",
     "pytest>=9.1.1",
     "ruff>=0.14",
     "ty>=0.0.1",
@@ -39,3 +40,13 @@ include = ["server", "tests"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+# Railway uses CPU inference. macOS keeps its normal PyPI wheels.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]

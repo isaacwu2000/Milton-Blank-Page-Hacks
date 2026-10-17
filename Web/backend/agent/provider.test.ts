@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { chat } from "./services/provider";
-import { config } from "./config";
+import { config, provider } from "./config";
 import type { Chat, Tool } from "./types";
 
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
@@ -13,6 +13,18 @@ const messages: Chat[] = [
 ];
 
 describe("provider wire parity", () => {
+  it("selects production OpenRouter or development ChatGPT unless explicitly overridden", () => {
+    vi.stubEnv("SOL_PROVIDER", undefined);
+    vi.stubEnv("NODE_ENV", "production");
+    expect(provider()).toBe("openrouter");
+    vi.stubEnv("NODE_ENV", "development");
+    expect(provider()).toBe("chatgpt");
+    vi.stubEnv("SOL_PROVIDER", "openrouter");
+    expect(provider()).toBe("openrouter");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SOL_PROVIDER", "chatgpt");
+    expect(provider()).toBe("chatgpt");
+  });
   it("preserves the same tools, medium reasoning, images and normalized tool decision across providers", async () => {
     const bodies: Record<string, any> = {};
     const results = [];

@@ -105,3 +105,85 @@ class PosePrediction(TypedDict):
     keypoints: Tensor
     labels: Tensor
     scores: Tensor
+
+
+type MetricScope = Literal["frame", "summary"]
+type MetricUnit = Literal["length", "speed", "acceleration", "angle", "number", "time"]
+type Expr = float | Expression
+
+
+class Expression(TypedDict, total=False):
+    op: str
+    args: list[Expr]
+    joint: str
+    field: str
+    metric: str
+    value: float
+
+
+class MetricTarget(TypedDict):
+    message: str
+    min: NotRequired[float]
+    max: NotRequired[float]
+
+
+class Metric(TypedDict):
+    id: str
+    name: str
+    description: str
+    scope: MetricScope
+    formula: Expr
+    unit: MetricUnit
+    target: NotRequired[MetricTarget]
+
+
+class ToolRecord(TypedDict):
+    id: str
+    createdAt: str
+    format: Literal[1]
+    name: str
+    sport: str
+    audience: str
+    description: str
+    rubric: str
+    coachPrompt: str
+    metrics: list[Metric]
+    focusJoint: str
+    referenceId: NotRequired[str]
+
+
+class ProfileRecord(TypedDict):
+    id: str
+    name: str
+    heightCm: NotRequired[float | None]
+    weightKg: NotRequired[float | None]
+    dominantSide: NotRequired[str]
+    experience: NotRequired[str]
+    notes: NotRequired[str]
+
+
+class SessionRecord(TypedDict):
+    id: str
+    name: str
+    createdAt: str
+    profileId: str
+    toolId: str
+    status: Status
+    progress: float
+    duration: float
+    interval: float
+    sourceKey: str
+    reference: NotRequired[bool]
+    analysisKey: NotRequired[str]
+    ground: NotRequired[float | None]
+    calibration: NotRequired[Calibration | None]
+    alignment: NotRequired[Alignment | None]
+    completedDrills: NotRequired[list[str] | None]
+    stage: NotRequired[str]
+    error: NotRequired[str | None]
+
+
+class HomeData(TypedDict):
+    profiles: list[ProfileRecord]
+    tools: list[ToolRecord]
+    sessions: list[SessionRecord]

@@ -472,10 +472,10 @@ app.post("/agent/build", (req, res, next) => {
                 throw Error("A real browser screenshot is required.");
             },
             record(event) {
-              void mkdir(`output/builds/${id}`, { recursive: true })
+              void mkdir(`${config.evidenceDirectory}/builds/${id}`, { recursive: true })
                 .then(() =>
                   writeFile(
-                    `output/builds/${id}/status.json`,
+                    `${config.evidenceDirectory}/builds/${id}/status.json`,
                     JSON.stringify(event, null, 2),
                   ),
                 )
@@ -523,7 +523,7 @@ app.post("/agent/build", (req, res, next) => {
           body: JSON.stringify(result.document),
         });
         await writeFile(
-          `output/builds/${id}/accepted.json`,
+          `${config.evidenceDirectory}/builds/${id}/accepted.json`,
           JSON.stringify(
             {
               revision: result.revision,

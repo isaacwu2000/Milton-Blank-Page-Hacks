@@ -10,7 +10,7 @@
     "build": "bun run typecheck && bun run --cwd Web/frontend build",
     "typecheck": "tsc --noEmit",
     "ai:proxy": "npx openai-oauth@2.0.0 --no-open",
-    "check": "bun run build && bun run test && uv run --directory Web/backend ruff check server tests && uv run --directory Web/backend ty check && uv run --directory Web/backend pytest",
+    "check": "bun run build && bun run test && uv run --directory Web/backend ruff check server tests && uv run --directory Web/backend ruff format --check server tests && uv run --directory Web/backend ty check && uv run --directory Web/backend pytest",
     "test": "vitest run",
     "test:python": "uv run --directory Web/backend pytest"
   },

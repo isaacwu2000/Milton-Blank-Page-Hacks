@@ -1,4 +1,7 @@
 /** Nonsecret runtime policy. Credentials stay in environment variables on the host. */
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 export const config = {
   host: "127.0.0.1",
   port: 3001,
@@ -14,9 +17,10 @@ export const config = {
   imageBatchSize: 32,
   maxBuilderTurns: 12,
   maxOutputTokens: 6000,
+  evidenceDirectory: resolve(repositoryRoot, "output"),
   sandbox: {
     workspace: "/home/daytona/sportsbuilder",
-    bundle: "Web/frontend/dist",
+    bundle: resolve(repositoryRoot, "Web/frontend/dist"),
     autoStopMinutes: 10,
     ttlMinutes: 20,
     createTimeoutSeconds: 180,
