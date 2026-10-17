@@ -10,7 +10,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeSample, sampleTool, type Session } from "../../../../../shared";
 import { api, post } from "../services/api";
-import { Workspace } from "./Analysis";
+import { SessionWorkspace, Workspace } from "./Analysis";
 vi.mock("../services/api", () => ({ api: vi.fn(), post: vi.fn() }));
 beforeEach(() => {
   const values = new Map<string, string>();
@@ -30,6 +30,163 @@ afterEach(() => {
 });
 
 describe("height-scale workflow", () => {
+  it.each([
+    { storedScale: 0.005, confirmed: true },
+    { storedScale: 0.01, confirmed: false },
+  ])(
+    "only accepts a matching saved scale after a lost response ($confirmed)",
+    async ({ storedScale, confirmed }) => {
+      const analysis = makeSample();
+      const calibration = {
+        metersPerPixel: storedScale,
+        ground: analysis.ground,
+        source: "known_distance",
+      };
+      vi.mocked(api)
+        .mockRejectedValueOnce(
+          new DOMException("The operation timed out.", "TimeoutError"),
+        )
+        .mockResolvedValueOnce({ calibration });
+      const view = render(
+        <Workspace
+          analysis={analysis}
+          tool={sampleTool}
+          session={{
+            id: "scale-save",
+            name: "clip",
+            profileId: "athlete",
+            toolId: "tool",
+            status: "complete",
+            progress: 1,
+            duration: analysis.duration,
+            interval: 0.1,
+            sourceKey: "clip.mov",
+            createdAt: "2026-10-17",
+          }}
+          profiles={[{ id: "athlete", name: "Athlete", heightCm: 178 }]}
+          sessions={[]}
+          onBack={() => {}}
+        />,
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Analysis settings" }),
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Calibrate distance" }),
+      );
+      const overlay = view.container.querySelector("svg.pose-overlay")!;
+      vi.spyOn(overlay, "getBoundingClientRect").mockReturnValue({
+        left: 0,
+        top: 0,
+        width: 800,
+        height: 540,
+        right: 800,
+        bottom: 540,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      });
+      fireEvent.click(overlay, { clientX: 100, clientY: 100 });
+      fireEvent.click(overlay, { clientX: 300, clientY: 100 });
+      fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+      if (!confirmed) {
+        expect((await screen.findByRole("alert")).textContent).toContain(
+          "could not be confirmed",
+        );
+        expect(
+          screen.queryByText(
+            "Distance calibration saved. Measurements are approximate 2D projections.",
+          ),
+        ).toBeNull();
+        return;
+      }
+      await screen.findByText(
+        "Distance calibration saved. Measurements are approximate 2D projections.",
+      );
+      expect(api).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(api).mock.calls[1][0]).toBe("/api/sessions/scale-save");
+      expect(vi.mocked(api).mock.calls[1][1]?.method).toBeUndefined();
+      expect(screen.queryByText("Set scale for measurements")).toBeNull();
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(screen.getAllByLabelText("m/s").length).toBeGreaterThan(0);
+    },
+  );
+
+  it("shows a pending distance save and keeps the marks available after failure", async () => {
+    let reject!: (error: Error) => void;
+    vi.mocked(api).mockReturnValue(
+      new Promise((_, fail) => {
+        reject = fail;
+      }),
+    );
+    const analysis = makeSample();
+    const view = render(
+      <Workspace
+        analysis={analysis}
+        tool={sampleTool}
+        session={{
+          id: "scale-save",
+          name: "clip",
+          profileId: "athlete",
+          toolId: "tool",
+          status: "complete",
+          progress: 1,
+          duration: analysis.duration,
+          interval: 0.1,
+          sourceKey: "clip.mov",
+          createdAt: "2026-10-17",
+        }}
+        profiles={[{ id: "athlete", name: "Athlete", heightCm: 178 }]}
+        sessions={[]}
+        onBack={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Analysis settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Calibrate distance" }));
+    const overlay = view.container.querySelector("svg.pose-overlay")!;
+    vi.spyOn(overlay, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 540,
+      right: 800,
+      bottom: 540,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    fireEvent.click(overlay, { clientX: 100, clientY: 100 });
+    fireEvent.click(overlay, { clientX: 300, clientY: 100 });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Saving scale…",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(screen.getByText("Saving measurement scale…")).toBeTruthy();
+    const timeline = screen.getByRole("slider", {
+      name: "Video timeline",
+    }) as HTMLInputElement;
+    fireEvent.change(timeline, { target: { value: "1" } });
+    expect(timeline.value).toBe("0");
+    await act(async () => {
+      reject(Error("Database unavailable. Try again."));
+    });
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Database unavailable",
+    );
+    expect(
+      (screen.getByRole("button", { name: "Apply" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+    expect(
+      screen.getByText("Click two ends of a known distance (2/2)."),
+    ).toBeTruthy();
+  });
+
+
   it("saves one 178cm height scale and uses it for measured values instead of relabeling pixels", async () => {
     const analysis = { ...makeSample(), source: "video" as const };
     const session: Session = {
@@ -498,4 +655,80 @@ it("reveals the newest coach response inside its conversation", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Review my form" }));
   await screen.findByText("At 1.2 seconds, your knee bends.");
   expect(conversation.scrollTop).toBe(1000);
+});
+
+
+it("shows recalculation failures inside the still-open analysis workspace", async () => {
+  const analysis = makeSample();
+  let rejectStart!: (error: Error) => void;
+  const session = {
+    id: "recalculate",
+    name: "clip",
+    profileId: "athlete",
+    toolId: "00000000-0000-4000-8000-000000000010",
+    status: "complete",
+    progress: 1,
+    duration: analysis.duration,
+    interval: 0.1,
+    sourceKey: "clip.mov",
+    createdAt: "2026-10-17",
+  };
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path.endsWith("/analyze"))
+      return new Promise((_, reject) => {
+        rejectStart = reject;
+      });
+    if (path.endsWith("/analysis")) return analysis;
+    if (path.endsWith("/video")) return { url: "" };
+    return session;
+  });
+  render(
+    <SessionWorkspace
+      sessionId="recalculate"
+      data={{
+        profiles: [{ id: "athlete", name: "Athlete", heightCm: 178 }],
+        tools: [
+          {
+            ...sampleTool,
+            id: "00000000-0000-4000-8000-000000000010",
+            createdAt: "2026-10-17T12:00:00Z",
+          },
+        ],
+        sessions: [],
+      }}
+      onBack={() => {}}
+    />,
+  );
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Recalculate automatically" }),
+  );
+  await screen.findByRole("button", { name: "Starting recalculation…" });
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "Set measurement scale",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Analysis settings" }));
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "Calibrate distance",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "Adjust height scale manually",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  await act(async () => {
+    rejectStart(Error("Recalculation could not start. Try again."));
+  });
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "Recalculation could not start",
+  );
 });

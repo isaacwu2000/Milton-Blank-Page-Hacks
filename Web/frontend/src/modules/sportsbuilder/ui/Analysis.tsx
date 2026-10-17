@@ -1,7 +1,11 @@
 import type { CSSProperties } from "react";
 import { useCoachWidth } from "../hooks/useCoachWidth";
 import { CoachResizeHandle } from "./CoachResizeHandle";
-import { POLLING } from "../config";
+import {
+  POLLING,
+  CALIBRATION_SAVE_TIMEOUT_MS,
+  CALIBRATION_VERIFY_TIMEOUT_MS,
+} from "../config";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -59,6 +63,7 @@ export function SessionWorkspace({
   onBack: () => void;
 }) {
   const [pollGeneration, setPollGeneration] = useState(0);
+  const [reanalyzing, setReanalyzing] = useState(false);
   const [session, setSession] = useState<Session | null>(null),
     [analysis, setAnalysis] = useState<Analysis | null>(null),
     [url, setUrl] = useState(""),
@@ -107,13 +112,27 @@ export function SessionWorkspace({
   }, [sessionId, load, pollGeneration]);
   const tool = data.tools.find((t) => t.id === session?.toolId);
   async function start() {
+    if (reanalyzing) return;
+    setReanalyzing(true);
     setError("");
     try {
-      setSession(await post<Session>(`/api/sessions/${sessionId}/analyze`, {}));
+      setSession(
+        await api<Session>(`/api/sessions/${sessionId}/analyze`, {
+          method: "POST",
+          body: "{}",
+          signal: AbortSignal.timeout(CALIBRATION_SAVE_TIMEOUT_MS),
+        }),
+      );
       setAnalysis(null);
       setPollGeneration((g) => g + 1);
     } catch (e) {
-      setError((e as Error).message);
+      setError(
+        (e as Error).name === "TimeoutError"
+          ? "Starting recalculation took too long. Reopen the video to check its analysis status before retrying."
+          : (e as Error).message,
+      );
+    } finally {
+      setReanalyzing(false);
     }
   }
   if (analysis && session && !tool)
@@ -139,6 +158,8 @@ export function SessionWorkspace({
         profiles={data.profiles}
         sessions={data.sessions}
         onReanalyze={start}
+        reanalyzeError={error}
+        reanalyzing={reanalyzing}
         onBack={onBack}
       />
     );
@@ -193,7 +214,7 @@ export function SessionWorkspace({
           </>
         )}
         {session && ["failed", "uploaded"].includes(session.status) && (
-          <button className="button" onClick={start}>
+          <button className="button" disabled={reanalyzing} onClick={start}>
             Analyze video
             <ArrowRight size={16} />
           </button>
@@ -210,6 +231,8 @@ export function Workspace({
   sample = false,
   onBack,
   onReanalyze,
+  reanalyzeError,
+  reanalyzing = false,
   profiles,
 }: {
   analysis: Analysis;
@@ -219,6 +242,8 @@ export function Workspace({
   sample?: boolean;
   onBack: () => void;
   onReanalyze?: () => Promise<void>;
+  reanalyzeError?: string;
+  reanalyzing?: boolean;
   profiles: Profile[];
   sessions: Session[];
 }) {
@@ -233,6 +258,7 @@ export function Workspace({
     ),
     [scale, setScale] = useState(session?.calibration?.metersPerPixel ?? 1),
     [calibrated, setCalibrated] = useState(!!session?.calibration),
+    [calibrationSaving, setCalibrationSaving] = useState(false),
     [calibrationMetadata, setCalibrationMetadata] = useState<
       Session["calibration"]
     >(session?.calibration),
@@ -261,6 +287,7 @@ export function Workspace({
   const needsPhysicalScale = (unit: string) =>
     needsScale && ["length", "speed", "acceleration"].includes(unit);
   function startHeightCalibration() {
+    if (calibrationSaving || reanalyzing) return;
     setCalibrationMode("height");
     setCalibrationFrameTime(null);
     setPoints([]);
@@ -325,6 +352,7 @@ export function Workspace({
           : "length");
   const setCurrentTime = useCallback(
     (t: number) => {
+      if (calibrationSaving || reanalyzing) return;
       if (
         (calibrationMode === "height" || calibrationMode === "distance") &&
         Math.abs(t - time) > 0.0005
@@ -334,16 +362,63 @@ export function Workspace({
       }
       setTime(t);
     },
-    [calibrationMode, time],
+    [calibrationMode, time, calibrationSaving, reanalyzing],
   );
-  async function persist(body: unknown) {
-    if (session)
+  /** Lock controls until the response or saved-field readback confirms the save; retain failed marks. */
+  async function persist(body: {
+    calibration?: Session["calibration"] | null;
+    ground?: number;
+  }) {
+    if (!session) return;
+    setCalibrationSaving(true);
+    setError("");
+    const signal = AbortSignal.timeout(CALIBRATION_SAVE_TIMEOUT_MS);
+    try {
       await api(`/api/sessions/${session.id}`, {
         method: "PATCH",
         body: JSON.stringify(body),
+        signal,
       });
+    } catch (error) {
+      const timeout =
+        signal.aborted ||
+        ((error instanceof Error || error instanceof DOMException) &&
+          error.name === "TimeoutError");
+      if (timeout) {
+        // A save can commit before its response is lost. Confirm the exact fields
+        // before leaving the UI uncalibrated or asking the athlete to repeat it.
+        try {
+          const saved = await api<Session>(`/api/sessions/${session.id}`, {
+            signal: AbortSignal.timeout(CALIBRATION_VERIFY_TIMEOUT_MS),
+          });
+          const groundMatches =
+            body.ground === undefined || saved.ground === body.ground;
+          const calibrationMatches =
+            body.calibration === undefined ||
+            (body.calibration === null
+              ? !saved.calibration
+              : saved.calibration &&
+                Object.entries(body.calibration).every(
+                  ([key, value]) =>
+                    saved.calibration?.[
+                      key as keyof NonNullable<Session["calibration"]>
+                    ] === value,
+                ));
+          if (groundMatches && calibrationMatches) return;
+        } catch {
+          /* Keep the original save error if confirmation is unavailable. */
+        }
+        throw Error(
+          "The scale save could not be confirmed. Your marks are kept; retry the save or reopen the video to check its saved scale.",
+        );
+      }
+      throw error;
+    } finally {
+      setCalibrationSaving(false);
+    }
   }
   async function saveCalibration() {
+    if (reanalyzing || calibrationSaving) return;
     if (points.length !== 2) return;
     if (!Number.isFinite(Number(length)) || Number(length) <= 0) {
       setError("Enter a valid positive distance.");
@@ -411,6 +486,7 @@ export function Workspace({
     }
   }
   async function clearCalibration() {
+    if (reanalyzing || calibrationSaving) return;
     try {
       await persist({ calibration: null, ground: analysis.ground });
       setScale(1);
@@ -423,6 +499,7 @@ export function Workspace({
     }
   }
   function canvasClick(p: [number, number]) {
+    if (calibrationSaving || reanalyzing) return;
     if (calibrationMode === "ground") {
       const next = p[1];
       setGround(next);
@@ -521,7 +598,9 @@ export function Workspace({
               {analysis.interval}s sampling · {analysis.frames.length} frames
             </span>
           </div>
-          {error && <ErrorNote message={error} onClose={() => setError("")} />}
+          {error && calibrationMode === "none" && (
+            <ErrorNote message={error} onClose={() => setError("")} />
+          )}
           {notice && (
             <div className="notice" role="status">
               {notice}
@@ -534,6 +613,10 @@ export function Workspace({
               </IconButton>
             </div>
           )}
+          {reanalyzeError && <ErrorNote message={reanalyzeError} />}
+          {reanalyzing && (
+            <p role="status">Starting automatic recalculation…</p>
+          )}
           {needsScale && calibrationMode === "none" && (
             <div className="notice">
               <span>
@@ -543,6 +626,7 @@ export function Workspace({
               </span>
               <button
                 className="button secondary"
+                disabled={calibrationSaving || reanalyzing}
                 onClick={() => {
                   setSettings(true);
                   if (athleteHeight) startHeightCalibration();
@@ -558,9 +642,12 @@ export function Workspace({
               {onReanalyze && athleteHeight && (
                 <button
                   className="button secondary"
+                  disabled={calibrationSaving || reanalyzing}
                   onClick={() => void onReanalyze()}
                 >
-                  Recalculate automatically
+                  {reanalyzing
+                    ? "Starting recalculation…"
+                    : "Recalculate automatically"}
                 </button>
               )}
             </div>
@@ -575,13 +662,14 @@ export function Workspace({
               <div className="wrap-actions">
                 <button
                   className="button secondary"
-                  disabled={!athleteHeight}
+                  disabled={!athleteHeight || calibrationSaving || reanalyzing}
                   onClick={startHeightCalibration}
                 >
                   Adjust height scale manually
                 </button>
                 <button
                   className="button secondary"
+                  disabled={calibrationSaving || reanalyzing}
                   onClick={() => {
                     setCalibrationMode("distance");
                     setCalibrationFrameTime(null);
@@ -593,13 +681,18 @@ export function Workspace({
                 </button>
                 <button
                   className="button secondary"
+                  disabled={calibrationSaving || reanalyzing}
                   onClick={() => {
                     setCalibrationMode("ground");
                   }}
                 >
                   Set ground line
                 </button>
-                <button className="text-button" onClick={clearCalibration}>
+                <button
+                  className="text-button"
+                  disabled={calibrationSaving || reanalyzing}
+                  onClick={clearCalibration}
+                >
                   Reset calibration
                 </button>
               </div>
@@ -644,20 +737,26 @@ export function Workspace({
                       min={0.001}
                       step="any"
                       value={length}
+                      disabled={calibrationSaving || reanalyzing}
                       onChange={(e) => setLength(e.target.value)}
                     />
                   </label>
                   <button
                     className="button"
-                    disabled={points.length !== 2 || Number(length) <= 0}
+                    disabled={
+                      calibrationSaving ||
+                      points.length !== 2 ||
+                      Number(length) <= 0
+                    }
                     onClick={saveCalibration}
                   >
-                    Apply
+                    {calibrationSaving ? "Saving scale…" : "Apply"}
                   </button>
                 </>
               )}
               <IconButton
                 label="Cancel calibration"
+                disabled={calibrationSaving || reanalyzing}
                 onClick={() => {
                   setCalibrationMode("none");
                   setCalibrationFrameTime(null);
@@ -666,8 +765,30 @@ export function Workspace({
               >
                 <X size={16} />
               </IconButton>
+              {error && (
+                <ErrorNote message={error} onClose={() => setError("")} />
+              )}
+              {error &&
+                calibrationMode === "height" &&
+                points.length === 2 &&
+                calibrationFrameTime !== null && (
+                  <button
+                    className="button"
+                    disabled={calibrationSaving || reanalyzing}
+                    onClick={() =>
+                      void saveHeightCalibration(
+                        points[0],
+                        points[1],
+                        calibrationFrameTime,
+                      )
+                    }
+                  >
+                    Retry height scale
+                  </button>
+                )}
             </div>
           )}
+          {calibrationSaving && <p role="status">Saving measurement scale…</p>}
           <Player
             analysis={analysis}
             url={url}

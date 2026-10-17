@@ -28,3 +28,6 @@ export const READ_RETRY = {
   baseDelayMs: 500,
   statuses: [500, 502, 503, 504] as readonly number[],
 } as const;
+
+export const CALIBRATION_SAVE_TIMEOUT_MS = 15_000;
+export const CALIBRATION_VERIFY_TIMEOUT_MS = 10_000;
