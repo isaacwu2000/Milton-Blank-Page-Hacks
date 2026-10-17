@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Mapping
+from copy import deepcopy
 from functools import lru_cache
 from typing import TYPE_CHECKING, cast
 
@@ -22,6 +24,11 @@ from server.types import Calibration, Record, RecordKind
 ROOT = config.ROOT
 load_environment()
 BUCKET = config.STORAGE_BUCKET
+# Shipped configurations contain no videos or athlete measurements. Stable IDs keep
+# uploaded sessions linked to the same coach across restarts.
+PREMADE_COACHES = cast(
+    list[Record], json.loads((config.BACKEND_ROOT / "server" / "premade_coaches.json").read_text())
+)
 
 
 @lru_cache
@@ -56,23 +63,36 @@ def s3() -> S3Client:
 
 
 def records(kind: RecordKind) -> list[Record]:
-    """Read saved JSON records; the kind determines their domain shape."""
+    """Read saved records and append missing shipped coaches without creating athlete data."""
     with pool().connection() as con:
-        return [
+        saved = [
             cast(Record, row[0])
             for row in con.execute(
                 "SELECT payload FROM sportsbuilder_records WHERE kind=%s ORDER BY created_at DESC",
                 (kind,),
             )
         ]
+    if kind == "tools":
+        saved_ids = {value["id"] for value in saved}
+        return saved + [
+            deepcopy(value) for value in PREMADE_COACHES if value["id"] not in saved_ids
+        ]
+    return saved
 
 
 def get(kind: RecordKind, record_id: str) -> Record | None:
+    """Resolve saved records and shipped coaches using the same stable identifiers."""
     with pool().connection() as con:
         row = con.execute(
             "SELECT payload FROM sportsbuilder_records WHERE kind=%s AND id=%s", (kind, record_id)
         ).fetchone()
-        return cast(Record, row[0]) if row else None
+        if row:
+            return cast(Record, row[0])
+    if kind == "tools":
+        return next(
+            (deepcopy(value) for value in PREMADE_COACHES if value["id"] == record_id), None
+        )
+    return None
 
 
 def save(kind: RecordKind, value: Mapping[str, object]) -> Record:

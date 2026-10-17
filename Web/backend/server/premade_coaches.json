@@ -1,0 +1,175 @@
+[
+  {
+    "id": "e219cfb1-fbc5-4b56-90e9-454d38b95f01",
+    "createdAt": "2026-10-17T00:00:00Z",
+    "format": 1,
+    "name": "Forehand, focused",
+    "sport": "Squash",
+    "audience": "Beginner and recreational athletes",
+    "description": "A controlled swing, with elbow movement and wrist speed.",
+    "rubric": "Observe a balanced base and comfortable elbow extension through preparation and follow-through. Ask for a stationary camera with the full body and right arm visible. Do not infer ball speed, racket motion, or contact from body joints.",
+    "coachPrompt": "Use only actual uploaded frames and trusted measurements. State uncertainty and missing evidence. Angles are projected 2D measurements; do not diagnose injuries or claim universal ideal angles. Physical speed requires reliable height calibration. Offer one manageable drill grounded in the visible movement. Coach a right-handed squash forehand. Explain if the arm is occluded or the athlete uses the other hand.",
+    "focusJoint": "right_wrist",
+    "metrics": [
+      {
+        "id": "elbow_angle",
+        "name": "Elbow angle",
+        "description": "Projected angle at the right elbow; compare within the movement rather than imposing a universal target.",
+        "scope": "frame",
+        "formula": {
+          "op": "angle",
+          "args": [
+            {
+              "op": "point",
+              "joint": "right_shoulder"
+            },
+            {
+              "op": "point",
+              "joint": "right_elbow"
+            },
+            {
+              "op": "point",
+              "joint": "right_wrist"
+            }
+          ]
+        },
+        "unit": "angle"
+      },
+      {
+        "id": "wrist_speed",
+        "name": "Wrist speed",
+        "description": "Projected right-wrist speed, available only with a trustworthy physical scale.",
+        "scope": "frame",
+        "formula": {
+          "op": "speed",
+          "joint": "right_wrist"
+        },
+        "unit": "speed"
+      }
+    ]
+  },
+  {
+    "id": "e219cfb1-fbc5-4b56-90e9-454d38b95f02",
+    "createdAt": "2026-10-17T00:00:00Z",
+    "format": 1,
+    "name": "Squat control",
+    "sport": "Strength",
+    "audience": "Beginner and recreational athletes",
+    "description": "Look at knee and hip movement through a comfortable squat.",
+    "rubric": "Use a stationary side view with the whole body visible. Observe controlled lowering and rising, foot contact, and changes in knee and hip angles. Depth and stance depend on the athlete; do not prescribe a universal angle or infer forces.",
+    "coachPrompt": "Use only actual uploaded frames and trusted measurements. State uncertainty and missing evidence. Angles are projected 2D measurements; do not diagnose injuries or claim universal ideal angles. Physical speed requires reliable height calibration. Offer one manageable drill grounded in the visible movement. Coach a comfortable bodyweight squat. Only discuss the visible side and mention perspective limitations.",
+    "focusJoint": "right_knee",
+    "metrics": [
+      {
+        "id": "knee_angle",
+        "name": "Knee angle",
+        "description": "Projected angle at the right knee; compare within the movement rather than imposing a universal target.",
+        "scope": "frame",
+        "formula": {
+          "op": "angle",
+          "args": [
+            {
+              "op": "point",
+              "joint": "right_hip"
+            },
+            {
+              "op": "point",
+              "joint": "right_knee"
+            },
+            {
+              "op": "point",
+              "joint": "right_ankle"
+            }
+          ]
+        },
+        "unit": "angle"
+      },
+      {
+        "id": "hip_angle",
+        "name": "Hip angle",
+        "description": "Projected angle at the right hip; compare within the movement rather than imposing a universal target.",
+        "scope": "frame",
+        "formula": {
+          "op": "angle",
+          "args": [
+            {
+              "op": "point",
+              "joint": "right_shoulder"
+            },
+            {
+              "op": "point",
+              "joint": "right_hip"
+            },
+            {
+              "op": "point",
+              "joint": "right_knee"
+            }
+          ]
+        },
+        "unit": "angle"
+      }
+    ]
+  },
+  {
+    "id": "e219cfb1-fbc5-4b56-90e9-454d38b95f03",
+    "createdAt": "2026-10-17T00:00:00Z",
+    "format": 1,
+    "name": "Push-up control",
+    "sport": "Strength",
+    "audience": "Beginner and recreational athletes",
+    "description": "Follow elbow movement and body alignment during a push-up.",
+    "rubric": "Use a stationary side view with shoulders, elbows, wrists, hips and ankles visible. Observe controlled elbow movement and shoulder\u2013hip\u2013ankle alignment. Encourage a comfortable range and appropriate variation, without universal depth or elbow-angle targets.",
+    "coachPrompt": "Use only actual uploaded frames and trusted measurements. State uncertainty and missing evidence. Angles are projected 2D measurements; do not diagnose injuries or claim universal ideal angles. Physical speed requires reliable height calibration. Offer one manageable drill grounded in the visible movement. Coach a controlled push-up. Stop or modify movement that causes pain; avoid medical assessments.",
+    "focusJoint": "right_elbow",
+    "metrics": [
+      {
+        "id": "elbow_angle",
+        "name": "Elbow angle",
+        "description": "Projected angle at the right elbow; compare within the movement rather than imposing a universal target.",
+        "scope": "frame",
+        "formula": {
+          "op": "angle",
+          "args": [
+            {
+              "op": "point",
+              "joint": "right_shoulder"
+            },
+            {
+              "op": "point",
+              "joint": "right_elbow"
+            },
+            {
+              "op": "point",
+              "joint": "right_wrist"
+            }
+          ]
+        },
+        "unit": "angle"
+      },
+      {
+        "id": "body_alignment",
+        "name": "Body alignment",
+        "description": "Projected angle at the right hip; compare within the movement rather than imposing a universal target.",
+        "scope": "frame",
+        "formula": {
+          "op": "angle",
+          "args": [
+            {
+              "op": "point",
+              "joint": "right_shoulder"
+            },
+            {
+              "op": "point",
+              "joint": "right_hip"
+            },
+            {
+              "op": "point",
+              "joint": "right_ankle"
+            }
+          ]
+        },
+        "unit": "angle"
+      }
+    ]
+  }
+]
