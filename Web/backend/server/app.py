@@ -183,8 +183,18 @@ async def save_tool(request: Request) -> ToolRecord:
     ):
         raise HTTPException(403, "Tools must be created by the builder.")
     value = cast(Record, await request.json())
-    value.update(id=str(uuid4()), createdAt=now())
+    job_id = request.headers.get("x-agent-job-id")
+    try:
+        identifier = str(UUID(job_id)) if job_id else str(uuid4())
+    except ValueError:
+        raise HTTPException(422, "Use a valid build job identifier.")
+    value.update(id=identifier, createdAt=now())
     async with session_lock:
+        # A timed-out response may follow a successful commit. Return that same coach.
+        if job_id:
+            existing = await asyncio.to_thread(store.get, "tools", identifier)
+            if existing is not None:
+                return cast(ToolRecord, existing)
         if value.get("referenceId"):
             await asyncio.to_thread(record, "sessions", value["referenceId"])
         return cast(ToolRecord, await asyncio.to_thread(store.save, "tools", value))

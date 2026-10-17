@@ -205,3 +205,24 @@ def test_upload_rejects_out_of_range_or_nonfinite_sampling_interval(interval: fl
     )
     assert response.status_code == 422
     assert response.json()["detail"] == "Use a sampling interval between 0.05 and 2 seconds."
+
+
+def test_reviewed_tool_save_retries_return_one_unchanged_record(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("AGENT_INTERNAL_SECRET", "test-only-secret")
+    saved = {}
+
+    def save(kind, value):
+        assert value["id"] not in saved
+        saved[value["id"]] = deepcopy(value)
+        return value
+
+    monkeypatch.setattr(store, "get", lambda kind, key: saved.get(key))
+    monkeypatch.setattr(store, "save", save)
+    headers = {"x-agent-secret": "test-only-secret", "x-agent-job-id": str(TOOL["id"])}
+    client = TestClient(app)
+    first = client.post("/api/tools", headers=headers, json=TOOL)
+    second = client.post("/api/tools", headers=headers, json={**TOOL, "name": "Retry"})
+    assert first.status_code == second.status_code == 200
+    assert first.json() == second.json()
+    assert first.json()["id"] == TOOL["id"]
+    assert len(saved) == 1

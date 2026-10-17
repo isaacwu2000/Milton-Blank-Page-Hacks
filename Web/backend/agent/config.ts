@@ -68,6 +68,7 @@ export const config = {
   reasoning: "medium" as const,
   providerTimeoutMs: 180_000,
   backendTimeoutMs: 60_000,
+  saveRetryMs: 1000,
   reviewBudgetMs: 600_000,
   coachBudgetMs: 900_000,
   imageBatchSize: 32,

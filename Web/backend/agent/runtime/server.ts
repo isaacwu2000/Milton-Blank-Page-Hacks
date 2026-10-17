@@ -21,6 +21,7 @@ import {
 import { makeSample } from "../../../shared";
 import { chat, parseJSON } from "../services/provider";
 import { briefSchema, resolveBuildBrief } from "../services/buildBrief";
+import { publishReviewedTool } from "../services/publishTool";
 import { config, provider } from "../config";
 import type { Chat, Tool, Part, Job } from "../types";
 import { BuildSandbox } from "./sandbox";
@@ -58,9 +59,10 @@ const job = (work: (id: string, state: Job) => Promise<void>) => {
       state.stage = "Ready";
     })
     .catch((error) => {
+      const failedStage = state.stage;
       state.status = "failed";
       state.stage = "Unable to finish";
-      state.error = safeError(error);
+      state.error = `${failedStage}: ${safeError(error)}`;
     });
   return id;
 };
@@ -512,16 +514,7 @@ app.post("/agent/build", (req, res, next) => {
         );
         if (result.status !== "accepted") throw Error(result.message);
         stage("Saving the reviewed coaching tool");
-        if (!process.env.AGENT_INTERNAL_SECRET)
-          throw Error("The internal agent connection is not configured.");
-        state.tool = await backend<SavedTool>("/api/tools", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "x-agent-secret": process.env.AGENT_INTERNAL_SECRET,
-          },
-          body: JSON.stringify(result.document),
-        });
+        state.tool = await publishReviewedTool(result.document, id);
         await writeFile(
           `${config.evidenceDirectory}/builds/${id}/accepted.json`,
           JSON.stringify(

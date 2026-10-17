@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 import boto3
 from botocore.config import Config
+from psycopg import Connection
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
@@ -24,13 +25,34 @@ load_environment()
 BUCKET = config.STORAGE_BUCKET
 
 
+def configure_connection(connection: Connection) -> None:
+    """Bound database work so a stalled query cannot hold a service request forever."""
+    connection.execute(f"SET statement_timeout = {config.DATABASE_STATEMENT_TIMEOUT_MS}")
+    connection.execute(f"SET lock_timeout = {config.DATABASE_LOCK_TIMEOUT_MS}")
+    connection.commit()
+
+
 @lru_cache
 def pool() -> ConnectionPool:
     """Share at most four database connections; allow a cold Neon compute to wake."""
     url = os.getenv("DATABASE_URL")
     if not url:
         raise RuntimeError("DATABASE_URL is missing. Add Neon credentials to .env.local.")
-    return ConnectionPool(url, min_size=0, max_size=4, timeout=45, kwargs={"connect_timeout": 3})
+    return ConnectionPool(
+        url,
+        min_size=0,
+        max_size=4,
+        timeout=config.DATABASE_POOL_TIMEOUT_SECONDS,
+        check=ConnectionPool.check_connection,
+        configure=configure_connection,
+        kwargs={
+            "connect_timeout": 3,
+            "keepalives": 1,
+            "keepalives_idle": 10,
+            "keepalives_interval": 5,
+            "keepalives_count": 3,
+        },
+    )
 
 
 @lru_cache
