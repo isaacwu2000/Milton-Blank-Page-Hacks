@@ -205,3 +205,25 @@ def test_upload_rejects_out_of_range_or_nonfinite_sampling_interval(interval: fl
     )
     assert response.status_code == 422
     assert response.json()["detail"] == "Use a sampling interval between 0.05 and 2 seconds."
+
+
+def test_rename_coach_preserves_configuration(monkeypatch: pytest.MonkeyPatch):
+    saved = deepcopy(TOOL)
+    monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(saved))
+    monkeypatch.setattr(store, "save", lambda kind, value: saved.update(value) or value)
+    client = TestClient(app)
+    response = client.patch(f"/api/tools/{TOOL['id']}", json={"name": "  My coach  "})
+    assert response.status_code == 200
+    assert response.json() == {**TOOL, "name": "My coach"}
+    assert client.patch(f"/api/tools/{TOOL['id']}", json={"name": "   "}).status_code == 422
+    assert client.patch(f"/api/tools/{TOOL['id']}", json={"metrics": []}).status_code == 422
+
+
+def test_delete_coach_hides_library_entry_and_keeps_history_config(monkeypatch: pytest.MonkeyPatch):
+    saved = deepcopy(TOOL)
+    monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(saved))
+    monkeypatch.setattr(store, "save", lambda kind, value: saved.update(value) or value)
+    response = TestClient(app).delete(f"/api/tools/{TOOL['id']}")
+    assert response.status_code == 200
+    assert saved["deletedAt"]
+    assert saved["metrics"] == TOOL["metrics"]

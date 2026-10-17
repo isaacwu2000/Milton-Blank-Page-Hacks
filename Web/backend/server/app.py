@@ -197,6 +197,35 @@ async def save_tool(request: Request) -> ToolRecord:
         return cast(ToolRecord, await asyncio.to_thread(store.save, "tools", value))
 
 
+class ToolRename(BaseModel):
+    model_config = {"extra": "forbid", "str_strip_whitespace": True}
+    name: str = Field(min_length=1, max_length=120)
+
+
+@app.patch("/api/tools/{tool_id}")
+async def rename_tool(tool_id: str, data: ToolRename) -> ToolRecord:
+    """Rename one coach while preserving its reviewed configuration and session links."""
+    async with session_lock:
+        value = await asyncio.to_thread(record, "tools", tool_id)
+        if value.get("deletedAt"):
+            raise HTTPException(404, "Coach not found.")
+        value["name"] = data.name
+        return cast(ToolRecord, await asyncio.to_thread(store.save, "tools", value))
+
+
+@app.delete("/api/tools/{tool_id}")
+async def delete_tool(tool_id: str) -> dict[str, bool]:
+    """Hide a coach, retaining its configuration for previously recorded sessions.
+
+    Persist shipped coaches too so they do not return on the next library load.
+    """
+    async with session_lock:
+        value = await asyncio.to_thread(record, "tools", tool_id)
+        value["deletedAt"] = now()
+        await asyncio.to_thread(store.save, "tools", value)
+    return {"deleted": True}
+
+
 @app.post("/api/upload", response_model=None)
 async def upload(
     file: Annotated[UploadFile, File()],

@@ -80,6 +80,7 @@ class Alignment(TypedDict):
 
 
 class Record(TypedDict, total=False):
+    deletedAt: str
     heightCm: float | None
     id: str
     name: str
@@ -149,6 +150,7 @@ class Metric(TypedDict):
 
 
 class ToolRecord(TypedDict):
+    deletedAt: NotRequired[str]
     id: str
     createdAt: str
     format: Literal[1]

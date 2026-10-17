@@ -1765,3 +1765,64 @@ button .loading-status {
 .confirm-dialog-heading button {
   flex-shrink: 0;
 }
+
+.coach-card {
+  position: relative;
+  min-width: 0;
+  display: flex;
+}
+.coach-card .tool-summary {
+  padding-right: 40px;
+}
+.coach-card-options {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+.coach-card-menu {
+  position: absolute;
+  z-index: 10;
+  top: 38px;
+  right: 6px;
+  min-width: 140px;
+  padding: 4px;
+  background: var(--neutral-light-100);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+}
+.coach-card-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 4px;
+  text-align: left;
+  background: transparent;
+}
+.coach-card-menu button:hover,
+.coach-card-menu button:focus-visible {
+  background: var(--neutral-light-500);
+}
+.destructive-action {
+  color: #b42318;
+}
+.coach-card-form {
+  display: grid;
+  gap: 16px;
+}
+.coach-card-form input {
+  width: 100%;
+  margin-top: 8px;
+}
+.coach-card-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.destructive-button {
+  background: #b42318;
+  color: var(--neutral-light-100);
+}
+.destructive-button:hover {
+  background: #912018;
+}

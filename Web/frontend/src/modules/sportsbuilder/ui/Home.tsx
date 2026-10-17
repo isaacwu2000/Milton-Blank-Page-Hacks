@@ -34,6 +34,7 @@ import {
 import { formatDate } from "../runtime/format";
 import { Builder } from "./Builder";
 import { SessionPreview } from "./SessionPreview";
+import { CoachCard } from "./CoachCard";
 import { SamplingControl } from "./SamplingControl";
 import { SessionWorkspace, Workspace } from "./Analysis";
 
@@ -323,7 +324,13 @@ export function Product() {
               data.tools.length > 0 ? (
                 <div className="tool-grid">
                   {data.tools.map((tool) => (
-                    <ToolSummary key={tool.id} tool={tool} onEdit={() => { setEditingTool(tool); setBuilder(true); }} />
+                    <CoachCard key={tool.id} tool={tool}
+                      onOpen={() => { setEditingTool(tool); setBuilder(true); }}
+                      onRenamed={saved => setData(previous => ({ ...previous, tools: previous.tools.map(item => item.id === saved.id ? saved : item) }))}
+                      onDeleted={() => {
+                        setData(previous => ({ ...previous, tools: previous.tools.filter(item => item.id !== tool.id) }));
+                        setEditingTool(undefined); setBuilder(false);
+                      }} />
                   ))}
                 </div>
               ) : (
@@ -406,22 +413,6 @@ export function Product() {
     </div>
   );
 }
-function ToolSummary({ tool, onEdit }: { tool: ToolConfig; onEdit: () => void }) {
-  return (
-    <article className="tool-summary">
-      <div className="tool-symbol">
-        <Target size={19} />
-      </div>
-      <div>
-        <h3>{tool.name}</h3>
-        <p>
-          {tool.sport} · {tool.metrics.length} metrics
-        </p>
-        <button type="button" className="text-button" onClick={onEdit}>Refine coach</button>
-      </div>
-    </article>
-  );
-}
 function UploadPanel({
   data,
   profile,
@@ -442,7 +433,7 @@ function UploadPanel({
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const toolId = tool || data.tools[0]?.id || "";
+  const toolId = data.tools.some(item => item.id === tool) ? tool : data.tools[0]?.id || "";
   async function upload(file: File) {
     if (loading || busy || !profileReady || !profile) return;
     if (!toolId) {

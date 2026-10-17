@@ -74,7 +74,7 @@ def records(kind: RecordKind) -> list[Record]:
         ]
     if kind == "tools":
         saved_ids = {value["id"] for value in saved}
-        return saved + [
+        return [value for value in saved if not value.get("deletedAt")] + [
             deepcopy(value) for value in PREMADE_COACHES if value["id"] not in saved_ids
         ]
     return saved

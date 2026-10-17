@@ -117,3 +117,16 @@ def test_home_serves_premade_coaches_without_creating_sample_records(
     assert first.json()["profiles"] == []
     assert first.json()["sessions"] == []
     assert all("SELECT" in call.args[0] for call in connection.execute.call_args_list)
+
+
+def test_deleted_premade_coach_stays_hidden_but_resolves_for_history(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    pool = MagicMock()
+    connection = pool.connection.return_value.__enter__.return_value
+    saved = {**store.PREMADE_COACHES[0], "deletedAt": "2026-10-17T12:00:00Z"}
+    connection.execute.return_value.__iter__.side_effect = lambda: iter([(saved,)])
+    connection.execute.return_value.fetchone.return_value = (saved,)
+    monkeypatch.setattr(store, "pool", lambda: pool)
+    assert saved["id"] not in {tool["id"] for tool in store.records("tools")}
+    assert store.get("tools", saved["id"]) == saved
