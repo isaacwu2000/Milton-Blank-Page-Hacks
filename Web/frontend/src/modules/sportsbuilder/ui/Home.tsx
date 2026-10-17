@@ -29,12 +29,12 @@ import { Logo, ErrorNote, Empty, LoadingStatus } from "./common";
 import {
   SAMPLE,
   EMPTY_HOME_DATA,
-  SAMPLING_RANGE,
   DEFAULT_SAMPLING_INTERVAL,
 } from "../config";
-import { formatDate, formatFrameRate } from "../runtime/format";
+import { formatDate } from "../runtime/format";
 import { Builder } from "./Builder";
 import { SessionPreview } from "./SessionPreview";
+import { SamplingControl } from "./SamplingControl";
 import { SessionWorkspace, Workspace } from "./Analysis";
 
 export function Product() {
@@ -536,40 +536,7 @@ function UploadPanel({
           )}
         </div>
       )}
-      <div className="w-full max-w-[420px] text-left">
-        <label htmlFor="sampling-interval" className="flex-row! justify-between gap-4!">
-          <span>Frame sampling</span>
-          <span>{formatFrameRate(interval)} fps</span>
-        </label>
-        <p id="sampling-help" className="small muted mt-1">
-          One frame every {interval} {interval === 1 ? "second" : "seconds"}
-        </p>
-        <input
-          id="sampling-interval"
-          aria-label="Frame sampling rate"
-          aria-valuetext={`${formatFrameRate(interval)} ${interval === 1 ? "frame" : "frames"} per second, one frame every ${interval} ${interval === 1 ? "second" : "seconds"}`}
-          aria-describedby="sampling-help"
-          type="range"
-          dir="rtl"
-          min={SAMPLING_RANGE.min}
-          max={SAMPLING_RANGE.max}
-          step={SAMPLING_RANGE.step}
-          value={interval}
-          disabled={loading || busy}
-          className="h-8 w-full appearance-none bg-transparent! p-0! accent-(--accent-700) [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-(--neutral-light-500) [&::-webkit-slider-runnable-track]:shadow-(--shadow-inner) [&::-webkit-slider-thumb]:-mt-[5px] [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-(--accent-700) [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-(--neutral-light-500) [&::-moz-range-track]:shadow-(--shadow-inner) [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-(--accent-700)"
-          onChange={(event) => setInterval(Number(event.target.value))}
-        />
-        <div className="flex justify-between gap-6 text-[10px] text-(--neutral-dark-500)">
-          <span>
-            {formatFrameRate(SAMPLING_RANGE.max)} fps
-            <span className="mt-1 block">Fewer frames · faster processing</span>
-          </span>
-          <span className="text-right">
-            {formatFrameRate(SAMPLING_RANGE.min)} fps
-            <span className="mt-1 block">More frames · longer processing</span>
-          </span>
-        </div>
-      </div>
+      <SamplingControl interval={interval} onChange={setInterval} disabled={loading || busy} />
       {error && <ErrorNote message={error} />}
     </section>
   );

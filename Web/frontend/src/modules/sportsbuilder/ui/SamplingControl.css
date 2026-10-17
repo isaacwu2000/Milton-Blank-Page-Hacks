@@ -1,0 +1,24 @@
+.sampling-track {
+  position: relative;
+  height: 32px;
+}
+.sampling-track input {
+  display: block;
+  margin: 0;
+}
+.sampling-track[data-dragging="true"] input::-webkit-slider-thumb {
+  opacity: 0;
+}
+.sampling-track[data-dragging="true"] input::-moz-range-thumb {
+  opacity: 0;
+}
+.sampling-drag-thumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--accent-700);
+  pointer-events: none;
+}
