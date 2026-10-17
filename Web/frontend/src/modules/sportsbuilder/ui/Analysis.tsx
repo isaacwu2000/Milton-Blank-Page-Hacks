@@ -43,7 +43,6 @@ import { useAgentJob } from "../hooks/useAgentJob";
 import { Logo, ErrorNote } from "./common";
 import { fmt } from "../runtime/format";
 import { Player, Chart } from "./Player";
-import { ReferenceVideo } from "./ReferenceVideo";
 
 export function SessionWorkspace({
   sessionId,
@@ -241,18 +240,6 @@ export function Workspace({
     [settings, setSettings] = useState(false),
     [coachOpen, setCoachOpen] = useState(true),
     [tab, setTab] = useState<"movement" | "metrics">("movement"),
-    [refId, setRefId] = useState(tool.referenceId ?? ""),
-    [refUrl, setRefUrl] = useState(""),
-    [reference, setReference] = useState<Analysis | null>(null),
-    [refTime, setRefTime] = useState(0),
-    [referenceDuration, setReferenceDuration] = useState(30),
-    [referenceCalibration, setReferenceCalibration] =
-      useState<Session["calibration"]>(),
-    [paired, setPaired] = useState(
-      session?.alignment ?? { current: 0, reference: 0 },
-    ),
-    [sync, setSync] = useState(false),
-    [mainPlaying, setMainPlaying] = useState(false),
     [notice, setNotice] = useState(""),
     [copied, setCopied] = useState(false);
   const athlete =
@@ -266,7 +253,6 @@ export function Workspace({
     needsScale && ["length", "speed", "acceleration"].includes(unit);
   function startHeightCalibration() {
     setCalibrationMode("height");
-    setMainPlaying(false);
     setCalibrationFrameTime(null);
     setPoints([]);
     setError("");
@@ -317,61 +303,9 @@ export function Workspace({
         setCalibrationFrameTime(null);
       }
       setTime(t);
-      if (sync && refId)
-        setRefTime(
-          Math.max(
-            0,
-            Math.min(
-              reference?.duration ?? referenceDuration,
-              t - paired.current + paired.reference,
-            ),
-          ),
-        );
     },
-    [sync, reference, referenceDuration, refId, paired, calibrationMode, time],
+    [calibrationMode, time],
   );
-  useEffect(() => {
-    setRefUrl("");
-    setReference(null);
-    setReferenceCalibration(undefined);
-    setRefTime(0);
-    if (!refId) return;
-    let cancelled = false;
-    let pollTimer: ReturnType<typeof setTimeout>;
-    const refreshUrl = async () => {
-      try {
-        const result = await api<{ url: string }>(
-          `/api/sessions/${refId}/video`,
-        );
-        if (!cancelled) setRefUrl(result.url);
-      } catch (e) {
-        if (!cancelled) setError((e as Error).message);
-      }
-    };
-    const inspect = async () => {
-      try {
-        const session = await api<Session>(`/api/sessions/${refId}`);
-        if (cancelled) return;
-        setReferenceDuration(session.duration);
-        setReferenceCalibration(session.calibration);
-        if (session.status === "complete") {
-          const a = await api<Analysis>(`/api/sessions/${refId}/analysis`);
-          if (!cancelled) setReference(a);
-        } else if (["queued", "processing"].includes(session.status))
-          pollTimer = setTimeout(inspect, 2000);
-      } catch {
-        /* Raw reference comparison remains available without tracking. */
-      }
-    };
-    refreshUrl();
-    inspect();
-    const renewal = setInterval(refreshUrl, POLLING.signedUrlRefreshMs);
-    return () => {
-      cancelled = true;
-      clearTimeout(pollTimer);
-      clearInterval(renewal);
-    };
-  }, [refId]);
   async function persist(body: unknown) {
     if (session)
       await api(`/api/sessions/${session.id}`, {
@@ -592,7 +526,6 @@ export function Workspace({
                   className="button secondary"
                   onClick={() => {
                     setCalibrationMode("distance");
-                    setMainPlaying(false);
                     setCalibrationFrameTime(null);
                     setPoints([]);
                   }}
@@ -603,7 +536,6 @@ export function Workspace({
                 <button
                   className="button secondary"
                   onClick={() => {
-                    setMainPlaying(false);
                     setCalibrationMode("ground");
                   }}
                 >
@@ -687,110 +619,24 @@ export function Workspace({
               </IconButton>
             </div>
           )}
-          <div className={refUrl ? "comparison-grid" : ""}>
-            <div>
-              <Player
-                analysis={analysis}
-                url={url}
-                time={time}
-                onTime={setCurrentTime}
-                joint={joint}
-                onJoint={(j) => {
-                  setJoint(j);
-                  setSelectedMetric("");
-                  setTab("movement");
-                }}
-                ground={ground}
-                metersPerPixel={scale}
-                calibrated={calibrated}
-                requireCalibration
-                onPlayingChange={setMainPlaying}
-                onCanvasClick={
-                  calibrationMode === "none" ? undefined : canvasClick
-                }
-                points={points}
-              />
-            </div>
-            {refUrl && (
-              <section className="reference-player">
-                <span className="reference-label">Good-form reference</span>
-                {reference ? (
-                  <Player
-                    analysis={reference}
-                    url={refUrl}
-                    time={refTime}
-                    onTime={setRefTime}
-                    joint={joint}
-                    onJoint={setJoint}
-                    ground={referenceCalibration?.ground ?? reference.ground}
-                    metersPerPixel={referenceCalibration?.metersPerPixel}
-                    calibrated={!!referenceCalibration}
-                    requireCalibration
-                    linkedPlaying={sync ? mainPlaying : undefined}
-                  />
-                ) : (
-                  <ReferenceVideo
-                    url={refUrl}
-                    time={refTime}
-                    onTime={setRefTime}
-                    playing={sync ? mainPlaying : undefined}
-                    onDuration={setReferenceDuration}
-                  />
-                )}
-              </section>
-            )}
-          </div>
-          <div className="reference-bar">
-            <label>
-              <Film size={15} />
-              <select
-                aria-label="Compare with a reference video"
-                value={refId}
-                onChange={(e) => {
-                  setRefId(e.target.value);
-                  setSync(false);
-                }}
-              >
-                <option value="">Compare with a reference</option>
-                {sessions
-                  .filter((s) => s.id !== session?.id)
-                  .map((s) => (
-                    <option value={s.id} key={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            {refUrl && (
-              <>
-                <button
-                  className="text-button"
-                  onClick={async () => {
-                    const next = { current: time, reference: refTime };
-                    try {
-                      await persist({ alignment: next });
-                      setPaired(next);
-                      setSync(true);
-                      setNotice(
-                        "Starting frames paired. Main playback now drives the reference.",
-                      );
-                    } catch (e) {
-                      setError((e as Error).message);
-                    }
-                  }}
-                >
-                  Pair these starting frames
-                </button>
-                <button
-                  className="text-button"
-                  disabled={!refUrl}
-                  onClick={() => setSync(!sync)}
-                >
-                  {sync ? "Unlink playback" : "Link playback"}
-                </button>
-              </>
-            )}
-          </div>
+          <Player
+            analysis={analysis}
+            url={url}
+            time={time}
+            onTime={setCurrentTime}
+            joint={joint}
+            onJoint={(j) => {
+              setJoint(j);
+              setSelectedMetric("");
+              setTab("movement");
+            }}
+            ground={ground}
+            metersPerPixel={scale}
+            calibrated={calibrated}
+            requireCalibration
+            onCanvasClick={calibrationMode === "none" ? undefined : canvasClick}
+            points={points}
+          />
           <div
             className="measurement-tabs"
             role="tablist"
@@ -985,7 +831,7 @@ export function Workspace({
             scale={scale}
             ground={ground}
             calibrated={calibrated}
-            referenceId={refId}
+            referenceId={tool.referenceId}
             onDrillComplete={() => {}}
           />
         )}
@@ -1011,7 +857,7 @@ function CoachPanel({
   scale: number;
   ground: number;
   calibrated: boolean;
-  referenceId: string;
+  referenceId?: string;
   onDrillComplete: () => void;
 }) {
   const initial = sample

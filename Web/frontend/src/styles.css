@@ -756,25 +756,6 @@ dd {
   color: var(--neutral-dark-500);
   font-variant-numeric: tabular-nums;
 }
-.reference-bar {
-  @apply flex flex-wrap items-center gap-4;
-  margin: 12px 0 24px;
-}
-.reference-bar > label {
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
-  color: var(--neutral-dark-500);
-}
-.reference-bar select {
-  font-size: 10px;
-  background: transparent;
-  padding: 4px;
-  max-width: 250px;
-}
-.reference-bar .text-button {
-  font-size: 10px;
-}
 .measurement-tabs {
   @apply flex items-center gap-6;
   margin: 24px 0;
@@ -912,32 +893,6 @@ dd {
 }
 .metric-hint {
   margin: 24px 0;
-}
-.comparison-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.reference-player {
-  position: relative;
-  min-width: 0;
-}
-.reference-label {
-  position: absolute;
-  left: 12px;
-  top: 12px;
-  z-index: 1;
-  font-size: 10px;
-  background: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-.reference-player > video {
-  width: 100%;
-  border-radius: 12px;
-}
-.reference-player .small {
-  font-size: 10px;
 }
 .analysis-settings {
   padding: 24px;
@@ -1328,17 +1283,11 @@ progress {
   .time {
     font-size: 8px;
   }
-  .comparison-grid {
-    grid-template-columns: 1fr;
-  }
   .metric-readout {
     min-width: 130px;
   }
   .processing-content {
     margin-top: 32px;
-  }
-  .reference-bar {
-    gap: 8px;
   }
   .calibration-toolbar .button {
     min-height: 36px;

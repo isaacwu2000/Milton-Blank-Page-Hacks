@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeSample, sampleTool, type Session } from "../../../../../shared";
-import { api } from "../services/api";
+import { api, post } from "../services/api";
 import { Workspace } from "./Analysis";
 vi.mock("../services/api", () => ({ api: vi.fn(), post: vi.fn() }));
 afterEach(() => {
@@ -168,5 +168,50 @@ describe("height-scale workflow", () => {
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
+  });
+});
+
+describe("single-video coaching", () => {
+  it("keeps reference evidence for the coach without loading or showing comparison controls", async () => {
+    vi.mocked(post).mockResolvedValue({ id: "coach-job" });
+    render(
+      <Workspace
+        analysis={{ ...makeSample(), source: "video" as const }}
+        tool={{ ...sampleTool, referenceId: "reference-video" }}
+        session={{
+          id: "practice",
+          name: "Practice",
+          createdAt: "2026-10-17T12:00:00Z",
+          profileId: "athlete",
+          toolId: "tool",
+          status: "complete",
+          progress: 1,
+          duration: 5,
+          interval: 0.1,
+          sourceKey: "private.mov",
+        }}
+        onBack={() => {}}
+        profiles={[{ id: "athlete", name: "Athlete", heightCm: 178 }]}
+        sessions={[]}
+      />,
+    );
+    expect(
+      screen.queryByRole("combobox", {
+        name: "Compare with a reference video",
+      }),
+    ).toBeNull();
+    expect(screen.queryByText("Pair these starting frames")).toBeNull();
+    expect(screen.queryByText("Link playback")).toBeNull();
+    expect(api).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Review my form" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        "/agent/coach",
+        expect.objectContaining({
+          sessionId: "practice",
+          referenceId: "reference-video",
+        }),
+      ),
+    );
   });
 });
