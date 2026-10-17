@@ -10,8 +10,7 @@ import {
   LoaderCircle,
   MoreHorizontal,
   Plus,
-  Ruler,
-  Sparkles,
+  MessageCircle,
   Target,
   Trash2,
   X,
@@ -33,10 +32,8 @@ import {
 import {
   IconButton,
   MeasurementUnit,
-  NumberInput,
   PromptBar,
 } from "../../../components";
-import { scaleFromAthleteHeight } from "../runtime/calibration";
 import { api, post } from "../services/api";
 import { type HomeData, type AgentJob } from "../types";
 import { useAgentJob } from "../hooks/useAgentJob";
@@ -133,7 +130,6 @@ export function SessionWorkspace({
         url={url}
         profiles={data.profiles}
         sessions={data.sessions}
-        onReanalyze={start}
         onBack={onBack}
       />
     );
@@ -204,8 +200,6 @@ export function Workspace({
   url,
   sample = false,
   onBack,
-  onReanalyze,
-  profiles,
 }: {
   analysis: Analysis;
   tool: ToolConfig;
@@ -213,7 +207,6 @@ export function Workspace({
   url?: string;
   sample?: boolean;
   onBack: () => void;
-  onReanalyze?: () => Promise<void>;
   profiles: Profile[];
   sessions: Session[];
 }) {
@@ -223,43 +216,18 @@ export function Workspace({
     [measure, setMeasure] = useState<"speed" | "acceleration" | "x" | "y">(
       "speed",
     ),
-    [ground, setGround] = useState(
-      session?.ground ?? session?.calibration?.ground ?? analysis.ground,
-    ),
-    [scale, setScale] = useState(session?.calibration?.metersPerPixel ?? 1),
-    [calibrated, setCalibrated] = useState(!!session?.calibration),
-    [calibrationMetadata, setCalibrationMetadata] = useState<
-      Session["calibration"]
-    >(session?.calibration),
-    [calibrationMode, setCalibrationMode] = useState<
-      "none" | "distance" | "ground" | "height"
-    >("none"),
-    [points, setPoints] = useState<[number, number][]>([]),
-    [calibrationFrameTime, setCalibrationFrameTime] = useState<number | null>(
-      null,
-    ),
-    [length, setLength] = useState("1"),
     [error, setError] = useState(""),
     [settings, setSettings] = useState(false),
     [coachOpen, setCoachOpen] = useState(true),
     [tab, setTab] = useState<"movement" | "metrics">("movement"),
-    [notice, setNotice] = useState(""),
     [copied, setCopied] = useState(false);
-  const athlete =
-    profiles.find((profile) => profile.id === session?.profileId) ??
-    (sample
-      ? profiles.find((profile) => profile.name === "Athlete")
-      : undefined);
-  const athleteHeight = athlete?.heightCm;
+  const ground = session?.ground ?? session?.calibration?.ground ?? analysis.ground;
+  const scale = session?.calibration?.metersPerPixel ?? 1;
+  const calibrationMetadata = session?.calibration;
+  const calibrated = !!calibrationMetadata;
   const needsScale = !calibrated;
   const needsPhysicalScale = (unit: string) =>
     needsScale && ["length", "speed", "acceleration"].includes(unit);
-  function startHeightCalibration() {
-    setCalibrationMode("height");
-    setCalibrationFrameTime(null);
-    setPoints([]);
-    setError("");
-  }
   const data = useMemo(
     () => calculate(tool, analysis, scale, ground),
     [tool, analysis, scale, ground],
@@ -278,7 +246,7 @@ export function Workspace({
   const velocity = jointMeasurement(point, "speed", scale, ground);
   const acceleration = jointMeasurement(point, "acceleration", scale, ground);
   const missingReading = !calibrated
-    ? "Set scale"
+    ? "Unavailable"
     : !available
       ? "Not tracked"
       : "Need nearby frames";
@@ -317,131 +285,7 @@ export function Workspace({
         : measure === "acceleration"
           ? "acceleration"
           : "length");
-  const setCurrentTime = useCallback(
-    (t: number) => {
-      if (
-        (calibrationMode === "height" || calibrationMode === "distance") &&
-        Math.abs(t - time) > 0.0005
-      ) {
-        setPoints([]);
-        setCalibrationFrameTime(null);
-      }
-      setTime(t);
-    },
-    [calibrationMode, time],
-  );
-  async function persist(body: unknown) {
-    if (session)
-      await api(`/api/sessions/${session.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(body),
-      });
-  }
-  async function saveCalibration() {
-    if (points.length !== 2) return;
-    if (!Number.isFinite(Number(length)) || Number(length) <= 0) {
-      setError("Enter a valid positive distance.");
-      return;
-    }
-    const distance = Math.hypot(
-      points[0][0] - points[1][0],
-      points[0][1] - points[1][1],
-    );
-    if (distance < 5) {
-      setError("Choose two points farther apart.");
-      return;
-    }
-    const next = Number(length) / distance;
-    try {
-      const calibration: NonNullable<Session["calibration"]> = {
-        metersPerPixel: next,
-        ground,
-        source: "known_distance",
-      };
-      await persist({ calibration });
-      setCalibrationMetadata(calibration);
-      setScale(next);
-      setCalibrated(true);
-      setCalibrationMode("none");
-      setPoints([]);
-      setNotice(
-        "Distance calibration saved. Measurements are approximate 2D projections.",
-      );
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-  /** Save a manual correction as soon as both marks identify the same paused frame. */
-  async function saveHeightCalibration(
-    head: [number, number],
-    sole: [number, number],
-    frameTime: number,
-  ) {
-    if (!athleteHeight) return;
-    try {
-      const converted = scaleFromAthleteHeight(
-        athleteHeight,
-        head,
-        sole,
-        analysis.width,
-        analysis.height,
-      );
-      const calibration: NonNullable<Session["calibration"]> = {
-        ...converted,
-        ground,
-        source: "athlete_height_manual",
-        heightCm: athleteHeight,
-        frameTime,
-      };
-      await persist({ calibration });
-      setCalibrationMetadata(calibration);
-      setScale(converted.metersPerPixel);
-      setCalibrated(true);
-      setCalibrationMode("none");
-      setPoints([]);
-      setNotice("Height scale saved. Measurements now use meters.");
-    } catch (error) {
-      setError((error as Error).message);
-    }
-  }
-  async function clearCalibration() {
-    try {
-      await persist({ calibration: null, ground: analysis.ground });
-      setScale(1);
-      setCalibrationMetadata(undefined);
-      setCalibrated(false);
-      setGround(analysis.ground);
-      setNotice("Scale cleared. Set it again to see measurements in meters.");
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-  function canvasClick(p: [number, number]) {
-    if (calibrationMode === "ground") {
-      const next = p[1];
-      setGround(next);
-      setCalibrationMode("none");
-      const calibration = calibrated
-        ? { ...calibrationMetadata, metersPerPixel: scale, ground: next }
-        : undefined;
-      persist({ ground: next, ...(calibration ? { calibration } : {}) })
-        .then(() => {
-          if (calibration) setCalibrationMetadata(calibration);
-        })
-        .catch((e) => setError(e.message));
-      setNotice("Ground line updated.");
-    } else {
-      if (points.length === 0 || points.length === 2)
-        setCalibrationFrameTime(time);
-      setPoints((current) => (current.length === 2 ? [p] : [...current, p]));
-      if (
-        calibrationMode === "height" &&
-        points.length === 1 &&
-        calibrationFrameTime !== null
-      )
-        void saveHeightCalibration(points[0], p, calibrationFrameTime);
-    }
-  }
+  const setCurrentTime = setTime;
   async function copy() {
     const text = JSON.stringify(tool, null, 2);
     try {
@@ -480,18 +324,15 @@ export function Workspace({
         </button>
         <Logo />
         <div className="header-actions">
-          <span className="badge">
-            {sample ? "Sample analysis" : "Video analysis"}
-          </span>
           <IconButton
             label={coachOpen ? "Hide coach" : "Show coach"}
             onClick={() => setCoachOpen(!coachOpen)}
             surface="transparent"
           >
-            <Sparkles size={18} />
+            <MessageCircle size={18} />
           </IconButton>
           <IconButton
-            label="Analysis settings"
+            label="Video options"
             onClick={() => setSettings(!settings)}
             surface="transparent"
           >
@@ -513,87 +354,8 @@ export function Workspace({
             </span>
           </div>
           {error && <ErrorNote message={error} onClose={() => setError("")} />}
-          {notice && (
-            <div className="notice" role="status">
-              {notice}
-              <IconButton
-                label="Dismiss notice"
-                surface="transparent"
-                onClick={() => setNotice("")}
-              >
-                <X size={14} />
-              </IconButton>
-            </div>
-          )}
-          {needsScale && calibrationMode === "none" && (
-            <div className="notice">
-              <span>
-                {athleteHeight
-                  ? `We couldn’t estimate a reliable scale from this clip. Keep your head and feet visible so we can use your ${athleteHeight} cm height and joint angles automatically.`
-                  : "Add your height to the athlete profile to measure movement in meters."}
-              </span>
-              <button
-                className="button secondary"
-                onClick={() => {
-                  setSettings(true);
-                  if (athleteHeight) startHeightCalibration();
-                  else {
-                    setCalibrationMode("distance");
-                    setCalibrationFrameTime(null);
-                    setPoints([]);
-                  }
-                }}
-              >
-                Set measurement scale
-              </button>
-              {onReanalyze && athleteHeight && (
-                <button
-                  className="button secondary"
-                  onClick={() => void onReanalyze()}
-                >
-                  Recalculate automatically
-                </button>
-              )}
-            </div>
-          )}
           {settings && (
             <section className="analysis-settings">
-              <h2>Measurement settings</h2>
-              <p>
-                Keep the camera still. A known distance should lie in the same
-                plane as the movement.
-              </p>
-              <div className="wrap-actions">
-                <button
-                  className="button secondary"
-                  disabled={!athleteHeight}
-                  onClick={startHeightCalibration}
-                >
-                  Adjust height scale manually
-                </button>
-                <button
-                  className="button secondary"
-                  onClick={() => {
-                    setCalibrationMode("distance");
-                    setCalibrationFrameTime(null);
-                    setPoints([]);
-                  }}
-                >
-                  <Ruler size={15} />
-                  Calibrate distance
-                </button>
-                <button
-                  className="button secondary"
-                  onClick={() => {
-                    setCalibrationMode("ground");
-                  }}
-                >
-                  Set ground line
-                </button>
-                <button className="text-button" onClick={clearCalibration}>
-                  Reset calibration
-                </button>
-              </div>
               <details>
                 <summary>Tool definition</summary>
                 <p>{tool.rubric}</p>
@@ -615,50 +377,6 @@ export function Workspace({
               )}
             </section>
           )}
-          {calibrationMode !== "none" && (
-            <div className="calibration-toolbar">
-              <span>
-                {calibrationMode === "ground"
-                  ? "Click the video at the initial foot position."
-                  : calibrationMode === "height"
-                    ? `Choose a frame standing upright. Click the top of your head, then the bottom of your shoes (${points.length}/2).`
-                    : `Click two ends of a known distance (${points.length}/2).`}
-              </span>
-              {calibrationMode === "height" && (
-                <span>Using your {athleteHeight} cm height</span>
-              )}
-              {calibrationMode === "distance" && (
-                <>
-                  <label>
-                    Distance (m)
-                    <NumberInput
-                      min={0.001}
-                      step="any"
-                      value={length}
-                      onChange={(e) => setLength(e.target.value)}
-                    />
-                  </label>
-                  <button
-                    className="button"
-                    disabled={points.length !== 2 || Number(length) <= 0}
-                    onClick={saveCalibration}
-                  >
-                    Apply
-                  </button>
-                </>
-              )}
-              <IconButton
-                label="Cancel calibration"
-                onClick={() => {
-                  setCalibrationMode("none");
-                  setCalibrationFrameTime(null);
-                  setPoints([]);
-                }}
-              >
-                <X size={16} />
-              </IconButton>
-            </div>
-          )}
           <Player
             analysis={analysis}
             url={url}
@@ -674,8 +392,6 @@ export function Workspace({
             metersPerPixel={scale}
             calibrated={calibrated}
             requireCalibration
-            onCanvasClick={calibrationMode === "none" ? undefined : canvasClick}
-            points={points}
           />
           <div
             className="measurement-tabs"
@@ -704,7 +420,7 @@ export function Workspace({
                 ? calibrationMetadata?.source === "athlete_height_auto"
                   ? "Automatic height scale · approximate 2D"
                   : "Calibrated · approximate 2D"
-                : "Set scale for measurements"}
+                : "Physical scale unavailable"}
             </span>
           </div>
           {tab === "movement" ? (
@@ -823,7 +539,7 @@ export function Workspace({
                   <span>{m.name}</span>
                   <strong>
                     {needsPhysicalScale(m.unit)
-                      ? "Set scale"
+                      ? "Unavailable"
                       : fmt(
                           m.scope === "frame"
                             ? data.frames[m.id]?.[idx]
@@ -880,13 +596,6 @@ export function Workspace({
               Choose a frame metric to plot it over time.
             </p>
           )}
-          <p className="analysis-footnote">
-            {sample
-              ? "Sample values are synthetic."
-              : "Measurements are sampled 2D estimates."}{" "}
-            Gaps indicate missing points or insufficient neighbors. The ground
-            line starts at estimated initial shoe contact.
-          </p>
         </main>
         {coachOpen && (
           <CoachPanel

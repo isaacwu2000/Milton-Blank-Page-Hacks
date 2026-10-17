@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Plus,
   LoaderCircle,
-  Sparkles,
   Target,
   X,
 } from "lucide-react";
@@ -275,11 +274,7 @@ export function Builder({
               ready && !text.trim() ? build() : setConfirmEarlyBuild(true)
             }
           >
-            {job ? (
-              <LoaderCircle className="spin" size={16} />
-            ) : (
-              <Sparkles size={16} />
-            )}{" "}
+            {job && <LoaderCircle className="spin" size={16} />}{" "}
             {job ? "Building your tool…" : "Build my tool"}
           </button>
           {job && (

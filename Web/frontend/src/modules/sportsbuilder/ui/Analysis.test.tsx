@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import {
-  act,
   cleanup,
   fireEvent,
   render,
@@ -17,158 +16,21 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-describe("height-scale workflow", () => {
-  it("saves one 178cm height scale and uses it for measured values instead of relabeling pixels", async () => {
-    const analysis = { ...makeSample(), source: "video" as const };
-    const session: Session = {
-      id: "session",
-      name: "Practice",
-      createdAt: "2026-10-17T12:00:00Z",
-      profileId: "alex",
-      toolId: "tool",
-      status: "complete",
-      progress: 1,
-      duration: 5,
-      interval: 0.1,
-      sourceKey: "private.mov",
-    };
-    vi.mocked(api).mockResolvedValue({});
-    const view = render(
-      <Workspace
-        analysis={analysis}
-        tool={sampleTool}
-        session={session}
-        onBack={() => {}}
-        profiles={[{ id: "alex", name: "Alex", heightCm: 178 }]}
-        sessions={[]}
-      />,
-    );
-    expect(
-      screen.getByText(
-        "A clear full-body view is needed to calculate this measurement automatically.",
-      ),
-    ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Analysis settings" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Adjust height scale manually" }),
-    );
-    const overlay = view.container.querySelector("svg.pose-overlay")!;
-    vi.spyOn(overlay, "getBoundingClientRect").mockReturnValue({
-      left: 0,
-      top: 0,
-      width: 800,
-      height: 540,
-      right: 800,
-      bottom: 540,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    });
-    fireEvent.click(overlay, { clientX: 100, clientY: 50 });
-    expect(screen.queryByRole("button", { name: "Apply height scale" })).toBeNull();
-    await act(async () => {
-      fireEvent.click(overlay, { clientX: 100, clientY: 450 });
-    });
-    await waitFor(() => expect(api).toHaveBeenCalled());
-    const [path, request] = vi.mocked(api).mock.calls[0];
-    expect(path).toBe("/api/sessions/session");
-    expect(JSON.parse(request!.body as string).calibration).toEqual({
-      metersPerPixel: 0.00445,
-      bodyHeightPixels: 400,
-      ground: 474,
-      source: "athlete_height_manual",
-      heightCm: 178,
-      frameTime: 0,
-    });
-    expect(
-      screen.queryByText(
-        "A clear full-body view is needed to calculate this measurement automatically.",
-      ),
-    ).toBeNull();
-    expect(screen.getByText("0.60")).toBeTruthy();
-    expect(screen.getAllByLabelText("m/s").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: "Set ground line" }));
-    await act(async () => {
-      fireEvent.click(overlay, { clientX: 100, clientY: 400 });
-    });
-    const groundUpdate = JSON.parse(
-      vi.mocked(api).mock.calls[1][1]!.body as string,
-    );
-    expect(groundUpdate.calibration).toEqual({
-      metersPerPixel: 0.00445,
-      bodyHeightPixels: 400,
-      ground: 400,
-      source: "athlete_height_manual",
-      heightCm: 178,
-      frameTime: 0,
-    });
-  });
-  it("lets the labeled sample use the canonical athlete height without changing session ownership", () => {
-    render(
-      <Workspace
-        analysis={makeSample()}
-        tool={sampleTool}
-        sample
-        onBack={() => {}}
-        profiles={[
-          { id: "unrelated", name: "Old profile", heightCm: 175 },
-          { id: "athlete", name: "Athlete", heightCm: 178 },
-        ]}
-        sessions={[]}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Analysis settings" }));
-    const start = screen.getByRole("button", {
-      name: "Adjust height scale manually",
-    }) as HTMLButtonElement;
-    expect(start.disabled).toBe(false);
-    fireEvent.click(start);
-    expect(screen.getByText("Using your 178 cm height")).toBeTruthy();
-    expect(
-      screen.getByText("Synthetic movement · explore how the analysis works"),
-    ).toBeTruthy();
-  });
-  it("discards a first height mark when seeking so the two marks cannot span different frames", () => {
-    const view = render(
-      <Workspace
-        analysis={makeSample()}
-        tool={sampleTool}
-        sample
-        onBack={() => {}}
-        profiles={[
-          { id: "unrelated", name: "Old profile", heightCm: 175 },
-          { id: "athlete", name: "Athlete", heightCm: 178 },
-        ]}
-        sessions={[]}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Analysis settings" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Adjust height scale manually" }),
-    );
-    const overlay = view.container.querySelector("svg.pose-overlay")!;
-    vi.spyOn(overlay, "getBoundingClientRect").mockReturnValue({
-      left: 0,
-      top: 0,
-      width: 800,
-      height: 540,
-      right: 800,
-      bottom: 540,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    });
-    fireEvent.click(overlay, { clientX: 100, clientY: 50 });
-    expect(screen.getByText(/shoes \(1\/2\)/)).toBeTruthy();
-    fireEvent.change(screen.getByRole("slider", { name: "Video timeline" }), {
-      target: { value: "1" },
-    });
-    expect(screen.getByText(/shoes \(0\/2\)/)).toBeTruthy();
-    fireEvent.click(overlay, { clientX: 100, clientY: 450 });
-    expect(screen.getByText(/shoes \(1\/2\)/)).toBeTruthy();
-    expect(api).not.toHaveBeenCalled();
-    expect(screen.queryByText("Height scale saved. Measurements now use meters.")).toBeNull();
-  });
+it("keeps automatic measurements and video actions without manual calibration or redundant labels", () => {
+  render(
+    <Workspace analysis={makeSample()} tool={sampleTool} sample
+      profiles={[{ id: "athlete", name: "Athlete", heightCm: 178 }]}
+      sessions={[]} onBack={() => {}} />,
+  );
+  expect(screen.queryByRole("button", { name: "Set measurement scale" })).toBeNull();
+  expect(screen.queryByText(/Gaps indicate missing points/)).toBeNull();
+  expect(screen.queryByText("Video analysis")).toBeNull();
+  expect(screen.getByText("Synthetic movement · explore how the analysis works")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Video options" }));
+  expect(screen.getByRole("button", { name: "Download tool" })).toBeTruthy();
+  expect(screen.queryByText("Measurement settings")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Set ground line" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Calibrate distance" })).toBeNull();
 });
 
 describe("single-video coaching", () => {
@@ -253,23 +115,6 @@ it("uses the automatically saved height scale immediately without manual setup",
 });
 
 describe("motion measurement recovery", () => {
-  it("explains missing scale beside the readings and opens manual scale setup", () => {
-    render(
-      <Workspace
-        analysis={makeSample()}
-        tool={sampleTool}
-        sample
-        onBack={() => {}}
-        profiles={[{ id: "athlete", name: "Athlete", heightCm: 178 }]}
-        sessions={[]}
-      />,
-    );
-    expect(screen.getAllByText("Set scale").length).toBe(3);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Set measurement scale" }),
-    );
-    expect(screen.getByText("Using your 178 cm height")).toBeTruthy();
-  });
   it("explains absent derivatives and seeks to a frame with measured acceleration", () => {
     const analysis = makeSample();
     const joint = sampleTool.focusJoint;
