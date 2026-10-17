@@ -17,12 +17,13 @@ export const coachResponseSchema = z.object({
   reply: z.string().min(1).max(10000),
   feedback: z
     .object({
-      doingWell: z.array(z.string().min(1).max(400)).max(4),
-      improve: z.array(z.string().min(1).max(400)).max(4),
-      limitations: z.array(z.string().min(1).max(400)).max(4),
+      doingWell: z.array(z.string().trim().min(1).max(400)).max(4),
+      improve: z.array(z.string().trim().min(1).max(400)).max(4),
+      limitations: z.array(z.string().trim().min(1).max(400)).max(4),
     })
-    .nullish()
-    .transform((feedback) => feedback ?? undefined),
+    .refine((feedback) => feedback.doingWell.length + feedback.improve.length + feedback.limitations.length > 0, {
+      message: "Include a supported observation, a specific correction, or an explicit evidence limitation; never invent praise or faults.",
+    }),
   drill: z
     .object({
       title: z.string().min(1).max(120),

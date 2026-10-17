@@ -10,6 +10,7 @@ vi.mock("./services/provider", () => ({
   parseJSON: (content: string) => JSON.parse(content),
 }));
 afterEach(() => vi.resetAllMocks());
+const evidenceLimits = { doingWell: [], improve: [], limitations: ["The camera view does not show the whole movement; record a full-body side view."] };
 const messages = [
   { role: "user" as const, content: "Build a forehand squash serve coach." },
 ];
@@ -77,7 +78,7 @@ describe("structured interview and coaching responses", () => {
   it("accepts coaching without an optional drill", async () => {
     vi.mocked(chat).mockResolvedValue({
       role: "assistant",
-      content: '{"reply":"At 1.2 seconds, your knee bends.","drill":null}',
+      content: JSON.stringify({ reply: "At 1.2 seconds, your knee bends.", feedback: evidenceLimits, drill: null }),
     });
     await expect(
       structured(
@@ -88,6 +89,7 @@ describe("structured interview and coaching responses", () => {
       ),
     ).resolves.toEqual({
       reply: "At 1.2 seconds, your knee bends.",
+      feedback: evidenceLimits,
       drill: undefined,
     });
   });
@@ -123,21 +125,36 @@ it("preserves evidence limits and empty strengths without inventing praise", () 
   expect(result.feedback?.doingWell).toEqual([]);
   expect(result.feedback?.limitations).toEqual(["The feet are cropped at 1.2 seconds."]);
   expect(result.drill?.steps).toHaveLength(2);
-  expect(coachResponseSchema.safeParse({ reply: "Try again", drill: { title: "Practice", instructions: "Start slowly.", steps: [] } }).success).toBe(false);
+  expect(coachResponseSchema.safeParse({ reply: "Try again", feedback: evidenceLimits, drill: { title: "Practice", instructions: "Start slowly.", steps: [] } }).success).toBe(false);
 });
 it("continues accepting an earlier instruction-only drill", () => {
-  const result = coachResponseSchema.parse({ reply: "Try this practice.", drill: { title: "Balance", instructions: "Pause before resetting." } });
+  const result = coachResponseSchema.parse({ reply: "Try this practice.", feedback: evidenceLimits, drill: { title: "Balance", instructions: "Pause before resetting." } });
   expect(result.drill?.steps).toBeUndefined();
 });
 
-it("rejects repeated checklist goals so each check remains independent", () => {
+it("rejects repeated exercise steps", () => {
   expect(coachResponseSchema.safeParse({
-    reply: "Try this practice.",
+    reply: "Try this practice.", feedback: evidenceLimits,
     drill: { title: "Balance", instructions: "Pause comfortably.", steps: ["Hold for two seconds.", "Hold for two seconds."] },
   }).success).toBe(false);
 });
-it("removes leading checklist glyphs before checking for duplicate goals", () => {
-  const result = coachResponseSchema.parse({ reply: "Try this.", drill: { title: "Practice", instructions: "Move comfortably.", steps: ["☐ Hold for two seconds.", "- [ ] Reset your stance."] } });
+it("removes leading checklist glyphs before checking for duplicate steps", () => {
+  const result = coachResponseSchema.parse({ reply: "Try this.", feedback: evidenceLimits, drill: { title: "Practice", instructions: "Move comfortably.", steps: ["☐ Hold for two seconds.", "- [ ] Reset your stance."] } });
   expect(result.drill?.steps).toEqual(["Hold for two seconds.", "Reset your stance."]);
-  expect(coachResponseSchema.safeParse({ reply: "Try this.", drill: { title: "Practice", instructions: "Move comfortably.", steps: ["☐ Hold for two seconds.", "Hold for two seconds."] } }).success).toBe(false);
+  expect(coachResponseSchema.safeParse({ reply: "Try this.", feedback: evidenceLimits, drill: { title: "Practice", instructions: "Move comfortably.", steps: ["☐ Hold for two seconds.", "Hold for two seconds."] } }).success).toBe(false);
+});
+
+it("does not accept a fresh reply-only review or empty evidence sections", () => {
+  expect(coachResponseSchema.safeParse({ reply: "Keep practising!" }).success).toBe(false);
+  expect(coachResponseSchema.safeParse({ reply: "Keep practising!", feedback: { doingWell: [], improve: [], limitations: [] } }).success).toBe(false);
+  expect(coachResponseSchema.safeParse({ reply: "Keep practising!", feedback: { doingWell: ["   "], improve: [], limitations: [] } }).success).toBe(false);
+});
+
+it("repairs a generic reply-only review with explicit evidence limits instead of inventing form feedback", async () => {
+  const feedback = { doingWell: [], improve: [], limitations: ["At 0 seconds, the cropped image does not show your knee; record a full-body side view to assess knee position."] };
+  vi.mocked(chat).mockResolvedValueOnce({ role: "assistant", content: JSON.stringify({ reply: "Keep practising!" }) })
+    .mockResolvedValueOnce({ role: "assistant", content: JSON.stringify({ reply: "The knee is outside the view.", feedback }) });
+  const response = await structured(messages, { ...tool, name: "coach_response" }, coachResponseSchema, AbortSignal.timeout(1000));
+  expect(response.feedback).toEqual(feedback);
+  expect(chat).toHaveBeenCalledTimes(2);
 });

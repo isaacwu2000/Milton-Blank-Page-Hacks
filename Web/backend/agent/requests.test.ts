@@ -92,7 +92,7 @@ describe("builder and coach request boundary", () => {
         if (url.endsWith(`/api/sessions/${sessionId}`))
           return Response.json({ id: sessionId, profileId: "athlete" });
         if (url.endsWith("/api/home"))
-          return Response.json({ profiles: [], sessions: [] });
+          return Response.json({ profiles: [], sessions: [{ id: "prior", profileId: "athlete", status: "uploaded", completedDrills: ["legacy-task-marker"] }] });
         throw Error("Unexpected backend request");
       }),
     );
@@ -103,7 +103,7 @@ describe("builder and coach request boundary", () => {
       })
       .mockResolvedValueOnce({
         role: "assistant",
-        content: '{"reply":"Your knee is bent at 0 seconds.","drill":null}',
+        content: JSON.stringify({ reply: "Your knee is bent at 0 seconds.", feedback: { doingWell: [], improve: [], limitations: ["A single sampled frame cannot establish control through the whole repetition."] }, drill: null }),
       });
     const response = await post("/agent/coach", {
       sessionId,
@@ -121,8 +121,15 @@ describe("builder and coach request boundary", () => {
         status: "complete",
         reply: "Your knee is bent at 0 seconds.",
       });
+      expect(result.feedback.limitations).toEqual(["A single sampled frame cannot establish control through the whole repetition."]);
       expect(result.drill).toBeUndefined();
     });
+    const [, tools] = vi.mocked(chat).mock.calls[1];
+    expect(tools?.[0].parameters.required).toEqual(["reply", "feedback"]);
+    const coachingContext = JSON.stringify(vi.mocked(chat).mock.calls[1][0]);
+    expect(coachingContext).toContain("specific adjustment");
+    expect(coachingContext).toContain("actual sampled timestamp");
+    expect(coachingContext).not.toContain("legacy-task-marker");
   });
 });
 
