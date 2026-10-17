@@ -208,16 +208,30 @@ describe("saved workspace loading", () => {
     expect(slider.max).toBe("2");
     expect(slider.step).toBe("0.05");
     expect(slider.value).toBe("0.1");
-    expect(slider.getAttribute("aria-valuetext")).toBe("10 frames per second");
+    expect(slider.getAttribute("aria-valuetext")).toBe(
+      "10 frames per second, one frame every 0.1 seconds",
+    );
+    expect(slider.dir).toBe("rtl");
+    expect(screen.getByText("One frame every 0.1 seconds")).toBeTruthy();
     fireEvent.change(slider, { target: { value: "0.15" } });
     expect(slider.getAttribute("aria-valuetext")).toBe(
-      "6.67 frames per second",
+      "6.67 frames per second, one frame every 0.15 seconds",
     );
     expect(
       screen.queryByRole("combobox", { name: "Tracking interval" }),
     ).toBeNull();
     fireEvent.change(slider, { target: { value: "2" } });
-    expect(slider.getAttribute("aria-valuetext")).toBe("0.5 frames per second");
+    expect(slider.getAttribute("aria-valuetext")).toBe(
+      "0.5 frames per second, one frame every 2 seconds",
+    );
+    fireEvent.change(slider, { target: { value: "0.05" } });
+    expect(slider.getAttribute("aria-valuetext")).toBe(
+      "20 frames per second, one frame every 0.05 seconds",
+    );
+    fireEvent.change(slider, { target: { value: "0.45" } });
+    expect(slider.getAttribute("aria-valuetext")).toBe(
+      "2.22 frames per second, one frame every 0.45 seconds",
+    );
     fireEvent.change(screen.getByLabelText("Upload sports video"), {
       target: { files: [new File(["video"], "jump.mp4")] },
     });
@@ -226,7 +240,7 @@ describe("saved workspace loading", () => {
       .mocked(api)
       .mock.calls.find(([path]) => path === "/api/upload");
     expect((upload?.[1]?.body as FormData).get("profileId")).toBe("canonical");
-    expect((upload?.[1]?.body as FormData).get("interval")).toBe("2");
+    expect((upload?.[1]?.body as FormData).get("interval")).toBe("0.45");
   });
   it("keeps the three sections separate and preserves drafts when switching tabs", async () => {
     vi.mocked(api).mockResolvedValueOnce(saved);
