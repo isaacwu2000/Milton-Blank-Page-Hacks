@@ -4,7 +4,7 @@ A local prototype with Build your coach, Get coached, and Your profile navigatio
 
 ## Run locally
 
-Requires Bun, uv, and a ChatGPT account with access to GPT-6.1 Sol. Python 3.12 is managed by uv.
+Requires Bun, uv, FFmpeg (available on PATH), and a ChatGPT account with access to GPT-6.1 Sol. Python 3.12 is managed by uv.
 
 ```sh
 bun install
