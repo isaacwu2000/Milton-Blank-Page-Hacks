@@ -84,7 +84,7 @@ export function PromptBar({
       <div className="prompt-bar-actions">
         <div className="prompt-bar-tools">{actions}</div>
         <button type="submit" aria-label={sendLabel} disabled={!canSend}>
-          <ArrowUp aria-hidden="true" size={18} strokeWidth={2.25} />
+          <ArrowUp aria-hidden="true" size={18} />
         </button>
       </div>
     </form>

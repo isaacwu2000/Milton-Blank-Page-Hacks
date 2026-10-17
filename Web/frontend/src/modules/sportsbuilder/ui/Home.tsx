@@ -164,7 +164,7 @@ export function Product() {
           aria-expanded={false}
           onClick={toggleSidebar}
         >
-          <Menu size={18} strokeWidth={1.75} />
+          <Menu size={18} />
         </IconButton>
       )}
       {isMobile && !sidebarCollapsed && (
@@ -219,7 +219,7 @@ export function Product() {
             aria-expanded={true}
             onClick={toggleSidebar}
           >
-            <Menu size={18} strokeWidth={1.75} />
+            <Menu size={18} />
           </IconButton>
         </div>
         <nav aria-label="Main navigation" className="flex-1 pb-4">
@@ -458,7 +458,7 @@ function UploadPanel({
       }}
     >
       <div className="upload-icon">
-        <CloudUpload size={28} strokeWidth={1.5} />
+        <CloudUpload size={28} />
       </div>
       <h1>Your Athletic Dreams Will Become a Reality</h1>
       <div className="upload-selects">
