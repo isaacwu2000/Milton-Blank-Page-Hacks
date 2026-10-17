@@ -391,9 +391,9 @@ small,
   border-radius: 8px;
   width: 100%;
 }
-.session-row:focus-visible {
-  outline: 2px solid var(--accent-700);
-  outline-offset: 2px;
+.session-row:focus-visible .session-copy strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .session-arrow {
   @apply grid shrink-0 place-items-center;
