@@ -1879,3 +1879,6 @@ button .loading-status {
 }
 
 .app-shell[hidden] { display: none; }
+
+.builder-columns-resizable[data-stacked="true"] { grid-template-columns: minmax(0, 1fr); }
+.builder-columns-resizable[data-stacked="true"] > .builder-resize-handle { display: none; }
