@@ -509,3 +509,24 @@ it("deletes the last library option and keeps useful keyboard focus", async () =
   await screen.findByText("Your saved coaches will appear here.");
   expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your coaches" }));
 });
+
+it("loads and clears optional profile details without replacing the athlete", async () => {
+  const profile = { id: "canonical", name: "Athlete", heightCm: 178, weightKg: 72, gender: "Woman", notes: "Prefer slower practice" };
+  const cleared = { ...profile, weightKg: null, gender: "", notes: "" };
+  vi.mocked(api).mockResolvedValueOnce({ ...saved, profiles: [profile] })
+    .mockResolvedValueOnce(cleared)
+    .mockResolvedValueOnce({ ...saved, profiles: [cleared] });
+  render(<Product />);
+  await waitFor(() => expect((screen.getByRole("button", { name: "Upload video" }) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole("button", { name: "Your profile" }));
+  expect((screen.getByRole("textbox", { name: "Weight (kg, optional)" }) as HTMLInputElement).value).toBe("72");
+  expect((screen.getByLabelText("Gender (optional)") as HTMLInputElement).value).toBe("Woman");
+  expect((screen.getByLabelText("General notes (optional)") as HTMLTextAreaElement).value).toBe("Prefer slower practice");
+  for (const label of ["Weight (kg, optional)", "Gender (optional)", "General notes (optional)"])
+    fireEvent.change(screen.getByRole("textbox", { name: label }), { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
+  await waitFor(() => expect(api).toHaveBeenCalledWith("/api/profiles/canonical", {
+    method: "PATCH", body: JSON.stringify({ heightCm: 178, weightKg: null, gender: "", notes: "" }),
+  }));
+  expect(post).not.toHaveBeenCalled();
+});

@@ -285,7 +285,15 @@ def test_profile_details_can_be_updated_and_cleared(monkeypatch: pytest.MonkeyPa
 
 
 @pytest.mark.parametrize(
-    "details", [{"weightKg": 0}, {"weightKg": 601}, {"gender": "x" * 101}, {"notes": "x" * 1001}]
+    "details",
+    [
+        {"weightKg": 0},
+        {"weightKg": 601},
+        {"weightKg": "NaN"},
+        {"weightKg": "Infinity"},
+        {"gender": "x" * 101},
+        {"notes": "x" * 1001},
+    ],
 )
 def test_profile_details_reject_invalid_values(monkeypatch: pytest.MonkeyPatch, details: dict):
     monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(PROFILE))
