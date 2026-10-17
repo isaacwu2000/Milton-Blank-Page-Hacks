@@ -260,15 +260,6 @@ export function Player({
               strokeWidth="2"
             />
             <path d="M0 165H800" stroke="#8caaa0" strokeWidth="3" />
-            <text
-              x="24"
-              y="35"
-              fill="#52625d"
-              fontSize="14"
-              fontFamily="Lexend"
-            >
-              Synthetic movement · sample only
-            </text>
           </svg>
         ) : (
           <video
