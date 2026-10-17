@@ -31,7 +31,7 @@ import {
   SAMPLING_RANGE,
   DEFAULT_SAMPLING_INTERVAL,
 } from "../config";
-import { formatDate } from "../runtime/format";
+import { formatDate, formatFrameRate } from "../runtime/format";
 import { Builder } from "./Builder";
 import { SessionPreview } from "./SessionPreview";
 import { SessionWorkspace, Workspace } from "./Analysis";
@@ -460,11 +460,11 @@ function UploadPanel({
         </div>
       )}
       <div className="w-full max-w-[420px] text-left">
-        <label htmlFor="sampling-interval">One frame every {interval} s</label>
+        <label htmlFor="sampling-interval">{formatFrameRate(interval)} fps</label>
         <input
           id="sampling-interval"
-          aria-label="Frame sampling interval"
-          aria-valuetext={`One frame every ${interval} seconds`}
+          aria-label="Frame sampling rate"
+          aria-valuetext={`${formatFrameRate(interval)} frames per second`}
           type="range"
           min={SAMPLING_RANGE.min}
           max={SAMPLING_RANGE.max}
@@ -476,11 +476,11 @@ function UploadPanel({
         />
         <div className="flex justify-between gap-6 text-[10px] text-(--neutral-dark-500)">
           <span>
-            0.05 s
+            {formatFrameRate(SAMPLING_RANGE.min)} fps
             <span className="mt-1 block">Slower loading, more precision</span>
           </span>
           <span className="text-right">
-            2 s
+            {formatFrameRate(SAMPLING_RANGE.max)} fps
             <span className="mt-1 block">Faster loading, less precision</span>
           </span>
         </div>

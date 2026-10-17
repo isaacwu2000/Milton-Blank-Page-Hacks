@@ -174,17 +174,20 @@ describe("saved workspace loading", () => {
     });
     expect(post).not.toHaveBeenCalled();
     const slider = screen.getByRole("slider", {
-      name: "Frame sampling interval",
+      name: "Frame sampling rate",
     }) as HTMLInputElement;
     expect(slider.min).toBe("0.05");
     expect(slider.max).toBe("2");
     expect(slider.step).toBe("0.05");
     expect(slider.value).toBe("0.1");
+    expect(slider.getAttribute("aria-valuetext")).toBe("10 frames per second");
+    fireEvent.change(slider, { target: { value: "0.15" } });
+    expect(slider.getAttribute("aria-valuetext")).toBe("6.67 frames per second");
     expect(
       screen.queryByRole("combobox", { name: "Tracking interval" }),
     ).toBeNull();
     fireEvent.change(slider, { target: { value: "2" } });
-    expect(screen.getByText("One frame every 2 s")).toBeTruthy();
+    expect(slider.getAttribute("aria-valuetext")).toBe("0.5 frames per second");
     fireEvent.change(screen.getByLabelText("Upload sports video"), {
       target: { files: [new File(["video"], "jump.mp4")] },
     });
@@ -262,7 +265,7 @@ describe("saved workspace loading", () => {
     render(<Product />);
     await screen.findAllByText(sampleTool.name);
     const slider = screen.getByRole("slider", {
-      name: "Frame sampling interval",
+      name: "Frame sampling rate",
     }) as HTMLInputElement;
     fireEvent.change(slider, { target: { value: "0.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
