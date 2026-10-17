@@ -215,3 +215,35 @@ def test_storage_failure_shows_safe_diagnosis_and_stops_before_build(checkout: P
     assert "private-test-value" not in result.stdout + result.stderr
     assert "private-test-value" in (checkout / ".sportsbuilder/setup.log").read_text()
     assert "Building the app" not in result.stdout
+
+
+def test_storage_check_resolves_project_after_changing_directory(checkout: Path) -> None:
+    import shlex
+    import sys
+
+    actual_uv = os.environ.get("SPORTSBUILDER_TEST_UV") or shutil.which("uv")
+    if actual_uv is None:
+        pytest.skip("uv is needed to verify its real project path resolution")
+    env = environment(checkout)
+    credentials(checkout)
+    backend = checkout / "Web/backend"
+    (backend / "pyproject.toml").write_text(
+        '[project]\nname = "path-fixture"\nversion = "0.0.0"\nrequires-python = ">=3.12"\n'
+    )
+    (backend / "server").mkdir()
+    (backend / "server/storage_check.py").write_text(
+        'from pathlib import Path\nPath("storage-check-ran").write_text("yes")\n'
+    )
+    (checkout / "bin/uv").write_text(
+        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SETUP_CALLS"\n'
+        f'case "$*" in *server.storage_check*) exec {shlex.quote(actual_uv)} "$@";; esac\n'
+        "exit 0\n"
+    )
+    env["UV_PYTHON"] = sys.executable
+    env["UV_OFFLINE"] = "1"
+    result = run_setup(checkout, env)
+    assert result.returncode == 0, (
+        result.stderr + (checkout / ".sportsbuilder/setup.log").read_text()
+    )
+    assert (backend / "storage-check-ran").read_text() == "yes"
+    assert "Setup complete" in result.stdout

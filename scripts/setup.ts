@@ -27,6 +27,7 @@ import {
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
+const backendDirectory = join(root, "Web", "backend");
 const flags = new Set(process.argv.slice(2));
 const installer = installCommand();
 if (flags.has("--help")) {
@@ -285,9 +286,9 @@ try {
     [
       "run",
       "--project",
-      "Web/backend",
+      backendDirectory,
       "--directory",
-      "Web/backend",
+      backendDirectory,
       "python",
       "-m",
       "server.storage_check",
