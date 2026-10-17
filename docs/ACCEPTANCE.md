@@ -237,3 +237,97 @@ Beginner Running Knee-Angle Coach — Draft (`caae461b-fad6-4c8a-a26a-921d43e669
 Its provisional assumptions remain explicit. Reviewed draft screenshots and
 acceptance data live in `output/builds/f6479c79-8351-451a-ab7f-ec2c438399a0/`.
 The current TypeScript suite passes 65 tests. All refinement evidence is local, with no deployment.
+
+## One-command local setup
+
+Revision `0691488` adds `bash install.sh`. A real macOS install-only run reused
+existing credentials, installed/reused managed runtimes, synced both dependency
+sets, prepared Neon Postgres, checked the private video bucket, and built the app.
+The repeat run passed; transcript: `output/setup-validation.log`.
+
+Seven isolated bootstrap cases cover absent runtimes, an older Bun, checksum
+failure, missing downloader, unsupported OS, help, and bad arguments. Five isolated
+assistant cases cover preserved environment files, missing credentials, failed
+installs, literal JSON credentials, and default startup/shutdown. These use local
+fixtures rather than claiming a fresh-machine Linux installation.
+
+Provider checks cover Codex-present/absent selection, explicit overrides, and
+production OpenRouter. Request failures do not switch providers. JSON credential
+checks cover punctuation, existing-value precedence, and sanitized errors in
+Python and TypeScript. A new live OpenRouter request and a cold Node download were
+not performed; their existing transport and installer paths have deterministic
+coverage/inspection only. Final gates: 74 Vitest tests, 85 pytest tests, build,
+TypeScript, ty, Ruff lint/format, and agent-guidance links passed. No deployment.
+
+
+## Mobile navigation refinement
+
+The mobile shell starts hamburger-only at 900px and below. A real browser check
+at 390×780 CSS pixels measured the open drawer at 343.2px wide and full height.
+The brand and all navigation labels remain visible. Selection and Escape close
+the drawer and restore hamburger focus. The backdrop closes it, background content
+is inert while open, and desktop collapse persistence remains separate. Eleven
+focused Home cases cover existing workspace behavior and mobile navigation.
+Captures: `output/screenshots/mobile-sidebar-closed.png` and
+`output/screenshots/mobile-sidebar-open.png`. Local verification only.
+
+
+## Native Windows installer checkpoint
+
+`install.ps1` provides the Windows counterpart to `install.sh`: PowerShell 5.1,
+per-user Bun/uv/Python bootstrap, SHA-checked Bun, private credential-directory
+ACLs, and the same missing-credential interview. Native Windows Intel/AMD x64 is
+the supported target; ARM and 32-bit shells are rejected with guidance. Shared
+runtime changes handle Windows Node ZIP layout, semicolon PATH entries, direct
+Node execution of npm's npx entry point, and owned process-tree cleanup. Vite's
+file URL paths use fileURLToPath for Windows drive letters and spaces.
+
+The offline PowerShell harness passed on macOS using verified Microsoft
+PowerShell 7.6.7. Focused checks passed: 18 Vitest cases and 23 pytest cases,
+TypeScript, Ruff lint/format, ty, and local build. The native cold-bootstrap,
+repeat-install, dependency import, and build workflow is committed in
+`.github/workflows/windows-setup.yml`. GitHub run 39050204063 was rejected before
+any runner/steps started: recent account payments failed or the spending limit
+needs increasing. Native Windows PowerShell 5.1 execution, ACL enforcement, and
+cold-runtime downloads therefore remain unverified until that workflow can run.
+No billing settings were changed. This is local installer implementation,
+not a production deployment.
+
+## Automatic scale and single-video coaching
+
+SportsBuilder now estimates image-plane stature from the head, torso and leg
+segments instead of requiring straight knees and hips. It uses the saved athlete
+height (178 cm for this workspace), confidence and joint-angle checks, visible
+head/shoe boundaries, proportion checks, and three consecutive stable samples.
+Bent-knee and bent-hip geometry fixtures retain the same 850-pixel straightened
+stature as their upright reference. Raised hands do not enlarge the estimate.
+This is approximate 2D calibration; it does not recover depth or perspective.
+
+A fresh, read-only inference of the saved IMG_9964.mov V-up clip processed 42
+frames over 4.10 seconds and produced no reliable height reference. Floor poses
+with feet above the head are unsupported by this boundary-based estimator; scale
+is withheld rather than invented. Existing calibration and analysis records were
+not overwritten. Evidence: `output/auto-height-evidence.json`. Reanalysis is
+available for existing recordings; advanced manual calibration remains a fallback.
+
+The comparison player and reference-selection controls are removed from the
+prototype. Optional builder reference uploads remain available as coaching
+evidence. Single-video analysis, metrics and coaching remain. Future synchronized
+comparison is tracked in GitHub issue #4:
+https://github.com/isaacwu2000/Milton-Blank-Page-Hacks/issues/4.
+The browser document title is SportsBuilder.
+
+Workspace loading retries safe GET requests up to four attempts. A failed load
+shows a retry state instead of displaying an empty workspace or discarding the
+last loaded workspace. POST and other mutations do not receive automatic retries.
+Focused API and Home checks cover recovery and failure behavior.
+
+Verification: 93 pytest cases (including 17 calibration cases), ty and Ruff
+lint/format passed. All 81 TypeScript cases passed before the GET-recovery fix;
+after that fix, 22 focused API, Home and Analysis cases plus TypeScript checking
+and the build passed.
+The local browser capture and one-page report are
+`output/screenshots/automatic-scale-single-video.png` and
+`output/pdf/automatic-scale-review.pdf`. Browser dimensions and tested revision
+are recorded in the report. This is local implementation evidence, not deployment
+or proof that every sport/pose can be physically calibrated.

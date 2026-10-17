@@ -39,10 +39,6 @@
   background: transparent;
   box-shadow: none;
 }
-.prompt-bar:focus-within {
-  outline: 2px solid var(--accent-700);
-  outline-offset: 3px;
-}
 .prompt-bar textarea::placeholder {
   color: var(--neutral-dark-500);
   opacity: 1;

@@ -1,9 +1,10 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
-  root: new URL(".", import.meta.url).pathname,
-  envDir: new URL("../..", import.meta.url).pathname,
+  root: fileURLToPath(new URL(".", import.meta.url)),
+  envDir: fileURLToPath(new URL("../..", import.meta.url)),
   plugins: [react(), tailwindcss()],
   server: {
     host: "127.0.0.1",

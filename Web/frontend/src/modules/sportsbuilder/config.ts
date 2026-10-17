@@ -19,3 +19,9 @@ export const POLLING = {
   videoStatusMs: 1800,
   signedUrlRefreshMs: 12 * 60 * 1000,
 } as const;
+
+export const READ_RETRY = {
+  attempts: 4,
+  baseDelayMs: 500,
+  statuses: [500, 502, 503, 504] as readonly number[],
+} as const;

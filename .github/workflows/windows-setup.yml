@@ -1,0 +1,55 @@
+name: Windows setup
+on:
+  push:
+    paths:
+      - install.ps1
+      - install.cmd
+      - install.sh
+      - scripts/**
+      - tests/windows-*.ps1
+      - Web/frontend/vite.config.ts
+      - Web/backend/pyproject.toml
+      - Web/backend/uv.lock
+      - .github/workflows/windows-setup.yml
+  pull_request:
+    paths:
+      - install.ps1
+      - install.cmd
+      - scripts/**
+      - tests/windows-*.ps1
+      - Web/frontend/vite.config.ts
+      - .github/workflows/windows-setup.yml
+permissions:
+  contents: read
+jobs:
+  native-windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      SOL_PROVIDER: openrouter
+    steps:
+      - uses: actions/checkout@v4
+      - name: PowerShell 5.1 installer checks
+        shell: powershell
+        run: .\tests\windows-install.Tests.ps1
+      - name: Cold bootstrap and repeat install
+        shell: powershell
+        run: .\tests\windows-bootstrap-smoke.ps1
+      - name: Install project dependencies
+        shell: pwsh
+        run: |
+          bun install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv sync --project Web/backend --locked --python 3.12
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Validate Windows app and runtime
+        shell: pwsh
+        run: |
+          bun run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          bun run test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv run --directory Web/backend python -c "import server.app, server.vision; print('Windows FastAPI and video dependencies imported')"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv run --directory Web/backend pytest tests/test_env.py tests/test_calibration.py tests/test_store.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

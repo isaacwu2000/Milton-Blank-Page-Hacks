@@ -39,12 +39,15 @@ import { SessionWorkspace, Workspace } from "./Analysis";
 export function Product() {
   const [data, setData] = useState<HomeData>(EMPTY_HOME_DATA),
     [loaded, setLoaded] = useState(false),
+    [workspaceAvailable, setWorkspaceAvailable] = useState(false),
     [error, setError] = useState(""),
     [view, setView] = useState<"coached" | "profile" | "builder">("coached"),
     [builder, setBuilder] = useState(false),
     [opened, setOpened] = useState<string | null>(null),
     [sample, setSample] = useState(false),
-    [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900),
+    [mobileSidebarOpen, setMobileSidebarOpen] = useState(false),
+    [desktopCollapsed, setDesktopCollapsed] = useState(() => {
       try {
         return (
           window.localStorage.getItem("sportsbuilder.sidebar.collapsed") ===
@@ -54,11 +57,34 @@ export function Product() {
         return false;
       }
     });
+  const sidebarCollapsed = isMobile ? !mobileSidebarOpen : desktopCollapsed;
+  const sidebar = useRef<HTMLElement>(null);
   const collapseButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    function resize() {
+      setIsMobile(window.innerWidth <= 900);
+      setMobileSidebarOpen(false);
+    }
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+  useEffect(() => {
+    if (!isMobile || sidebarCollapsed) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobile, sidebarCollapsed]);
   const expandButton = useRef<HTMLButtonElement>(null);
   const restoreSidebarFocus = useRef(false);
   function toggleSidebar() {
     const collapsed = !sidebarCollapsed;
+    if (isMobile) {
+      restoreSidebarFocus.current = true;
+      setMobileSidebarOpen(collapsed === false);
+      return;
+    }
     try {
       window.localStorage.setItem(
         "sportsbuilder.sidebar.collapsed",
@@ -68,7 +94,7 @@ export function Product() {
       /* Navigation still works if browser storage is unavailable. */
     }
     restoreSidebarFocus.current = true;
-    setSidebarCollapsed(collapsed);
+    setDesktopCollapsed(collapsed);
   }
   useEffect(() => {
     if (!restoreSidebarFocus.current) return;
@@ -87,8 +113,10 @@ export function Product() {
   }
   const reload = useCallback(async () => {
     setLoaded(false);
+    setError("");
     try {
       setData(await api<HomeData>("/api/home"));
+      setWorkspaceAvailable(true);
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -100,8 +128,9 @@ export function Product() {
     reload();
   }, [reload]);
   useEffect(() => {
-    if (loaded && needsProfile && !error) setView("profile");
-  }, [loaded, needsProfile, error]);
+    if (loaded && workspaceAvailable && needsProfile && !error)
+      setView("profile");
+  }, [loaded, workspaceAvailable, needsProfile, error]);
   if (sample)
     return (
       <Workspace
@@ -138,7 +167,41 @@ export function Product() {
           <Menu size={18} strokeWidth={1.75} />
         </IconButton>
       )}
+      {isMobile && !sidebarCollapsed && (
+        <button
+          className="sidebar-backdrop"
+          aria-label="Close navigation"
+          tabIndex={-1}
+          onClick={toggleSidebar}
+        />
+      )}
       <aside
+        ref={sidebar}
+        role={isMobile ? "dialog" : undefined}
+        aria-modal={isMobile && !sidebarCollapsed ? true : undefined}
+        aria-label="Application sidebar"
+        onKeyDown={(event) => {
+          if (!isMobile) return;
+          if (event.key === "Escape") {
+            event.preventDefault();
+            toggleSidebar();
+          }
+          if (event.key === "Tab") {
+            const items = sidebar.current?.querySelectorAll<HTMLElement>(
+              "a[href], button:not(:disabled)",
+            );
+            const first = items?.[0],
+              last = items?.[items.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              last?.focus();
+            }
+            if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first?.focus();
+            }
+          }
+        }}
         id="sportsbuilder-sidebar"
         className="sidebar"
         hidden={sidebarCollapsed}
@@ -173,6 +236,7 @@ export function Product() {
               onClick={() => {
                 setView(id);
                 if (id === "builder") setBuilder(true);
+                if (isMobile) toggleSidebar();
               }}
             >
               <Icon size={18} />
@@ -181,7 +245,7 @@ export function Product() {
           ))}
         </nav>
       </aside>
-      <main className="home-main">
+      <main className="home-main" inert={isMobile && !sidebarCollapsed}>
         <div className="home-content">
           {view !== "coached" && (
             <div className="page-heading">
@@ -220,7 +284,7 @@ export function Product() {
               </button>
             </div>
           )}
-          {loaded && (
+          {loaded && workspaceAvailable && (
             <div hidden={view !== "profile"}>
               <ProfileSetup
                 key={profile?.id ?? "new"}
@@ -251,7 +315,7 @@ export function Product() {
               )}
             </div>
           )}
-          <div hidden={view !== "coached"}>
+          <div hidden={view !== "coached" || (loaded && !workspaceAvailable)}>
             <UploadPanel
               data={data}
               profile={profile}

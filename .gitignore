@@ -17,3 +17,5 @@ output/
 *.egg-info/
 
 tmp/
+
+.sportsbuilder/

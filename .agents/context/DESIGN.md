@@ -116,8 +116,12 @@ Laptop use is the current review priority. Analysis gives the recording and
 measurements a flexible column beside the coach; hiding the coach creates more
 viewing room. Preserve portrait handling, video aspect ratio, and overlay alignment.
 
-The actual home sidebar is 224px, changes to 192px below 1100px, and becomes a 64px
-icon rail below 760px. At 1600px and above it uses `max(280px, 15vw)`. The analysis
+The desktop home sidebar is 224px and changes to 192px below 1100px. At 900px
+and below it starts closed, leaving only the floating hamburger. Opening it shows
+a fixed, full-height drawer at min(88vw, 400px), with full labels and a dimmed
+backdrop. Selection, Escape, the backdrop, and the header hamburger close it.
+The drawer traps focus, makes the main content inert, and locks page scrolling;
+its temporary open state does not overwrite the saved desktop preference. At 1600px and above it uses `max(280px, 15vw)`. The analysis
 coach column is 340px normally, 300px below 1100px, and 380px on wide displays.
 Below 760px, analysis, builder, and reference columns stack. These describe the
 current implementation rather than imposing tutor navigation on every new surface.
@@ -143,6 +147,13 @@ hierarchy. `Web/frontend/src/styles.css` copies `--shadow-sm`, `--shadow-md`,
 
 Reuse these tokens for their existing roles. The dropdown combines a recessed
 trigger with a raised menu; surface depth supports the action hierarchy.
+
+## Brand mark
+
+The approved SportsBuilder mark is Progression: three teal geometric forms in
+`Web/frontend/public/sportsbuilder.svg`. Use that same asset for the app logo and
+SVG favicon. Pair it with the SportsBuilder name in the sidebar. Keep the mark
+unboxed on the existing neutral surface; the other concept marks remain studies.
 
 ## Shapes
 

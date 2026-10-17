@@ -147,8 +147,7 @@ button:focus-visible,
 a:focus-visible,
 summary:focus-visible,
 svg g:focus-visible {
-  outline: 2px solid var(--accent-700);
-  outline-offset: 3px;
+  outline: none;
 }
 button:hover:not(:disabled) {
   filter: brightness(0.98);
@@ -204,11 +203,11 @@ small,
   font-size: 16px;
 }
 .brand-mark {
-  @apply inline-grid place-items-center rounded-lg;
+  display: block;
   width: 30px;
   height: 30px;
-  background: var(--accent-700);
-  color: white;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 .brand-link {
   padding: 24px 20px 40px;
@@ -756,25 +755,6 @@ dd {
   color: var(--neutral-dark-500);
   font-variant-numeric: tabular-nums;
 }
-.reference-bar {
-  @apply flex flex-wrap items-center gap-4;
-  margin: 12px 0 24px;
-}
-.reference-bar > label {
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
-  color: var(--neutral-dark-500);
-}
-.reference-bar select {
-  font-size: 10px;
-  background: transparent;
-  padding: 4px;
-  max-width: 250px;
-}
-.reference-bar .text-button {
-  font-size: 10px;
-}
 .measurement-tabs {
   @apply flex items-center gap-6;
   margin: 24px 0;
@@ -912,32 +892,6 @@ dd {
 }
 .metric-hint {
   margin: 24px 0;
-}
-.comparison-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.reference-player {
-  position: relative;
-  min-width: 0;
-}
-.reference-label {
-  position: absolute;
-  left: 12px;
-  top: 12px;
-  z-index: 1;
-  font-size: 10px;
-  background: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-.reference-player > video {
-  width: 100%;
-  border-radius: 12px;
-}
-.reference-player .small {
-  font-size: 10px;
 }
 .analysis-settings {
   padding: 24px;
@@ -1183,33 +1137,6 @@ progress {
   }
 }
 @media (max-width: 760px) {
-  .sidebar {
-    width: 64px;
-  }
-  .brand-link {
-    padding: 24px 17px 32px;
-  }
-  .sidebar .brand {
-    font-size: 0;
-    gap: 0;
-  }
-  .brand-mark {
-    width: 30px;
-  }
-  .sidebar nav {
-    padding: 0 8px;
-  }
-  .nav-item {
-    font-size: 0;
-    gap: 0;
-    padding: 12px 14px;
-  }
-  .nav-item svg {
-    flex-shrink: 0;
-  }
-  .sidebar-foot {
-    display: none;
-  }
   .topbar {
     height: 64px;
     padding: 0 20px;
@@ -1355,17 +1282,11 @@ progress {
   .time {
     font-size: 8px;
   }
-  .comparison-grid {
-    grid-template-columns: 1fr;
-  }
   .metric-readout {
     min-width: 130px;
   }
   .processing-content {
     margin-top: 32px;
-  }
-  .reference-bar {
-    gap: 8px;
   }
   .calibration-toolbar .button {
     min-height: 36px;
@@ -1536,16 +1457,6 @@ progress {
 .sidebar-collapsed .home-content {
   padding-top: 76px;
 }
-@media (max-width: 760px) {
-  .sidebar-header {
-    flex-direction: column;
-    gap: 8px;
-    padding: 16px 8px 24px;
-  }
-  .sidebar-header .brand {
-    font-size: 0;
-  }
-}
 
 /* LearnUnlock TutorConversation: thin thumb, transparent track, no native rail. */
 html,
@@ -1573,10 +1484,6 @@ html,
   width: 24px;
   height: 24px;
   border-radius: 6px;
-}
-.sidebar-header .brand-mark svg {
-  width: 16px;
-  height: 16px;
 }
 .early-build-actions {
   display: flex;
@@ -1612,4 +1519,45 @@ html,
   align-items: center;
   justify-content: center;
   min-height: 44px;
+}
+
+/* LearnUnlock mobile shell: a closed drawer leaves only its hamburger. */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 29;
+  background: color-mix(in oklch, var(--neutral-dark-150) 30%, transparent);
+}
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(88vw, 400px);
+    height: 100dvh;
+    z-index: 30;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar-header {
+    flex-direction: row;
+    padding: 12px 16px 20px;
+  }
+  .sidebar-header .brand {
+    font-size: 14px;
+    gap: 8px;
+  }
+  .sidebar nav {
+    padding: 0 12px 16px;
+  }
+  .sidebar .nav-item {
+    font-size: 14px;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  .home-main {
+    width: 100%;
+  }
+  .home-content {
+    padding-top: 76px;
+  }
 }

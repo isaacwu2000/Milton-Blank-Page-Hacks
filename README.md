@@ -4,21 +4,61 @@ A local prototype with Build your coach, Get coached, and Your profile navigatio
 
 ## Run locally
 
-Requires Bun, uv, FFmpeg (available on PATH), and a ChatGPT account with access to GPT-6.1 Sol. Python 3.12 is managed by uv.
+Video playback also requires FFmpeg available on PATH.
 
-```sh
-bun install
-uv sync --project Web/backend
-cp .env.example .env.local
-# Fill the credential and connection values in .env.local.
-uv run --project Web/backend python scripts/migrate.py
-bun run build
-bun run dev
+From the downloaded/cloned project folder:
+
+**Windows (64-bit Intel/AMD):** open PowerShell and run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "./install.ps1"
 ```
 
-Open [SportsBuilder locally](http://127.0.0.1:5173/). The local runner starts Vite, FastAPI, the TypeScript agent, and Evan Zhou's `openai-oauth` proxy if it is not already running. Complete the proxy's ChatGPT sign-in if requested. `bun run ai:proxy` starts it separately.
+Run it from the extracted project folder containing `install.ps1`. You can also
+double-click `install.cmd` there; it finds the installer even when the folder name
+contains spaces. Do not copy a leading `$` prompt. If an error mentions
+`.install.ps1`, a shell removed the backslash; use the quoted forward-slash path
+above. If `install.ps1` is missing, download/extract the current project first.
 
-**Existing checkout:** the supplied `.env` was copied into ignored `.env.local`, and the dedicated Neon development database/private bucket are configured. Both environment files stay outside Git. Never overwrite an existing configured file with the example.
+This uses the execution policy only for that installer process; it does not change
+your saved PowerShell policy. No WSL, administrator account, or preinstalled
+language tools are required.
+
+**macOS / Ubuntu:**
+
+```sh
+bash install.sh
+```
+
+That’s it. The installer adds missing Bun, uv, and Python 3.12, installs the app,
+prepares the database, checks video storage, builds it, and starts all services.
+You do not need pip, npm, or Python installed beforehand. It supports macOS, Ubuntu, and native Windows 10/11 on Intel/AMD 64-bit computers. Windows ARM and 32-bit Windows are not supported by the current video dependencies.
+
+It automatically reuses `.env.local`, `.env`, or exported credentials. Otherwise,
+it asks for your Neon database/storage details and Daytona key once, with hidden
+input, and saves missing values in ignored `.sportsbuilder/credentials.json` (readable only by your user). Existing environment files stay untouched. You need an existing
+Neon database and private `videos` bucket, plus a Daytona account.
+
+If Codex is installed, setup uses the local ChatGPT sign-in and installs Node
+locally if needed. Otherwise it uses **OpenRouter** and asks for your OpenRouter
+API key. No Codex or ChatGPT subscription is required for the OpenRouter path.
+Provider errors never silently switch accounts or spend credits elsewhere.
+
+Open [SportsBuilder locally](http://127.0.0.1:5173/). Stop it with Ctrl+C. Run
+the same installer command again next time; installed tools and configured secrets are reused.
+The first video analysis downloads its tracking models, so it can take longer.
+
+For install-only or automated setup, add `-NoStart` / `-NonInteractive` on Windows,
+or use these flags on macOS/Ubuntu:
+
+```sh
+bash install.sh --no-start
+bash install.sh --no-start --non-interactive
+```
+
+Automated setup requires credentials already present. Errors explain what is
+missing; detailed installation output stays in private `.sportsbuilder/setup.log`.
+The installer never overwrites your configured environment file.
 
 ## Organization
 
@@ -31,7 +71,7 @@ Open [SportsBuilder locally](http://127.0.0.1:5173/). The local runner starts Vi
 
 ## Configuration and storage
 
-Nonsecret defaults live in the frontend/backend/shared `config.ts` files and Python `server/config.py`. Model and reasoning policy are fixed to GPT-6.1 Sol / medium. Development uses local ChatGPT OAuth; production mode selects OpenRouter. Both providers share prompts, tools, calculation validation, and browser-review behavior. No provider failure silently spends credits elsewhere.
+Nonsecret defaults live in the frontend/backend/shared `config.ts` files and Python `server/config.py`. Model and reasoning policy are fixed to GPT-6.1 Sol / medium. Development automatically uses local ChatGPT OAuth when Codex is installed and OpenRouter otherwise; production mode selects OpenRouter. Both providers share prompts, tools, calculation validation, and browser-review behavior. No provider failure silently spends credits elsewhere.
 
 Environment files hold keys and connection details only: Daytona, OpenRouter, Neon Postgres, and `NEON_STORAGE_*`. **There is no separate AWS service or account.** Neon Object Storage speaks the S3 protocol; its client is pointed explicitly at the Neon branch endpoint. Videos, sampled image evidence, and analysis objects are private; Postgres stores profiles, tools, sessions, object keys, and drill completion. Playback uses temporary signed URLs.
 

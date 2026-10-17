@@ -7,7 +7,7 @@
 - Treat feedback as amendments to the active task. Carry every unfinished earlier request forward, reconcile conflicting requirements using the user's latest direction, and continue implementing and verifying the full remaining scope. Cancel or defer work only when the user explicitly requests it; report concrete blockers instead of silently dropping tasks.
 - Use Bun for package management and TypeScript commands. The user explicitly requested `npx openai-oauth` for the local model proxy.
 - Commit reviewable checkpoints and push to the `codex/` feature branch. Keep the app local; deployment and pushes to `main` are outside this task.
-- Store credentials in ignored `.env`/`.env.local`; commit only placeholder examples.
+- Store credentials in ignored `.env`/`.env.local` or installer-managed `.sportsbuilder/credentials.json`; commit only placeholder examples.
 - Distinguish sample data from measured video evidence. AI configures and coaches; trusted code computes measurements.
 
 - Use uv for Python dependencies and execution; verify Python with pytest, ty, and Ruff. Use Vitest for TypeScript and meaningful behavior checks. Keep nonsecret defaults in typed config files.
