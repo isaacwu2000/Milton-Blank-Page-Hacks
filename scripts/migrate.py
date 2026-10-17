@@ -17,7 +17,5 @@ with psycopg.connect(
 ) as con:
     con.execute("SET statement_timeout = '20s'")
     con.execute("SET lock_timeout = '10s'")
-    con.execute(
-        (config.BACKEND_ROOT / "server/migrations/001_initial.sql").read_bytes()
-    )
+    con.execute((config.BACKEND_ROOT / "server/migrations/001_initial.sql").read_bytes())
 print("Initial database schema ready.")

@@ -5,7 +5,7 @@ SportsBuilder uses JSON to configure trusted calculations. The model chooses ope
 ## Coordinates and units
 
 - `x=0` is the left image edge. Positive x points right.
-- `y=0` starts at the initially detected feet. Positive y points up. Users can correct the ground line.
+- `y=0` starts at the estimated initial shoe contact, using the person detector’s lower boundary only when a confident ankle is present and the feet are not clipped. Positive y points up. Users can correct the ground line.
 - Lengths use pixels until calibrated, then meters. Velocity uses px/s or m/s; acceleration uses px/s² or m/s². Angles use degrees and time uses seconds.
 - Length, speed, and acceleration target thresholds use physical units and require calibration. Angle targets do not.
 

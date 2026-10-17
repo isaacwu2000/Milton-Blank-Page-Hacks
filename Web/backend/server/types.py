@@ -57,6 +57,8 @@ class Analysis(TypedDict):
     duration: float
     interval: float
     ground: float
+    groundTime: NotRequired[float | None]
+    groundSource: NotRequired[Literal["person_boundary"]]
     frames: list[Frame]
     source: Literal["video"]
     model: str

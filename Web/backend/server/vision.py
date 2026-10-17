@@ -165,6 +165,40 @@ def is_edge_fragment(
     )
 
 
+def shoe_contact_ground(
+    box: Box, joints: dict[str, JointPoint], width: int, height: int
+) -> float | None:
+    """Estimate the shoe-bottom line from the detected person's lower boundary.
+
+    This is a body-box estimate, not exact shoe segmentation. Require a visible,
+    confident lower-body ankle and an unclipped lower boundary; otherwise wait
+    for a clearer sample. Never add an invented offset to an ankle landmark.
+    """
+    if (
+        not all(math.isfinite(value) for value in box)
+        or box.right <= box.left
+        or box.bottom <= box.top
+    ):
+        return None
+    scale = min(1, config.TRACKING_MAX_SIDE / max(width, height))
+    margin = config.GROUND_CLIP_MARGIN / scale
+    if not 0 < box.bottom <= height - margin:
+        return None
+    for name in ("left_ankle", "right_ankle"):
+        ankle = joints.get(name)
+        if (
+            ankle is not None
+            and ankle["confidence"] >= THRESHOLD
+            and all(math.isfinite(ankle[key]) for key in ("x", "y", "confidence"))
+            and 0 <= ankle["x"] < width
+            and 0 <= ankle["y"] < height
+            and box.left <= ankle["x"] <= box.right
+            and (box.top + box.bottom) / 2 <= ankle["y"] < box.bottom
+        ):
+            return box.bottom
+    return None
+
+
 def analyze(path: str | Path, record_id: str, interval: float, progress: Progress) -> Analysis:
     import torch
 
@@ -175,6 +209,8 @@ def analyze(path: str | Path, record_id: str, interval: float, progress: Progres
     frames: list[Frame] = []
     requested = np.arange(0, duration, interval)
     previous_center = None
+    ground: float | None = None
+    ground_time: float | None = None
     try:
         for index, t in enumerate(requested):
             if progress(0.05 + 0.90 * index / len(requested), "Tracking body joints") is False:
@@ -194,7 +230,7 @@ def analyze(path: str | Path, record_id: str, interval: float, progress: Progres
                 raise ValueError(
                     "This video has unsupported frame timing. Try exporting it as an MP4."
                 )
-            ratio = min(1, 1280 / max(width, height))
+            ratio = min(1, config.TRACKING_MAX_SIDE / max(width, height))
             rgb = cv2.cvtColor(
                 cv2.resize(bgr, (round(width * ratio), round(height * ratio))), cv2.COLOR_BGR2RGB
             )
@@ -275,6 +311,12 @@ def analyze(path: str | Path, record_id: str, interval: float, progress: Progres
                                         "ax": None,
                                         "ay": None,
                                     }
+            if ground is None and len(boxes):
+                ground = shoe_contact_ground(
+                    Box(*(float(value) / ratio for value in boxes[0])), joints, width, height
+                )
+                if ground is not None:
+                    ground_time = round(timestamp, 6)
             small = cv2.resize(
                 bgr,
                 (
@@ -296,24 +338,9 @@ def analyze(path: str | Path, record_id: str, interval: float, progress: Progres
         raise ValueError(
             "Not enough clear body points were detected. Use a stationary camera with one fully visible athlete."
         )
-    feet = next(
-        (
-            [
-                f["joints"][j]["y"]
-                for j in ["left_ankle", "right_ankle"]
-                if j in f["joints"] and f["joints"][j]["confidence"] >= THRESHOLD
-            ]
-            for f in frames
-            if any(
-                j in f["joints"] and f["joints"][j]["confidence"] >= THRESHOLD
-                for j in ["left_ankle", "right_ankle"]
-            )
-        ),
-        [],
-    )
-    if not feet:
+    if ground is None:
         raise ValueError(
-            "The feet are not visible. Include both feet to establish the initial ground line."
+            "The shoe bottoms are not clear. Include the full shoes without cropping the bottom of the video."
         )
     return {
         "id": record_id,
@@ -321,7 +348,9 @@ def analyze(path: str | Path, record_id: str, interval: float, progress: Progres
         "height": height,
         "duration": duration,
         "interval": interval,
-        "ground": max(feet),
+        "ground": ground,
+        "groundTime": ground_time,
+        "groundSource": "person_boundary",
         "frames": motion_derivatives(frames),
         "source": "video",
         "model": config.POSE_MODEL,
