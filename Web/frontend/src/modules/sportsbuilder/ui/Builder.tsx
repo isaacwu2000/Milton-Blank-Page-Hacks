@@ -18,6 +18,7 @@ import {
 } from "../../../components";
 import { api, post } from "../services/api";
 import { type Brief, type AgentJob } from "../types";
+import { BuilderColumns } from "./BuilderColumns";
 import { useAgentJob } from "../hooks/useAgentJob";
 import { useConversationScroll } from "../hooks/useConversationScroll";
 import { ErrorNote } from "./common";
@@ -156,7 +157,7 @@ export function Builder({
           <X size={17} />
         </IconButton>
       </div>
-      <div className="builder-columns">
+      <BuilderColumns>
         <div className="interview">
           <div ref={conversationRef} className="conversation" aria-live="polite">
             {messages.map((m, i) => (
@@ -291,7 +292,7 @@ export function Builder({
             </p>
           )}
         </aside>
-      </div>
+      </BuilderColumns>
       {confirmEarlyBuild && !busy && (
         <ConfirmDialog
           title="Build before finishing the interview?"
