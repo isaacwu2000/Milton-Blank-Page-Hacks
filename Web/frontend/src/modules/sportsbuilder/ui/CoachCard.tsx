@@ -39,6 +39,7 @@ export function CoachCard({
   const trigger = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
+  const renameForm = useRef<HTMLFormElement>(null);
   const openingIndex = useRef(0);
   const restoreFocus = useRef(false);
   const menuId = useId(),
@@ -93,6 +94,7 @@ export function CoachCard({
     if (renaming) {
       input.current?.focus();
       input.current?.select();
+      if (!busy) renameForm.current?.scrollIntoView?.({ block: "nearest" });
     } else if (!busy && restoreFocus.current) {
       trigger.current?.focus();
       restoreFocus.current = false;
@@ -153,6 +155,7 @@ export function CoachCard({
         </p>
         {renaming && (
           <form
+            ref={renameForm}
             className="coach-card-rename"
             aria-label={`Rename ${tool.name}`}
             onSubmit={submit}
