@@ -59,7 +59,11 @@ def record(kind: RecordKind, key: str) -> Record:
 
 def load_analysis(session: Record) -> Analysis:
     if session["id"] not in cache:
-        cache[session["id"]] = cast(Analysis, json.loads(store.read(session["analysisKey"])))
+        data = cast(Analysis, json.loads(store.read(session["analysisKey"])))
+        # Apply the current trusted numerical policy to saved tracks without
+        # re-running inference or rewriting the athlete's stored analysis.
+        vision.motion_derivatives(data["frames"])
+        cache[session["id"]] = data
         if len(cache) > 8:
             cache.pop(next(iter(cache)))
     return cache[session["id"]]
