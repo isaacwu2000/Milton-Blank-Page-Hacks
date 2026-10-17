@@ -16,7 +16,6 @@ import {
   Target,
 } from "lucide-react";
 import {
-  pretty,
   sampleTool,
   type Profile,
   type Session,
@@ -31,14 +30,14 @@ import {
   EMPTY_HOME_DATA,
   DEFAULT_SAMPLING_INTERVAL,
 } from "../config";
-import { formatDate } from "../runtime/format";
 import { Builder } from "./Builder";
-import { SessionPreview } from "./SessionPreview";
+import { RecentVideo } from "./RecentVideo";
 import { CoachCard } from "./CoachCard";
 import { SamplingControl } from "./SamplingControl";
 import { SessionWorkspace, Workspace } from "./Analysis";
 
 export function Product() {
+  const recentHeading = useRef<HTMLHeadingElement>(null);
   const [data, setData] = useState<HomeData>(EMPTY_HOME_DATA),
     [loaded, setLoaded] = useState(false),
     [workspaceAvailable, setWorkspaceAvailable] = useState(false),
@@ -358,7 +357,7 @@ export function Product() {
             <div className="recent-videos">
               <section>
                 <div className="section-heading">
-                  <h2>Recent videos</h2>
+                  <h2 ref={recentHeading} tabIndex={-1}>Recent videos</h2>
                 </div>
                 {!loaded ? (
                   <div className="skeleton" />
@@ -372,32 +371,15 @@ export function Product() {
                           !(s as Session & { reference?: boolean }).reference,
                       )
                       .map((s) => (
-                        <button
-                          type="button"
-                          className="session-row"
+                        <RecentVideo
                           key={s.id}
-                          aria-label={`Open ${s.name}`}
-                          onClick={() => setOpened(s.id)}
-                        >
-                          <SessionPreview sessionId={s.id} />
-                          <span className="session-copy">
-                            <strong>{s.name}</strong>
-                            <small>
-                              {s.duration.toFixed(1)}s ·{" "}
-                              {formatDate(s.createdAt)}
-                            </small>
-                          </span>
-                          {s.status !== "complete" && (
-                            <span
-                              className={`small ${s.status === "failed" ? "error-text" : "muted"}`}
-                            >
-                              {["queued", "processing"].includes(s.status) && <LoaderCircle className="spin inline" size={12} aria-hidden="true" />} {pretty(s.status)}
-                            </span>
-                          )}
-                          <span className="session-arrow" aria-hidden="true">
-                            <ArrowRight size={17} />
-                          </span>
-                        </button>
+                          session={s}
+                          onOpen={() => setOpened(s.id)}
+                          onDeleted={(id) => {
+                            setData((previous) => ({ ...previous, sessions: previous.sessions.filter((session) => session.id !== id) }));
+                            recentHeading.current?.focus();
+                          }}
+                        />
                       ))}
                   </div>
                 ) : (
