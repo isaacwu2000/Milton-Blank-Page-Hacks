@@ -1,13 +1,13 @@
 - Treat repository paths in `AGENTS.md` and `.agents/` as relative to the
   repository root unless explicitly stated otherwise.
 - Route software-development work through the
-  [development skill](./.agents/skills/development/SKILL.md).
+  [development skill](../../skills/development/SKILL.md).
 - Route LearnUnlock design and UI work through the
-  [Impeccable skill](./.agents/skills/impeccable/SKILL.md).
+  [Impeccable skill](../../skills/impeccable/SKILL.md).
 - Follow the repository's
-  [coding standards](./.agents/context/CODING_STANDARDS.md) for implementation.
+  [coding standards](../../context/CODING_STANDARDS.md) for implementation.
 - Before pushing any commit to `origin/main`, read and follow the complete
-  [production deployment workflow](./.agents/context/DEPLOY.md). `origin/main`
+  [production deployment workflow](../../context/DEPLOY.md). `origin/main`
   continuously deploys to production.
 - Finish implementation tasks through verification and production deployment using
   that workflow before ending the turn or delivering the final acceptance PDF,
@@ -28,7 +28,7 @@
 - For browser testing, use local **Dev auth** or production `/auth` with
   `agent-test@learnunlock.invalid` / `LearnUnlock-Shared-Test-9s4L!q7p2`.
   Shared synthetic data only; normal usage limits apply. See
-  [Testing](./.agents/context/TESTING.md#agent-sign-in) for setup and email testing.
+  [Testing](../../context/TESTING.md#agent-sign-in) for setup and email testing.
 
 - Before implementation or capability diagnosis, inspect the checkout revision,
   local changes, and relevant newer repository work. Preserve concurrent work.
@@ -36,5 +36,5 @@
   changes using the actual app journey, distinguishing prototype, deterministic,
   local live, and production evidence.
 - For visual acceptance, follow the evidence procedure in the
-  [implementation skill](./.agents/skills/development/implement/SKILL.md), including
+  [implementation skill](../../skills/development/implement/SKILL.md), including
   representative desktop/mobile screenshots in a short PDF unless the task narrows scope.

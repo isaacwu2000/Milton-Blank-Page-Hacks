@@ -6,17 +6,26 @@
       "name": "sportsbuilder",
       "dependencies": {
         "@daytonaio/sdk": "^0.224.0",
-        "@tailwindcss/vite": "^4.1.0",
         "express": "^5.1.0",
-        "lucide-react": "^0.468.0",
-        "react": "^19.1.0",
-        "react-dom": "^19.1.0",
-        "tailwindcss": "^4.1.0",
         "zod": "^3.25.0",
       },
       "devDependencies": {
         "@types/express": "^5.0.0",
         "@types/node": "^22.0.0",
+        "typescript": "^5.8.0",
+      },
+    },
+    "Web": {
+      "name": "@sportsbuilder/web",
+      "version": "0.1.0",
+      "dependencies": {
+        "@tailwindcss/vite": "^4.1.0",
+        "lucide-react": "^0.468.0",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
+        "tailwindcss": "^4.1.0",
+      },
+      "devDependencies": {
         "@types/react": "^19.1.0",
         "@types/react-dom": "^19.1.0",
         "@vitejs/plugin-react": "^4.4.0",
@@ -335,6 +344,8 @@
     "@smithy/types": ["@smithy/types@4.19.0", "", { "dependencies": { "tslib": "^2.6.2" } }, "sha512-r7jh49VJxGerfAcTQA6gXcKc+98zOp/tqRwzYjgOE+iSQsP6cEU1hq2QzbuipmP68QtYdY9wKEhiCQZIzHgZ4Q=="],
 
     "@socket.io/component-emitter": ["@socket.io/component-emitter@3.1.2", "", {}, "sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA=="],
+
+    "@sportsbuilder/web": ["@sportsbuilder/web@workspace:Web"],
 
     "@tailwindcss/node": ["@tailwindcss/node@4.3.3", "", { "dependencies": { "@jridgewell/remapping": "^2.3.5", "enhanced-resolve": "^5.24.1", "jiti": "^2.7.0", "lightningcss": "1.32.0", "magic-string": "^0.30.21", "source-map-js": "^1.2.1", "tailwindcss": "4.3.3" } }, "sha512-/T8IKEsf9VTU6tLjgC7+sv2mOPtQxzE2jMw7u4Tt40Tx+QSZxpzh95/H6cMKoja9XuW7iMdLJYBB0o9G1CaAgg=="],
 

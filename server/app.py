@@ -14,6 +14,7 @@ from server import store,vision
 
 log=logging.getLogger('sportsbuilder')
 tracking_lock=asyncio.Lock()
+session_lock=asyncio.Lock()
 active=set()
 cache={}
 
@@ -103,7 +104,7 @@ async def upload(file:UploadFile=File(...),profileId:str=Form(''),toolId:str=For
         try: info=await asyncio.to_thread(vision.inspect_video,path)
         except ValueError as e: raise HTTPException(422,str(e))
         session_id=str(uuid4()); key=f'videos/{session_id}{suffix}'
-        await asyncio.to_thread(store.put,key,path.read_bytes(),file.content_type)
+        await asyncio.to_thread(lambda:store.put(key,path.read_bytes(),file.content_type))
         value={'id':session_id,'name':(file.filename or 'Video')[:160],'profileId':profileId,'toolId':toolId,'createdAt':now(),'status':'uploaded','progress':0,'duration':info[4],'interval':interval,'sourceKey':key,'reference':reference,'completedDrills':[]}
         try: await asyncio.to_thread(store.save,'sessions',value)
         except Exception:
@@ -150,14 +151,19 @@ async def work(session_id):
 
 @app.post('/api/sessions/{session_id}/analyze')
 async def start(session_id:str):
-    session=await asyncio.to_thread(record,'sessions',session_id)
-    if session_id in active:return session
-    if len(active)>=3:raise HTTPException(429,'Three clips are already queued. Wait for one to finish.')
-    session.update(status='queued',progress=0,error=None)
-    active.add(session_id)
-    await asyncio.to_thread(store.save,'sessions',session)
-    task=asyncio.create_task(work(session_id));task.add_done_callback(lambda t:t.exception() if not t.cancelled() else None)
-    return session
+    async with session_lock:
+        session=await asyncio.to_thread(record,'sessions',session_id)
+        if session_id in active:return session
+        if len(active)>=3:raise HTTPException(429,'Three clips are already queued. Wait for one to finish.')
+        session.update(status='queued',progress=0,error=None)
+        active.add(session_id)
+        try:
+            await asyncio.to_thread(store.save,'sessions',session)
+        except Exception:
+            active.discard(session_id)
+            raise
+        task=asyncio.create_task(work(session_id));task.add_done_callback(lambda t:t.exception() if not t.cancelled() else None)
+        return session
 
 @app.get('/api/sessions/{session_id}')
 async def session_get(session_id:str):return await asyncio.to_thread(record,'sessions',session_id)
@@ -176,6 +182,7 @@ async def analysis_get(session_id:str,images:bool=False):
     return {**data,'frames':[{k:v for k,v in f.items() if k!='image'} for f in data['frames']]}
 
 class SessionUpdate(BaseModel):
+    ground:float|None=Field(default=None,ge=0,le=4096,allow_inf_nan=False)
     calibration:dict|None=None
     alignment:dict|None=None
     completedDrills:list[str]|None=Field(default=None,max_length=100)
@@ -184,22 +191,35 @@ class SessionUpdate(BaseModel):
 async def update_session(session_id:str,update:SessionUpdate):
     value=await asyncio.to_thread(record,'sessions',session_id)
     changes=update.model_dump(exclude_unset=True)
+    if changes.get('ground') is not None and value.get('analysisKey'):
+        data=await asyncio.to_thread(load_analysis,value)
+        if changes['ground']>data['height']:raise HTTPException(422,'Ground must be inside the video frame.')
     for key in ('calibration','alignment'):
         if changes.get(key) is not None:
             allowed={'metersPerPixel','ground'} if key=='calibration' else {'current','reference'}
-            if set(changes[key])!=allowed or any(not isinstance(v,(float,int)) or not math.isfinite(v) for v in changes[key].values()):raise HTTPException(422,'Invalid calibration or alignment.')
+            if set(changes[key])!=allowed or any(isinstance(v,bool) or not isinstance(v,(float,int)) or not math.isfinite(v) for v in changes[key].values()):raise HTTPException(422,'Invalid calibration or alignment.')
             if key=='calibration' and changes[key]['metersPerPixel']<=0:raise HTTPException(422,'Calibration must have a positive scale.')
+            if key=='calibration':
+                height=(await asyncio.to_thread(load_analysis,value))['height'] if value.get('analysisKey') else 4096
+                if not 0<=changes[key]['ground']<=height:raise HTTPException(422,'Ground must be inside the video frame.')
+            if key=='alignment':
+                if not 0<=changes[key]['current']<=value['duration'] or changes[key]['reference']<0:raise HTTPException(422,'Choose alignment times inside the clips.')
+                tool=await asyncio.to_thread(record,'tools',value['toolId'])
+                if tool.get('referenceId'):
+                    reference=await asyncio.to_thread(record,'sessions',tool['referenceId'])
+                    if changes[key]['reference']>reference['duration']:raise HTTPException(422,'Choose alignment times inside the clips.')
     value.update(changes)
     return await asyncio.to_thread(store.save,'sessions',value)
 
 @app.delete('/api/sessions/{session_id}')
 async def delete_session(session_id:str):
-    if session_id in active:raise HTTPException(409,'Wait for analysis to finish before deleting this video.')
-    value=await asyncio.to_thread(record,'sessions',session_id)
-    for tool in await asyncio.to_thread(store.records,'tools'):
-        if tool.get('referenceId')==session_id:raise HTTPException(409,'This video is a saved tool’s reference and cannot be deleted.')
-    for key in [value.get('analysisKey'),value.get('sourceKey')]:
-        if key:await asyncio.to_thread(store.remove,key)
-    await asyncio.to_thread(store.delete,'sessions',session_id)
-    cache.pop(session_id,None)
-    return {'deleted':True}
+    async with session_lock:
+        if session_id in active:raise HTTPException(409,'Wait for analysis to finish before deleting this video.')
+        value=await asyncio.to_thread(record,'sessions',session_id)
+        for tool in await asyncio.to_thread(store.records,'tools'):
+            if tool.get('referenceId')==session_id:raise HTTPException(409,'This video is a saved tool’s reference and cannot be deleted.')
+        for key in [value.get('analysisKey'),value.get('sourceKey')]:
+            if key:await asyncio.to_thread(store.remove,key)
+        await asyncio.to_thread(store.delete,'sessions',session_id)
+        cache.pop(session_id,None)
+        return {'deleted':True}

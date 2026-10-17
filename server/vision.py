@@ -26,8 +26,12 @@ def inspect_video(path):
     try:
         fps = cap.get(cv2.CAP_PROP_FPS)
         count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-        width,height = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        if not math.isfinite(fps) or fps <= 0 or count < 3 or not (1 <= width <= 4096 and 1 <= height <= 4096):
+        # MOV rotation is applied by the decoder. Trust actual displayed pixels,
+        # not encoded width/height, so browser video and tracking share a plane.
+        ok,first=cap.read()
+        if not ok or first is None:raise ValueError('This video cannot be decoded. Try exporting it as an MP4.')
+        height,width = first.shape[:2]
+        if not math.isfinite(fps) or fps <= 0 or not math.isfinite(count) or count < 3 or not (1 <= width <= 4096 and 1 <= height <= 4096):
             raise ValueError('This video cannot be decoded. Use an MP4 or MOV, at most 4096 pixels on each side.')
         duration = count/fps
         if duration > 30.05:
@@ -84,6 +88,11 @@ def analyze(path, record_id, interval, progress):
             ok,bgr=cap.read()
             if not ok:
                 raise ValueError('The video stopped decoding. Try exporting it as an MP4.')
+            timestamp=cap.get(cv2.CAP_PROP_POS_MSEC)/1000
+            if not math.isfinite(timestamp) or timestamp<0:
+                raise ValueError('This video has invalid frame timing. Try exporting it as an MP4.')
+            if frames and timestamp<=frames[-1]['time']:
+                raise ValueError('This video has unsupported frame timing. Try exporting it as an MP4.')
             ratio=min(1,1280/max(width,height))
             rgb=cv2.cvtColor(cv2.resize(bgr,(round(width*ratio),round(height*ratio))),cv2.COLOR_BGR2RGB)
             image=Image.fromarray(rgb)
@@ -104,7 +113,8 @@ def analyze(path, record_id, interval, progress):
                     previous_center=center
                     box[2:]-=box[:2]
                     pose_inputs=processor(image,boxes=[[box.tolist()]],return_tensors='pt')
-                    output=pose(**pose_inputs)
+                    # ViTPose++ requires an expert selection: expert zero is COCO's 17 joints.
+                    output=pose(**pose_inputs,dataset_index=torch.zeros(len(pose_inputs['pixel_values']),dtype=torch.long))
                     people=processor.post_process_pose_estimation(output,boxes=[[box.tolist()]],threshold=0)[0]
                     if people:
                         person=people[0]
@@ -113,10 +123,13 @@ def analyze(path, record_id, interval, progress):
                             if j<len(JOINTS):
                                 x,y=map(float,xy);score=float(confidence)
                                 if math.isfinite(x+y+score):
+                                    # An inferred offscreen joint is unavailable, even if the
+                                    # model's heatmap confidence happens to be high.
+                                    if not (0<=x<image.width and 0<=y<image.height):score=0.0
                                     joints[JOINTS[j]]={'x':x/ratio,'y':y/ratio,'confidence':score,'vx':None,'vy':None,'ax':None,'ay':None}
             small=cv2.resize(bgr,(round(width*min(1,512/max(width,height))),round(height*min(1,512/max(width,height)))))
             _,encoded=cv2.imencode('.jpg',small,[cv2.IMWRITE_JPEG_QUALITY,65])
-            frames.append({'time':round(frame_index/fps,6),'joints':joints,'image':base64.b64encode(encoded).decode()})
+            frames.append({'time':round(timestamp,6),'joints':joints,'image':base64.b64encode(encoded).decode()})
     finally:
         cap.release()
     if sum(any(p['confidence']>=THRESHOLD for p in f['joints'].values()) for f in frames)<3:
