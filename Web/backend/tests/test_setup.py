@@ -20,6 +20,7 @@ def checkout(tmp_path: Path) -> Path:
     (folder / "scripts").mkdir(parents=True)
     (folder / "Web/backend/agent").mkdir(parents=True)
     shutil.copy(ROOT / "scripts/setup.ts", folder / "scripts/setup.ts")
+    shutil.copy(ROOT / "scripts/platform.ts", folder / "scripts/platform.ts")
     shutil.copy(ROOT / "Web/backend/agent/config.ts", folder / "Web/backend/agent/config.ts")
     (folder / "package.json").write_text(
         json.dumps({"name": "setup-fixture", "scripts": {"build": "echo built"}})

@@ -1,31 +1,28 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { delimiter, resolve } from "node:path";
+import { resolve } from "node:path";
 import { homedir } from "node:os";
 import { config, provider } from "../Web/backend/agent";
+import {
+  installCommand,
+  managedNodeDirectory,
+  npxCommand,
+  prependPath,
+  signalChild,
+} from "./platform";
 
 // Bun loads the ignored root .env.local; every child inherits the same private agent token.
 const env: NodeJS.ProcessEnv = {
   ...process.env,
-  PATH: [
-    resolve(".sportsbuilder/node/bin"),
-    resolve(homedir(), ".local/bin"),
-    process.env.PATH ?? "",
-  ].join(delimiter),
+  PATH: prependPath(
+    managedNodeDirectory(resolve(".sportsbuilder")),
+    prependPath(resolve(homedir(), ".local/bin"), process.env.PATH ?? ""),
+  ),
   AGENT_INTERNAL_SECRET:
     process.env.AGENT_INTERNAL_SECRET ?? randomBytes(32).toString("hex"),
 };
 const children: ChildProcess[] = [];
 let stopping = false;
-function signalChild(child: ChildProcess, signal: NodeJS.Signals) {
-  try {
-    if (process.platform !== "win32" && child.pid)
-      process.kill(-child.pid, signal);
-    else child.kill(signal);
-  } catch {
-    /* The child may already have exited. */
-  }
-}
 function stop(code = 0) {
   if (stopping) return;
   stopping = true;
@@ -65,7 +62,7 @@ if (
   !process.env.OPENROUTER_API_KEY?.trim()
 ) {
   console.error(
-    "OpenRouter needs an API key. Run bash install.sh to finish setup, or add OPENROUTER_API_KEY to .env.local.",
+    `OpenRouter needs an API key. Run ${installCommand()} to finish setup, or add OPENROUTER_API_KEY to .env.local.`,
   );
   process.exit(1);
 }
@@ -75,8 +72,20 @@ if (selectedProvider === "chatgpt") {
   })
     .then((r) => r.ok)
     .catch(() => false);
-  if (!ready)
-    start("ChatGPT sign-in proxy", "npx", ["openai-oauth@2.0.0", "--no-open"]);
+  if (!ready) {
+    const npx = npxCommand(env.PATH ?? "");
+    if (!npx) {
+      console.error(
+        `Codex sign-in needs Node. Run ${installCommand()} to finish setup.`,
+      );
+      process.exit(1);
+    }
+    start("ChatGPT sign-in proxy", npx.command, [
+      ...npx.args,
+      "openai-oauth@2.0.0",
+      "--no-open",
+    ]);
+  }
 }
 const backendDirectory = resolve("Web/backend");
 start("Video service", "uv", [

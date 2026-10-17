@@ -4,7 +4,19 @@ A local prototype with Build your coach, Get coached, and Your profile navigatio
 
 ## Run locally
 
-From the downloaded/cloned project folder, run:
+From the downloaded/cloned project folder:
+
+**Windows (64-bit Intel/AMD):** open PowerShell and run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+This uses the execution policy only for that installer process; it does not change
+your saved PowerShell policy. No WSL, administrator account, or preinstalled
+language tools are required.
+
+**macOS / Ubuntu:**
 
 ```sh
 bash install.sh
@@ -12,8 +24,7 @@ bash install.sh
 
 That’s it. The installer adds missing Bun, uv, and Python 3.12, installs the app,
 prepares the database, checks video storage, builds it, and starts all services.
-You do not need pip, npm, or Python installed beforehand. It supports macOS and
-Ubuntu; on Windows, run it inside Ubuntu/WSL.
+You do not need pip, npm, or Python installed beforehand. It supports macOS, Ubuntu, and native Windows 10/11 on Intel/AMD 64-bit computers. Windows ARM and 32-bit Windows are not supported by the current video dependencies.
 
 It automatically reuses `.env.local`, `.env`, or exported credentials. Otherwise,
 it asks for your Neon database/storage details and Daytona key once, with hidden
@@ -26,10 +37,11 @@ API key. No Codex or ChatGPT subscription is required for the OpenRouter path.
 Provider errors never silently switch accounts or spend credits elsewhere.
 
 Open [SportsBuilder locally](http://127.0.0.1:5173/). Stop it with Ctrl+C. Run
-`bash install.sh` again next time; installed tools and configured secrets are reused.
+the same installer command again next time; installed tools and configured secrets are reused.
 The first video analysis downloads its tracking models, so it can take longer.
 
-For install-only or automated setup:
+For install-only or automated setup, add `-NoStart` / `-NonInteractive` on Windows,
+or use these flags on macOS/Ubuntu:
 
 ```sh
 bash install.sh --no-start

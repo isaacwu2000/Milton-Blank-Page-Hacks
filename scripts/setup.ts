@@ -16,20 +16,29 @@ import { createInterface } from "node:readline/promises";
 import { Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { provider, readLocalCredentials } from "../Web/backend/agent/config";
+import {
+  installCommand,
+  managedNodeDirectory,
+  nodeArchive,
+  npxCommand,
+  prependPath,
+  signalChild,
+} from "./platform";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
 const flags = new Set(process.argv.slice(2));
+const installer = installCommand();
 if (flags.has("--help")) {
   console.log(
-    "Usage: bash install.sh [--no-start] [--non-interactive]\nInstalls SportsBuilder and starts it. --no-start installs only.\n--non-interactive requires credentials already in .env.local, .env or your environment.",
+    `Usage: ${installer} [--no-start] [--non-interactive]\nInstalls SportsBuilder and starts it. --no-start installs only.\n--non-interactive requires credentials already in .env.local, .env or your environment.`,
   );
   process.exit(0);
 }
 if (
   [...flags].some((flag) => !["--no-start", "--non-interactive"].includes(flag))
 ) {
-  console.error("Unknown option. Run bash install.sh --help.");
+  console.error(`Unknown option. Run ${installer} --help.`);
   process.exit(1);
 }
 const state = join(root, ".sportsbuilder");
@@ -57,7 +66,7 @@ async function run(label: string, command: string, args: string[]) {
         ? resolve()
         : reject(
             Error(
-              `${label} failed. Fix the problem shown in ${log}, then run bash install.sh again.`,
+              `${label} failed. Fix the problem shown in ${log}, then run ${installer} again.`,
             ),
           ),
     );
@@ -68,7 +77,7 @@ async function run(label: string, command: string, args: string[]) {
 async function askCredential(label: string): Promise<string> {
   if (flags.has("--non-interactive") || !process.stdin.isTTY) {
     throw Error(
-      `${label} is missing. Add it to .env.local, then rerun bash install.sh.`,
+      `${label} is missing. Add it to .env.local, then rerun ${installer}.`,
     );
   }
   process.stdout.write(`${label}: `);
@@ -95,9 +104,16 @@ async function askCredential(label: string): Promise<string> {
 
 /** Install Node only for the optional Codex sign-in path; OpenRouter does not need it. */
 async function ensureNpx() {
-  const managed = join(state, "node", "bin");
-  process.env.PATH = `${managed}:${process.env.PATH ?? ""}`;
-  if (spawnSync("npx", ["--version"], { stdio: "ignore" }).status === 0) return;
+  const managed = managedNodeDirectory(state);
+  process.env.PATH = prependPath(managed, process.env.PATH ?? "");
+  const available = npxCommand(process.env.PATH);
+  if (
+    available &&
+    spawnSync(available.command, [...available.args, "--version"], {
+      stdio: "ignore",
+    }).status === 0
+  )
+    return;
   console.log("• Installing the Node runtime for Codex sign-in…");
   const releases = await fetch("https://nodejs.org/dist/index.json", {
     signal: AbortSignal.timeout(30000),
@@ -117,10 +133,7 @@ async function ensureNpx() {
     throw Error(
       "An official Node 24 LTS download is unavailable. Please retry setup.",
     );
-  const system = process.platform === "darwin" ? "darwin" : "linux";
-  if (!["x64", "arm64"].includes(process.arch))
-    throw Error("This CPU is not supported by the automatic Node installer.");
-  const file = `node-${version}-${system}-${process.arch}.tar.gz`;
+  const file = nodeArchive(version);
   const base = `https://nodejs.org/dist/${version}`;
   const download = async (name: string) => {
     const response = await fetch(`${base}/${name}`, {
@@ -149,17 +162,36 @@ async function ensureNpx() {
     const path = join(temporary, file);
     writeFileSync(path, archive);
     mkdirSync(join(state, "node"), { recursive: true });
-    await run("Unpacking Node", "tar", [
-      "-xzf",
-      path,
-      "--strip-components=1",
-      "-C",
-      join(state, "node"),
-    ]);
+    if (process.platform === "win32") {
+      await run("Unpacking Node", "uv", [
+        "run",
+        "--no-project",
+        "--python",
+        "3.12",
+        "python",
+        "-c",
+        "import pathlib, shutil, sys, zipfile; archive, target = sys.argv[1:]; parent = pathlib.Path(archive).parent; z = zipfile.ZipFile(archive); z.extractall(parent); shutil.copytree(parent / pathlib.Path(archive).stem, target, dirs_exist_ok=True)",
+        path,
+        join(state, "node"),
+      ]);
+    } else
+      await run("Unpacking Node", "tar", [
+        "-xzf",
+        path,
+        "--strip-components=1",
+        "-C",
+        join(state, "node"),
+      ]);
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }
-  if (spawnSync("npx", ["--version"], { stdio: "ignore" }).status !== 0)
+  const installed = npxCommand(process.env.PATH ?? "");
+  if (
+    !installed ||
+    spawnSync(installed.command, [...installed.args, "--version"], {
+      stdio: "ignore",
+    }).status !== 0
+  )
     throw Error(
       "The Node runtime could not start. See .sportsbuilder/setup.log and rerun setup.",
     );
@@ -237,19 +269,20 @@ try {
   await run("Building the app", process.execPath, ["run", "build"]);
   console.log(
     flags.has("--no-start")
-      ? "\nSetup complete. Start the app with: bash install.sh\n"
-      : "\nSetup complete. Open http://127.0.0.1:5173/ after the services start.\nNext time: bash install.sh (already installed tools are reused).\n",
+      ? `\nSetup complete. Start the app with: ${installer}\n`
+      : `\nSetup complete. Open http://127.0.0.1:5173/ after the services start.\nNext time: ${installer} (already installed tools are reused).\n`,
   );
   if (!flags.has("--no-start")) {
     const child = spawn(process.execPath, ["run", "dev"], {
       cwd: root,
       env: process.env,
       stdio: "inherit",
+      detached: process.platform !== "win32",
     });
     for (const signal of ["SIGINT", "SIGTERM"] as const)
-      process.on(signal, () => child.kill(signal));
+      process.on(signal, () => signalChild(child, signal));
     child.on("error", () => {
-      console.error("Could not start the app. Run bash install.sh again.");
+      console.error(`Could not start the app. Run ${installer} again.`);
       process.exitCode = 1;
     });
     child.on("exit", (code) => {
@@ -258,7 +291,7 @@ try {
   }
 } catch (error) {
   console.error(
-    `\n${error instanceof Error ? error.message : "Setup failed. Please rerun bash install.sh."}`,
+    `\n${error instanceof Error ? error.message : `Setup failed. Please rerun ${installer}.`}`,
   );
   process.exitCode = 1;
 }
