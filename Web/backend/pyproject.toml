@@ -42,6 +42,9 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 # Railway uses CPU inference. macOS keeps its normal PyPI wheels.
+[tool.uv]
+required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
 [[tool.uv.index]]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
