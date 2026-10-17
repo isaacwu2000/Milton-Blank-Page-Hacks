@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 /** Creates one expiring public test host. Credentials travel through the SDK, never source archives. */
 import { Daytona, Image } from "@daytonaio/sdk";
 import { execFileSync } from "node:child_process";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadLocalCredentials } from "../Web/backend/agent/config";
@@ -26,7 +26,7 @@ async function main() {
   // A failed or interrupted invocation must be inspected before creating another billable host.
   try {
     const previous = JSON.parse(readFileSync(stateFile, "utf8"));
-    if (previous.sandboxId) throw Error("A host is already recorded. Inspect or stop it before creating another.");
+    if (previous.sandboxId || previous.attemptId) throw Error("A deployment attempt is already recorded. Inspect or stop it before creating another.");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
@@ -39,7 +39,16 @@ async function main() {
   const digest = createHash("sha256").update(readFileSync(archive)).digest("hex");
   const revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root }).toString().trim();
   const dirty = Boolean(execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], { cwd: root }).toString().trim());
-  const client = new Daytona({ apiKey: credentials.DAYTONA_API_KEY, requestTimeoutMs: 600_000 });
+  const metadata = {
+    attemptId: randomUUID(), sandboxId: "", revision, dirty, sourceSha256: digest,
+    createdAt: new Date().toISOString(), expiresAt: undefined as string | undefined,
+    resources: { cpu: hosting.cpu, memoryGiB: hosting.memory, diskGiB: hosting.disk },
+    status: "creating", url: "",
+  };
+  const save = () => writeFileSync(stateFile, JSON.stringify(metadata, null, 2), { mode: 0o600 });
+  // Persist intent before the billable request: an unknown create outcome cannot be retried blindly.
+  save();
+  await using client = new Daytona({ apiKey: credentials.DAYTONA_API_KEY, requestTimeoutMs: 600_000 });
   console.log("Creating the 48-hour Daytona test host…");
   const sandbox = await client.create({
     image: Image.fromDockerfile(resolve(root, "deploy/Dockerfile")),
@@ -58,15 +67,11 @@ async function main() {
       TOKENIZERS_PARALLELISM: "false",
       SPORTSBUILDER_REVISION: revision,
     },
-    labels: { app: "sportsbuilder", purpose: "public-48-hour-test", revision },
+    labels: { app: "sportsbuilder", purpose: "public-48-hour-test", revision, attempt: metadata.attemptId },
   }, { timeout: 600 });
-  const metadata = {
-    sandboxId: sandbox.id, revision, dirty, sourceSha256: digest,
-    createdAt: new Date().toISOString(), expiresAt: sandbox.autoDestroyAt,
-    resources: { cpu: hosting.cpu, memoryGiB: hosting.memory, diskGiB: hosting.disk },
-    status: "preparing", url: "",
-  };
-  const save = () => writeFileSync(stateFile, JSON.stringify(metadata, null, 2), { mode: 0o600 });
+  metadata.sandboxId = sandbox.id;
+  metadata.expiresAt = sandbox.autoDestroyAt;
+  metadata.status = "preparing";
   save();
   try {
     const result = await sandbox.process.executeCommand(`mkdir -p ${quote(hosting.workspace)}`, undefined, undefined, 30);

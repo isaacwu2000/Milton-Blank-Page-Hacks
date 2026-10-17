@@ -33,3 +33,13 @@ At the published rate of $0.0504/vCPU-hour and $0.0162/GiB-hour, 2 vCPU plus 4 G
 Required local checks: `bun run build`, `bun run test`, and `uv run --directory Web/backend` with `pytest`, `ruff check server tests`, `ruff format --check server tests`, and `ty check`.
 
 Verify the unauthenticated public URL, both health routes, existing Neon records/video playback, upload → queued → real tracking → persisted analysis, responsive browsing while tracking, API process restart, and production OpenRouter coaching/review. Preserve private evidence under ignored `output/daytona-deployment/`, recording the exact revision, source digest, viewport and environment. Record unavailable live checks explicitly rather than substituting synthetic evidence.
+
+## Verified public test - October 17, 2026
+
+The public application is running at https://8000-d4bad68f-e5d4-4b95-8eb2-1236ab0976c5.daytonaproxy01.net. Its provider expiry is October 19, 2026 at 18:08:24 UTC (2:08 p.m. EDT). Deployed application revision: `295ff92827ac54d478f9e1c82145d2432f860902`. Deployment script/documentation checkpoints after that revision do not change the running app.
+
+Normal streaming coach creation, targeted editing, explicit immutable saving, real-image coaching, private media playback, real video tracking and interrupted-job recovery passed live checks against the existing Neon workspace. The optional explicit `/agent/build` diagnostic screenshot-review route cannot reach Daytona's toolbox proxy from this hosted network and is not accepted as working in production. Routine coach creation does not use this diagnostic route. An experimental linked-sandbox transport was rejected by its host-access check and removed; no linked transport is active. Do not reintroduce a bidirectional link to a credential-bearing host without a complete enforced boundary.
+
+The generated URL can show Daytona's first-visit preview notice; visitors can continue without creating an account. The user retains the custom-domain decision.
+
+Read `docs/DEPLOYMENT_ACCEPTANCE.md` for the evidence matrix, measurements and limits. The short rendered report and raw artifacts remain in ignored `output/`, not Git. A deployment intent is now saved before the billable create request, with a unique attempt label, so an interrupted or unknown create outcome cannot be retried blindly. Confirm the old attempt's state before removing its local record.
