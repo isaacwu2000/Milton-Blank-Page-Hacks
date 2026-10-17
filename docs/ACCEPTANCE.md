@@ -258,3 +258,15 @@ Python and TypeScript. A new live OpenRouter request and a cold Node download we
 not performed; their existing transport and installer paths have deterministic
 coverage/inspection only. Final gates: 74 Vitest tests, 85 pytest tests, build,
 TypeScript, ty, Ruff lint/format, and agent-guidance links passed. No deployment.
+
+
+## Mobile navigation refinement
+
+The mobile shell starts hamburger-only at 900px and below. A real browser check
+at 390×780 CSS pixels measured the open drawer at 343.2px wide and full height.
+The brand and all navigation labels remain visible. Selection and Escape close
+the drawer and restore hamburger focus. The backdrop closes it, background content
+is inert while open, and desktop collapse persistence remains separate. Eleven
+focused Home cases cover existing workspace behavior and mobile navigation.
+Captures: `output/screenshots/mobile-sidebar-closed.png` and
+`output/screenshots/mobile-sidebar-open.png`. Local verification only.

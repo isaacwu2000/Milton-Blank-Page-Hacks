@@ -322,3 +322,51 @@ describe("saved workspace loading", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 });
+
+describe("mobile sidebar drawer", () => {
+  afterEach(() => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1024,
+    });
+  });
+  it("starts hamburger-only, opens a modal drawer, and closes after navigation", async () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 390,
+    });
+    vi.mocked(api).mockResolvedValue(saved);
+    render(<Product />);
+    await screen.findByRole("combobox", { name: "Coaching tool for upload" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    const expand = screen.getByRole("button", { name: "Expand sidebar" });
+    fireEvent.click(expand);
+    const drawer = screen.getByRole("dialog", { name: "Application sidebar" });
+    expect(drawer.getAttribute("aria-modal")).toBe("true");
+    expect(document.querySelector("main")?.hasAttribute("inert")).toBe(true);
+    expect(document.body.style.overflow).toBe("hidden");
+    fireEvent.click(screen.getByRole("button", { name: "Your profile" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Your profile" })).toBeTruthy();
+    expect(document.querySelector("main")?.hasAttribute("inert")).toBe(false);
+    expect(
+      window.localStorage.getItem("sportsbuilder.sidebar.collapsed"),
+    ).toBeNull();
+  });
+  it("closes on Escape and restores hamburger focus", async () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 390,
+    });
+    vi.mocked(api).mockResolvedValue(saved);
+    render(<Product />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand sidebar" }));
+    const close = screen.getByRole("button", { name: "Collapse sidebar" });
+    expect(document.activeElement).toBe(close);
+    fireEvent.keyDown(close, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Expand sidebar" }),
+    );
+  });
+});
