@@ -92,7 +92,7 @@ describe("builder and coach request boundary", () => {
         if (url.endsWith(`/api/sessions/${sessionId}`))
           return Response.json({ id: sessionId, profileId: "athlete", calibration: { metersPerPixel: .002, ground: 200, source: "assumed_height_auto", heightCm: 170, bodyHeightPixels: 850, frameTime: 0 } });
         if (url.endsWith("/api/home"))
-          return Response.json({ profiles: [], sessions: [{ id: "prior", profileId: "athlete", status: "uploaded", completedDrills: ["legacy-task-marker"] }] });
+          return Response.json({ profiles: [{ id: "athlete", name: "Athlete", heightCm: 180, weightKg: 75.5, gender: "Woman", notes: "Focus on endurance" }], sessions: [{ id: "prior", profileId: "athlete", status: "uploaded", completedDrills: ["legacy-task-marker"] }] });
         throw Error("Unexpected backend request");
       }),
     );
@@ -124,6 +124,10 @@ describe("builder and coach request boundary", () => {
       });
       expect(result.feedback.limitations).toEqual(["A single sampled frame cannot establish control through the whole repetition."]);
       expect(result.drill).toBeUndefined();
+      const prompt = JSON.stringify(vi.mocked(chat).mock.calls.at(-1));
+      expect(prompt).toContain('\\"weightKg\\":75.5');
+      expect(prompt).toContain('\\"gender\\":\\"Woman\\"');
+      expect(prompt).toContain("Focus on endurance");
     });
     const [, tools] = vi.mocked(chat).mock.calls[1];
     expect(tools?.[0].parameters.required).toEqual(["reply", "feedback"]);

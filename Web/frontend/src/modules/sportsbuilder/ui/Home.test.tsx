@@ -140,6 +140,7 @@ describe("saved workspace loading", () => {
     expect(post).toHaveBeenCalledWith("/api/profiles", {
       name: "Athlete",
       heightCm: 178,
+      weightKg: null, gender: "", notes: "",
     });
     expect(screen.queryByRole("button", { name: "Athletes" })).toBeNull();
     expect(
@@ -161,7 +162,7 @@ describe("saved workspace loading", () => {
   });
   it("edits height on the existing canonical profile and reuses its identity", async () => {
     const profile = { id: "canonical", name: "Athlete", heightCm: 178 };
-    const updated = { ...profile, heightCm: 180 };
+    const updated = { ...profile, heightCm: 180, weightKg: 75.5, gender: "Woman", notes: "Focus on endurance" };
     vi.mocked(api)
       .mockResolvedValueOnce({
         ...saved,
@@ -176,13 +177,16 @@ describe("saved workspace loading", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Height (cm)" }), {
       target: { value: "180" },
     });
+    fireEvent.change(screen.getByRole("textbox", { name: "Weight (kg, optional)" }), { target: { value: "75.5" } });
+    fireEvent.change(screen.getByLabelText("Gender (optional)"), { target: { value: "Woman" } });
+    fireEvent.change(screen.getByLabelText("General notes (optional)"), { target: { value: "Focus on endurance" } });
     fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
     await screen.findByRole("heading", {
       name: "Your Athletic Dreams Will Become a Reality",
     });
     expect(api).toHaveBeenCalledWith("/api/profiles/canonical", {
       method: "PATCH",
-      body: JSON.stringify({ heightCm: 180 }),
+      body: JSON.stringify({ heightCm: 180, weightKg: 75.5, gender: "Woman", notes: "Focus on endurance" }),
     });
     expect(post).not.toHaveBeenCalled();
     const slider = screen.getByRole("slider", {

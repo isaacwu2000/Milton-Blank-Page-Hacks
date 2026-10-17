@@ -43,6 +43,7 @@ PROFILE = {
     "name": "Athlete",
     "heightCm": 180,
     "weightKg": 72,
+    "gender": "Woman",
     "dominantSide": "Right",
     "experience": "Beginner",
     "notes": "A note",
@@ -266,3 +267,26 @@ def test_rename_preserves_reviewed_configuration_and_history(
 )
 def test_rename_rejects_invalid_names_or_configuration_changes(body):
     assert TestClient(app).patch(f"/api/tools/{TOOL['id']}", json=body).status_code == 422
+
+
+def test_profile_details_can_be_updated_and_cleared(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(PROFILE))
+    monkeypatch.setattr(
+        store, "patch", lambda kind, identifier, changes: {**deepcopy(PROFILE), **changes}
+    )
+    client = TestClient(app)
+    for details in [
+        {"weightKg": 75.5, "gender": "Non-binary", "notes": "Focus on endurance"},
+        {"weightKg": None, "gender": "", "notes": ""},
+    ]:
+        response = client.patch(f"/api/profiles/{PROFILE['id']}", json=details)
+        assert response.status_code == 200
+        assert response.json() == {**PROFILE, **details}
+
+
+@pytest.mark.parametrize(
+    "details", [{"weightKg": 0}, {"weightKg": 601}, {"gender": "x" * 101}, {"notes": "x" * 1001}]
+)
+def test_profile_details_reject_invalid_values(monkeypatch: pytest.MonkeyPatch, details: dict):
+    monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(PROFILE))
+    assert TestClient(app).patch(f"/api/profiles/{PROFILE['id']}", json=details).status_code == 422

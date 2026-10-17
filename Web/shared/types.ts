@@ -122,7 +122,8 @@ export type Profile = {
   id: string;
   name: string;
   heightCm?: number;
-  weightKg?: number;
+  weightKg?: number | null;
+  gender?: string;
   dominantSide?: string;
   experience?: string;
   notes?: string;
