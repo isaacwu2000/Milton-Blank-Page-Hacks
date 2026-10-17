@@ -44,10 +44,13 @@ describe("height-scale workflow", () => {
       />,
     );
     expect(
-      screen.getByText("Set scale from your height to see this measurement."),
+      screen.getByText(
+        "A clear full-body view is needed to calculate this measurement automatically.",
+      ),
     ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Analysis settings" }));
     fireEvent.click(
-      screen.getByRole("button", { name: "Set scale from your height" }),
+      screen.getByRole("button", { name: "Adjust height scale manually" }),
     );
     const overlay = view.container.querySelector("svg.pose-overlay")!;
     vi.spyOn(overlay, "getBoundingClientRect").mockReturnValue({
@@ -80,11 +83,12 @@ describe("height-scale workflow", () => {
       frameTime: 0,
     });
     expect(
-      screen.queryByText("Set scale from your height to see this measurement."),
+      screen.queryByText(
+        "A clear full-body view is needed to calculate this measurement automatically.",
+      ),
     ).toBeNull();
     expect(screen.getByText("0.60")).toBeTruthy();
     expect(screen.getAllByLabelText("m/s").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: "Analysis settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Set ground line" }));
     await act(async () => {
       fireEvent.click(overlay, { clientX: 100, clientY: 400 });
@@ -115,8 +119,9 @@ describe("height-scale workflow", () => {
         sessions={[]}
       />,
     );
+    fireEvent.click(screen.getByRole("button", { name: "Analysis settings" }));
     const start = screen.getByRole("button", {
-      name: "Set scale from your height",
+      name: "Adjust height scale manually",
     }) as HTMLButtonElement;
     expect(start.disabled).toBe(false);
     fireEvent.click(start);
@@ -139,8 +144,9 @@ describe("height-scale workflow", () => {
         sessions={[]}
       />,
     );
+    fireEvent.click(screen.getByRole("button", { name: "Analysis settings" }));
     fireEvent.click(
-      screen.getByRole("button", { name: "Set scale from your height" }),
+      screen.getByRole("button", { name: "Adjust height scale manually" }),
     );
     const overlay = view.container.querySelector("svg.pose-overlay")!;
     vi.spyOn(overlay, "getBoundingClientRect").mockReturnValue({
@@ -214,4 +220,40 @@ describe("single-video coaching", () => {
       ),
     );
   });
+});
+
+it("uses the automatically saved height scale immediately without manual setup", () => {
+  const session: Session = {
+    id: "automatic",
+    name: "Full body",
+    createdAt: "2026-10-17T12:00:00Z",
+    profileId: "athlete",
+    toolId: "tool",
+    status: "complete",
+    progress: 1,
+    duration: 5,
+    interval: 0.1,
+    sourceKey: "private.mov",
+    calibration: {
+      metersPerPixel: 0.00445,
+      ground: 474,
+      source: "athlete_height_auto",
+      heightCm: 178,
+      bodyHeightPixels: 400,
+      frameTime: 0,
+    },
+  };
+  render(
+    <Workspace
+      analysis={makeSample()}
+      tool={sampleTool}
+      session={session}
+      profiles={[{ id: "athlete", name: "Athlete", heightCm: 178 }]}
+      sessions={[]}
+      onBack={() => {}}
+    />,
+  );
+  expect(screen.queryByText(/couldn’t estimate a reliable scale/)).toBeNull();
+  expect(screen.getAllByLabelText("m/s").length).toBeGreaterThan(0);
+  expect(vi.mocked(api)).not.toHaveBeenCalled();
 });

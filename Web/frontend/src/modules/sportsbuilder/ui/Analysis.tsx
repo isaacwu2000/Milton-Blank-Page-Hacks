@@ -105,6 +105,7 @@ export function SessionWorkspace({
     setError("");
     try {
       setSession(await post<Session>(`/api/sessions/${sessionId}/analyze`, {}));
+      setAnalysis(null);
       setPollGeneration((g) => g + 1);
     } catch (e) {
       setError((e as Error).message);
@@ -132,6 +133,7 @@ export function SessionWorkspace({
         url={url}
         profiles={data.profiles}
         sessions={data.sessions}
+        onReanalyze={start}
         onBack={onBack}
       />
     );
@@ -202,8 +204,8 @@ export function Workspace({
   url,
   sample = false,
   onBack,
+  onReanalyze,
   profiles,
-  sessions,
 }: {
   analysis: Analysis;
   tool: ToolConfig;
@@ -211,6 +213,7 @@ export function Workspace({
   url?: string;
   sample?: boolean;
   onBack: () => void;
+  onReanalyze?: () => Promise<void>;
   profiles: Profile[];
   sessions: Session[];
 }) {
@@ -495,16 +498,17 @@ export function Workspace({
             <div className="notice">
               <span>
                 {athleteHeight
-                  ? `Use your ${athleteHeight} cm height to measure movement in meters.`
+                  ? `We couldn’t estimate a reliable scale from this clip. Keep your head and feet visible so we can use your ${athleteHeight} cm height and joint angles automatically.`
                   : "Add your height to the athlete profile to measure movement in meters."}
               </span>
-              <button
-                className="button secondary"
-                disabled={!athleteHeight}
-                onClick={startHeightCalibration}
-              >
-                Set scale from your height
-              </button>
+              {onReanalyze && athleteHeight && (
+                <button
+                  className="button secondary"
+                  onClick={() => void onReanalyze()}
+                >
+                  Recalculate automatically
+                </button>
+              )}
             </div>
           )}
           {settings && (
@@ -520,7 +524,7 @@ export function Workspace({
                   disabled={!athleteHeight}
                   onClick={startHeightCalibration}
                 >
-                  Calibrate from height
+                  Adjust height scale manually
                 </button>
                 <button
                   className="button secondary"
@@ -661,7 +665,9 @@ export function Workspace({
             </button>
             <span className="small muted">
               {calibrated
-                ? "Calibrated · approximate 2D"
+                ? calibrationMetadata?.source === "athlete_height_auto"
+                  ? "Automatic height scale · approximate 2D"
+                  : "Calibrated · approximate 2D"
                 : "Set scale for measurements"}
             </span>
           </div>
@@ -793,7 +799,8 @@ export function Workspace({
           {tab === "movement" || selectedMetric ? (
             needsPhysicalScale(graphUnit) ? (
               <p className="muted small">
-                Set scale from your height to see this measurement.
+                A clear full-body view is needed to calculate this measurement
+                automatically.
               </p>
             ) : (
               <Chart
