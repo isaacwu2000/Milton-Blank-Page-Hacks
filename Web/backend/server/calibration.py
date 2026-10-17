@@ -1,4 +1,4 @@
-"""Height-based scale estimates require a visible upright body, never a cropped box."""
+"""Estimate image-plane stature from a visible head, torso, and articulated legs."""
 
 import math
 from statistics import median
@@ -19,27 +19,18 @@ def joint_angle(a: JointPoint, b: JointPoint, c: JointPoint) -> float:
 def standing_height(
     box: Box, joints: dict[str, JointPoint], width: int, height: int, frame_time: float
 ) -> HeightObservation | None:
-    """Accept a head-to-shoe box only for a straight, uncropped, arms-lowered body.
+    """Estimate straightened stature from confident, uncropped body landmarks.
 
-    Confidence and pose checks reject crouches and overhead hands. A body box
-    estimates stature in the image plane; it does not recover depth or perspective.
+    Add head, torso and leg lengths rather than the crouched box's height. Joint
+    angles and left/right proportions reject folded or visibly shortened limbs.
+    This estimates image-plane scale only; symmetric depth motion is unobservable.
     """
-    names = [
-        "nose",
-        "left_eye",
-        "right_eye",
-        "left_shoulder",
-        "right_shoulder",
-        "left_wrist",
-        "right_wrist",
-        "left_hip",
-        "right_hip",
-        "left_knee",
-        "right_knee",
-        "left_ankle",
-        "right_ankle",
+    names = ["nose", "left_eye", "right_eye"] + [
+        f"{side}_{joint}"
+        for side in ("left", "right")
+        for joint in ("shoulder", "hip", "knee", "ankle")
     ]
-    if any(name not in joints for name in names):
+    if width <= 0 or height <= 0 or any(name not in joints for name in names):
         return None
     points = [joints[name] for name in names]
     if any(
@@ -50,46 +41,90 @@ def standing_height(
         for p in points
     ):
         return None
-    body_height = box.bottom - box.top
+    box_height = box.bottom - box.top
     if (
         not all(math.isfinite(value) for value in box)
-        or body_height <= height * 0.35
+        or box_height <= height * 0.2
         or box.right <= box.left
     ):
         return None
-    margin = max(2 / min(1, config.TRACKING_MAX_SIDE / max(width, height)), body_height * 0.015)
+    margin = max(2 / min(1, config.TRACKING_MAX_SIDE / max(width, height)), box_height * 0.015)
     if box.top < margin or box.bottom > height - margin or box.left < 0 or box.right > width:
         return None
+    if any(
+        not box.left <= point["x"] <= box.right or not box.top <= point["y"] <= box.bottom
+        for point in points
+    ):
+        return None
+
+    def center(joint: str) -> JointPoint:
+        return {
+            "x": (joints[f"left_{joint}"]["x"] + joints[f"right_{joint}"]["x"]) / 2,
+            "y": (joints[f"left_{joint}"]["y"] + joints[f"right_{joint}"]["y"]) / 2,
+            "confidence": 1,
+            "vx": None,
+            "vy": None,
+            "ax": None,
+            "ay": None,
+        }
+
+    def distance(a: JointPoint, b: JointPoint) -> float:
+        return math.hypot(a["x"] - b["x"], a["y"] - b["y"])
+
     nose = joints["nose"]
-    shoulder_y = sum(joints[side + "_shoulder"]["y"] for side in ("left", "right")) / 2
-    hip_y = sum(joints[side + "_hip"]["y"] for side in ("left", "right")) / 2
-    knee_y = sum(joints[side + "_knee"]["y"] for side in ("left", "right")) / 2
-    ankle_y = sum(joints[side + "_ankle"]["y"] for side in ("left", "right")) / 2
-    if not nose["y"] < shoulder_y < hip_y < knee_y < ankle_y:
+    eyes = center("eye")
+    shoulder = center("shoulder")
+    hip = center("hip")
+    ankle = center("ankle")
+    if not eyes["y"] < nose["y"] < shoulder["y"] < hip["y"] < ankle["y"]:
         return None
-    if nose["y"] - box.top < body_height * 0.035 or ankle_y - nose["y"] < body_height * 0.7:
+
+    # A raised hand changes the detector's top edge. Estimate the crown from
+    # face landmarks in that case; six eye-to-nose spans is an approximate head
+    # extent, not a recovered 3D measurement. Reject tilted or unresolved faces.
+    face_span = nose["y"] - eyes["y"]
+    if face_span < 2 or abs(nose["x"] - eyes["x"]) > face_span:
         return None
-    if any(joints[side + "_wrist"]["y"] < nose["y"] for side in ("left", "right")):
+    face_crown = nose["y"] - config.HEIGHT_FACE_CROWN_SPANS * face_span
+    if face_crown < margin:
         return None
+    head_extent = nose["y"] - box.top
+    if head_extent < 3 * face_span:
+        return None
+    crown_y = face_crown if head_extent > 9 * face_span else box.top
+    if crown_y < margin or nose["y"] - crown_y < box_height * 0.025:
+        return None
+    head = nose["y"] - crown_y + distance(nose, shoulder)
+    torso = distance(shoulder, hip)
+    sole = box.bottom - ankle["y"]
+    if not 0 < sole < box_height * 0.12:
+        return None
+    legs: list[float] = []
+    thighs: list[float] = []
+    shins: list[float] = []
     for side in ("left", "right"):
-        if (
-            joint_angle(joints[side + "_shoulder"], joints[side + "_hip"], joints[side + "_knee"])
-            < config.HEIGHT_MIN_JOINT_ANGLE
-            or joint_angle(joints[side + "_hip"], joints[side + "_knee"], joints[side + "_ankle"])
-            < config.HEIGHT_MIN_JOINT_ANGLE
-        ):
+        s, h, k, a = (joints[f"{side}_{name}"] for name in ("shoulder", "hip", "knee", "ankle"))
+        if min(joint_angle(s, h, k), joint_angle(h, k, a)) < config.HEIGHT_MIN_JOINT_ANGLE:
             return None
-    shoulder_x = sum(joints[side + "_shoulder"]["x"] for side in ("left", "right")) / 2
-    ankle_x = sum(joints[side + "_ankle"]["x"] for side in ("left", "right")) / 2
-    if abs(shoulder_x - ankle_x) > 0.15 * body_height:
+        thigh, shin = distance(h, k), distance(k, a)
+        if shin == 0 or not 0.55 <= thigh / shin <= 1.8:
+            return None
+        thighs.append(thigh)
+        shins.append(shin)
+        legs.append(thigh + shin)
+    if any(min(lengths) / max(lengths) < 0.75 for lengths in (thighs, shins)):
         return None
-    return HeightObservation(body_height, frame_time)
+    leg = sum(legs) / 2
+    stature = head + torso + leg + sole
+    if not 0.25 <= torso / leg <= 0.85 or not 0.1 <= head / stature <= 0.3:
+        return None
+    return HeightObservation(stature, frame_time)
 
 
 def select_height_reference(
     observations: list[HeightObservation], interval: float
 ) -> HeightReference | None:
-    """Choose the earliest three consecutive, stable upright height observations."""
+    """Choose the earliest three consecutive, stable articulated height observations."""
     group: list[HeightObservation] = []
     for observation in observations:
         if group and observation.frame_time - group[-1].frame_time > interval * 1.5:
@@ -106,7 +141,7 @@ def select_height_reference(
 
 
 def from_height(height_cm: float, reference: HeightReference, ground: float) -> Calibration:
-    """Use the athlete's saved height divided by the observed full-body image span."""
+    """Use the athlete's saved height divided by the estimated straightened image span."""
     pixels = reference["bodyHeightPixels"]
     if (
         not math.isfinite(height_cm)
