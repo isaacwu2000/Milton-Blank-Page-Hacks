@@ -70,6 +70,11 @@ def tracking_store(monkeypatch: pytest.MonkeyPatch):
                 },
             )
 
+    def unreferenced(identifier, key):
+        value = store.get("sessions", identifier)
+        return value is None or value.get("analysisKey") != key
+
+    monkeypatch.setattr(store, "analysis_result_unreferenced", unreferenced)
     monkeypatch.setattr(store, "claim_tracking", claim)
     monkeypatch.setattr(store, "update_tracking", update)
     monkeypatch.setattr(store, "cancel_tracking", cancel)

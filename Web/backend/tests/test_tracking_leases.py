@@ -51,10 +51,7 @@ def test_two_computers_share_live_job_then_recover_expired_owner_without_late_wr
     assert store.claim_tracking(ID, "computer-b") is None
     assert store.update_tracking(ID, "computer-a", {"status": "processing"}) is not None
     tracking_store[0] += config.TRACKING_LEASE_SECONDS + 1
-    wall_clock = MagicMock()
-    wall_clock.now.return_value.timestamp.return_value = tracking_store[0]
-    monkeypatch.setattr(runtime, "datetime", wall_clock)
-    expired = runtime.tracking_status(value)
+    expired = store.tracking_status(value, tracking_store[0])
     assert expired["status"] == "failed"
     assert value["status"] == "processing"  # Reading expiry does not mutate peer state.
     recovered = store.claim_tracking(ID, "computer-b")
@@ -245,3 +242,102 @@ def test_losing_worker_cannot_publish_or_fail_replacement_and_only_removes_its_o
     assert value.get("analysisKey") is None
     assert value.get("error") is None
     assert removed == uploaded == ([] if late_error else [f"analyses/{ID}/{token}.json"])
+
+
+@pytest.mark.parametrize("commit,read_fails", [(True, False), (True, True), (False, True)])
+def test_ambiguous_publish_keeps_referenced_or_unconfirmed_result(
+    monkeypatch, tracking_store, commit, read_fails
+):
+    from server import vision
+
+    value: Record = {
+        "id": ID,
+        "status": "uploaded",
+        "sourceKey": "videos/keep.mov",
+        "interval": 0.1,
+    }
+    saved_session(monkeypatch, value)
+    update = store.update_tracking
+    read_record = store.get
+    lost_ack = False
+    objects = {}
+
+    def publish(identifier, token, fields, renew=False):
+        nonlocal lost_ack
+        if fields.get("status") == "complete":
+            if commit:
+                assert update(identifier, token, fields, renew) is not None
+            lost_ack = True
+            raise ConnectionError("Commit acknowledgement lost")
+        if lost_ack:
+            return None
+        return update(identifier, token, fields, renew)
+
+    def get(kind, identifier):
+        if lost_ack and read_fails:
+            raise ConnectionError("Authoritative read unavailable")
+        return read_record(kind, identifier)
+
+    monkeypatch.setattr(store, "update_tracking", publish)
+    monkeypatch.setattr(store, "get", get)
+    monkeypatch.setattr(store, "read", lambda key: b"private-video")
+    monkeypatch.setattr(store, "put", lambda key, data, mime: objects.update({key: data}))
+    monkeypatch.setattr(store, "remove", lambda key: objects.pop(key, None))
+    monkeypatch.setattr(
+        vision, "analyze", lambda *args: {"frames": [], "height": 100, "ground": 90}
+    )
+
+    async def scenario():
+        await runtime.start(ID)
+        while ID in runtime.active:
+            await asyncio.sleep(0.001)
+
+    asyncio.run(asyncio.wait_for(scenario(), 3))
+    assert lost_ack
+    assert len(objects) == 1
+    if commit:
+        assert value["status"] == "complete"
+        assert value["analysisKey"] in objects
+
+
+def test_record_reads_project_expiry_using_database_time_despite_host_clock_skew(monkeypatch):
+    import datetime
+
+    pool = MagicMock()
+    connection = pool.connection.return_value.__enter__.return_value
+    live: Record = {
+        "id": ID,
+        "status": "processing",
+        "analysisRunId": "peer",
+        "analysisLeaseUntil": 1060,
+    }
+    connection.execute.return_value.fetchone.return_value = (live, 1000)
+    connection.execute.return_value.__iter__.side_effect = lambda: iter([(live, 1000)])
+    monkeypatch.setattr(store, "pool", lambda: pool)
+    # Host wall time can be arbitrarily different; reads use only the timestamp returned by PostgreSQL.
+    host_clock = MagicMock()
+    host_clock.now.return_value = datetime.datetime.fromtimestamp(9999999999, datetime.UTC)
+    monkeypatch.setattr(runtime, "datetime", host_clock)
+    result = store.get("sessions", ID)
+    assert result is not None and result["status"] == "processing"
+    assert store.records("sessions")[0]["status"] == "processing"
+    connection.execute.return_value.fetchone.return_value = (live, 1061)
+    connection.execute.return_value.__iter__.side_effect = lambda: iter([(live, 1061)])
+    result = store.get("sessions", ID)
+    assert result is not None and result["status"] == "failed"
+    assert store.records("sessions")[0]["status"] == "failed"
+    assert live["status"] == "processing"
+
+
+def test_cleanup_waits_for_pending_terminal_transaction_before_deleting(monkeypatch):
+    pool = MagicMock()
+    connection = pool.connection.return_value.__enter__.return_value
+    monkeypatch.setattr(store, "pool", lambda: pool)
+    key = "analyses/clip/run.json"
+    connection.execute.return_value.fetchone.return_value = (key,)
+    assert not store.analysis_result_unreferenced(ID, key)
+    query, parameters = connection.execute.call_args.args
+    assert "FOR UPDATE" in query
+    assert parameters == (ID,)
+    connection.execute.return_value.fetchone.return_value = ("analyses/clip/replacement.json",)
+    assert store.analysis_result_unreferenced(ID, key)
