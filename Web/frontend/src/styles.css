@@ -1822,3 +1822,25 @@ button .loading-status {
 .coach-preview .player-controls { flex-wrap: wrap; }
 .coach-preview .player-controls .time { flex-basis: 100%; text-align: right; }
 .coach-preview-content { overflow-wrap: anywhere; }
+
+/* Labeled builder actions share the toolbar without inheriting round send-button dimensions. */
+.builder .prompt-bar-tools { flex-wrap: wrap; gap: 8px; }
+.builder .prompt-bar .prompt-bar-tools .builder-build {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  width: auto;
+  height: auto;
+  min-height: 32px;
+  max-width: 100%;
+  padding: 6px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 20px;
+  background: var(--neutral-light-500);
+  color: var(--neutral-dark-300);
+}
+.builder .prompt-bar .prompt-bar-tools .builder-build svg { flex-shrink: 0; }
