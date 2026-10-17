@@ -34,7 +34,7 @@ def load_environment(root: Path = config.ROOT) -> None:
     if not path.exists():
         return
     try:
-        credentials: object = json.loads(path.read_text())
+        credentials: object = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(credentials, dict):
             raise TypeError
         for key in CREDENTIAL_KEYS:
@@ -44,7 +44,7 @@ def load_environment(root: Path = config.ROOT) -> None:
                 raise ValueError
     except (OSError, TypeError, ValueError):
         raise RuntimeError(
-            "Saved credentials could not be read. Rename .sportsbuilder/credentials.json and rerun bash install.sh to enter them again."
+            "Saved credentials could not be read. Rename .sportsbuilder/credentials.json and rerun the installer to enter them again."
         ) from None
     for key in CREDENTIAL_KEYS:
         if key in credentials and not os.environ.get(key, "").strip():

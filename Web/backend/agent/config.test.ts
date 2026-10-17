@@ -99,7 +99,7 @@ describe("installer credential loading", () => {
       '{"OPENROUTER_API_KEY":" "}',
     ]) {
       expect(() => readLocalCredentials(saved(value))).toThrow(
-        "Saved credentials could not be read. Rename .sportsbuilder/credentials.json and rerun bash install.sh to enter them again.",
+        "Saved credentials could not be read. Rename .sportsbuilder/credentials.json and rerun the installer to enter them again.",
       );
     }
   });

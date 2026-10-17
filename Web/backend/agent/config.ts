@@ -42,7 +42,7 @@ export function readLocalCredentials(
     return credentials;
   } catch {
     throw Error(
-      "Saved credentials could not be read. Rename .sportsbuilder/credentials.json and rerun bash install.sh to enter them again.",
+      "Saved credentials could not be read. Rename .sportsbuilder/credentials.json and rerun the installer to enter them again.",
     );
   }
 }
