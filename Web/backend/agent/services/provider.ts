@@ -94,6 +94,45 @@ function input(messages: Chat[]) {
     ];
   });
 }
+/** Remove formatting quotes copied with a key; never alter characters inside the key. */
+function openRouterKey(): string {
+  let key = process.env.OPENROUTER_API_KEY?.trim() ?? "";
+  const quotes: Record<string, string> = {
+    '"': '"',
+    "'": "'",
+    "“": "”",
+    "‘": "’",
+  };
+  while (key.length >= 2 && quotes[key[0]] === key.at(-1))
+    key = key.slice(1, -1).trim();
+  if (!key) throw Error("Add your OpenRouter API key in setup, then retry.");
+  if (/[^\x21-\x7e]/.test(key))
+    throw Error(
+      "The OpenRouter key contains spaces, line breaks, or invalid characters. Copy the complete key again from OpenRouter and rerun setup.",
+    );
+  return key;
+}
+
+/** Classify upstream failures without returning upstream text or credentials. */
+function openRouterError(status: number): Error {
+  const messages: Record<number, string> = {
+    400: "OpenRouter could not accept this review request. Check that your account can use the configured model.",
+    401: "OpenRouter rejected the API key. Copy a current key from OpenRouter and rerun setup.",
+    402: "OpenRouter credits or the key's spending limit are insufficient for this review. Check your OpenRouter balance and key limit.",
+    403: "OpenRouter denied access to this request. Check the key permissions and model access.",
+    404: "The configured coaching model is unavailable on OpenRouter. Check your model access.",
+    408: "OpenRouter took too long to review the footage. Please retry.",
+    413: "This video review request is too large. Try a lower frame sampling rate.",
+    429: "OpenRouter's request limit was reached. Wait a moment, then retry.",
+  };
+  return Error(
+    messages[status] ??
+      (status >= 500
+        ? "OpenRouter or its model provider is temporarily unavailable. Please retry shortly."
+        : `OpenRouter could not complete this review (HTTP ${status}). Please retry.`),
+  );
+}
+
 export async function chat(
   messages: Chat[],
   tools: Tool[] = [],
@@ -103,10 +142,10 @@ export async function chat(
   const url = local
     ? `${config.localProxyUrl}/responses`
     : `${config.openRouterUrl}/chat/completions`;
-  if (!local && !process.env.OPENROUTER_API_KEY)
-    throw Error(
-      "Set OPENROUTER_API_KEY before selecting the OpenRouter provider.",
-    );
+  const key = local ? undefined : openRouterKey();
+  const requestSignal = signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(config.providerTimeoutMs)])
+    : AbortSignal.timeout(config.providerTimeoutMs);
   const body = local
     ? {
         model: config.model.replace("openai/", ""),
@@ -149,28 +188,49 @@ export async function chat(
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(local
-          ? {}
-          : { authorization: `Bearer ${process.env.OPENROUTER_API_KEY}` }),
+        ...(local ? {} : { authorization: `Bearer ${key}` }),
       },
       body: JSON.stringify(body),
-      signal: signal ?? AbortSignal.timeout(config.providerTimeoutMs),
+      signal: requestSignal,
     });
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError")
-      throw Error("The AI request timed out. Please retry.");
+    if (
+      requestSignal.aborted ||
+      (error instanceof Error &&
+        ["AbortError", "TimeoutError"].includes(error.name))
+    )
+      throw Error(
+        "The video review timed out. Please retry, or use a lower frame sampling rate.",
+      );
     throw Error(
       local
         ? "The local ChatGPT proxy is unavailable. Start bun run ai:proxy and complete sign-in."
-        : "OpenRouter could not be reached. Please retry.",
+        : "Could not connect to OpenRouter. Check your internet connection, VPN, or proxy, then retry.",
     );
   }
-  if (!response.ok)
+  if (!response.ok) {
+    if (!local) throw openRouterError(response.status);
     throw Error(
-      `${local ? "Local ChatGPT" : "OpenRouter"} returned HTTP ${response.status}. Check sign-in, model access, and usage limits. No alternate provider was used.`,
+      `Local ChatGPT returned HTTP ${response.status}. Check sign-in, model access, and usage limits. No alternate provider was used.`,
     );
-  const data = await response.json();
+  }
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw Error(
+      `${local ? "ChatGPT" : "OpenRouter"} returned an unreadable response. Please retry.`,
+    );
+  }
   if (!local) {
+    if (data.error) {
+      const code = Number(data.error.code);
+      throw Number.isInteger(code) && code >= 400 && code <= 599
+        ? openRouterError(code)
+        : Error(
+            "OpenRouter reported a model error. Please retry or check model access.",
+          );
+    }
     const m = data.choices?.[0]?.message;
     if (!m) throw Error("OpenRouter returned no assistant response.");
     return {
