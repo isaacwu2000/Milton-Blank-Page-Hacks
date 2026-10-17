@@ -75,21 +75,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     yield
 
 
-def tracking_status(session: Record) -> Record:
-    """Expose expired owned work as retryable without mutating another computer’s records."""
-    if (
-        session.get("status") in ("queued", "processing")
-        and session.get("analysisRunId")
-        and session.get("analysisLeaseUntil", 0) <= datetime.now(UTC).timestamp()
-    ):
-        return {
-            **session,
-            "status": "failed",
-            "error": "Analysis stopped responding. Retry this video.",
-        }
-    return session
-
-
 app = FastAPI(title="SportsBuilder", lifespan=lifespan)
 
 
@@ -121,7 +106,7 @@ async def home() -> HomeData:
     return {
         "profiles": cast(list[ProfileRecord], values[0]),
         "tools": cast(list[ToolRecord], values[1]),
-        "sessions": cast(list[SessionRecord], [tracking_status(value) for value in values[2]]),
+        "sessions": cast(list[SessionRecord], values[2]),
     }
 
 
@@ -450,10 +435,15 @@ async def work(session_id: str) -> None:
             path.unlink(missing_ok=True)
         if result_key and not published:
             try:
-                # Each run owns a unique result key, so cleanup cannot delete a replacement run’s results.
-                await asyncio.to_thread(store.remove, result_key)
+                # A terminal write can commit before its acknowledgement fails. Keep any referenced result.
+                unused = await asyncio.to_thread(
+                    store.analysis_result_unreferenced, session_id, result_key
+                )
+                if unused:
+                    await asyncio.to_thread(store.remove, result_key)
             except Exception:
-                log.exception("Unused tracking result cleanup failed")
+                # An unconfirmed orphan is safer than deleting measurements that may have committed.
+                log.exception("Tracking result cleanup could not confirm an unreferenced object")
 
 
 @app.post("/api/sessions/{session_id}/cancel", response_model=None)
@@ -499,7 +489,7 @@ async def start(session_id: str) -> SessionRecord:
             if current["status"] == "complete":
                 return cast(SessionRecord, current)
             if current.get("analysisRunId"):
-                if tracking_status(current)["status"] in ("queued", "processing"):
+                if current["status"] in ("queued", "processing"):
                     return cast(SessionRecord, current)
                 raise HTTPException(409, "The previous analysis is finishing. Retry in a moment.")
             raise HTTPException(
@@ -515,9 +505,7 @@ async def start(session_id: str) -> SessionRecord:
 
 @app.get("/api/sessions/{session_id}", response_model=None)
 async def session_get(session_id: str) -> SessionRecord:
-    return cast(
-        SessionRecord, tracking_status(await asyncio.to_thread(record, "sessions", session_id))
-    )
+    return cast(SessionRecord, await asyncio.to_thread(record, "sessions", session_id))
 
 
 @app.get("/api/sessions/{session_id}/preview")

@@ -62,13 +62,30 @@ def s3() -> S3Client:
     )
 
 
+def tracking_status(value: Record, database_time: float) -> Record:
+    """Project expired work as retryable using the same database clock that grants ownership."""
+    if (
+        value.get("status") in ("queued", "processing")
+        and value.get("analysisRunId")
+        and value.get("analysisLeaseUntil", 0) <= database_time
+    ):
+        return {
+            **value,
+            "status": "failed",
+            "error": "Analysis stopped responding. Retry this video.",
+        }
+    return value
+
+
 def records(kind: RecordKind) -> list[Record]:
     """Read saved records and append missing shipped coaches without creating athlete data."""
     with pool().connection() as con:
         saved = [
-            cast(Record, row[0])
+            tracking_status(cast(Record, row[0]), float(row[1]))
+            if kind == "sessions" and row[0].get("analysisRunId")
+            else cast(Record, row[0])
             for row in con.execute(
-                "SELECT payload FROM sportsbuilder_records WHERE kind=%s ORDER BY created_at DESC",
+                "SELECT payload, EXTRACT(EPOCH FROM clock_timestamp()) FROM sportsbuilder_records WHERE kind=%s ORDER BY created_at DESC",
                 (kind,),
             )
         ]
@@ -84,10 +101,16 @@ def get(kind: RecordKind, record_id: str) -> Record | None:
     """Resolve saved records and shipped coaches using the same stable identifiers."""
     with pool().connection() as con:
         row = con.execute(
-            "SELECT payload FROM sportsbuilder_records WHERE kind=%s AND id=%s", (kind, record_id)
+            "SELECT payload, EXTRACT(EPOCH FROM clock_timestamp()) FROM sportsbuilder_records WHERE kind=%s AND id=%s",
+            (kind, record_id),
         ).fetchone()
         if row:
-            return cast(Record, row[0])
+            value = cast(Record, row[0])
+            return (
+                tracking_status(value, float(row[1]))
+                if kind == "sessions" and value.get("analysisRunId")
+                else value
+            )
     if kind == "tools":
         return next(
             (deepcopy(value) for value in PREMADE_COACHES if value["id"] == record_id), None
@@ -242,3 +265,17 @@ def cancel_tracking(record_id: str) -> Record | None:
             (record_id,),
         ).fetchone()
     return cast(Record, row[0]) if row else None
+
+
+def analysis_result_unreferenced(record_id: str, key: str) -> bool:
+    """Wait for an in-flight publisher before deciding whether its unique result can be removed.
+
+    FOR UPDATE waits for any terminal transaction to commit or roll back; a plain read
+    could see the previous payload while an unacknowledged commit is still pending.
+    """
+    with pool().connection() as con:
+        row = con.execute(
+            "SELECT payload->>'analysisKey' FROM sportsbuilder_records WHERE kind='sessions' AND id=%s FOR UPDATE",
+            (record_id,),
+        ).fetchone()
+    return row is None or row[0] != key
