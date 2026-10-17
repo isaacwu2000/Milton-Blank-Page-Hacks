@@ -167,6 +167,16 @@ policy was added.
 
 Dark mode is deferred to [issue #3](https://github.com/isaacwu2000/Milton-Blank-Page-Hacks/issues/3); no dark theme or theme control is implemented.
 
+## Latest live coach check
+
+A fresh browser question on IMG_0508.MOV used the current local OAuth service
+(GPT-6.1 Sol, medium reasoning) after the unit-display guard changed. The coach
+withheld uncalibrated physical distances, speed and acceleration, recognized the
+visible repositioning/squats rather than a forehand, and returned a practical
+shadow-swing drill. No pixel units appeared in the rendered page. This is actual
+video evidence, separate from the labeled synthetic calibration walkthrough.
+Private evidence: `output/current-live-coach-browser.json`.
+
 ## Boundaries and remaining validation
 
 - One athlete, stationary-camera 2D clips up to 30 seconds. Body joints do not track
