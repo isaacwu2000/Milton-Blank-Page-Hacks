@@ -7,6 +7,7 @@ import {
   mkdirSync,
   mkdtempSync,
   rmSync,
+  renameSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -14,7 +15,7 @@ import { tmpdir } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
-import { provider } from "../Web/backend/agent/config";
+import { provider, readLocalCredentials } from "../Web/backend/agent/config";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
@@ -185,19 +186,26 @@ try {
   const missing = required.filter(([key]) => !process.env[key]?.trim());
   if (missing.length)
     console.log(
-      "Paste these connection details once. They stay in your private .env.local file; input is hidden.\n",
+      "Paste these connection details once. They stay in your private local settings; input is hidden.\n",
     );
-  const localEnv = join(root, ".env.local");
-  const additions: string[] = [];
+  const credentialFile = join(state, "credentials.json");
+  const additions: Record<string, string> = {};
   for (const [key, label] of missing) {
     const value = await askCredential(label);
     process.env[key] = value;
-    additions.push(`${key}=${JSON.stringify(value).replaceAll("$", "\\$")}`);
+    additions[key] = value;
   }
-  if (additions.length) {
-    // Append missing values only; never replace an existing configured environment file.
-    appendFileSync(localEnv, `\n${additions.join("\n")}\n`, { mode: 0o600 });
-    chmodSync(localEnv, 0o600);
+  if (Object.keys(additions).length) {
+    // JSON preserves literal punctuation across Bun and Python; environment files stay untouched.
+    const pending = join(state, "credentials.pending.json");
+    writeFileSync(
+      pending,
+      JSON.stringify({ ...readLocalCredentials(root), ...additions }, null, 2) +
+        "\n",
+      { mode: 0o600 },
+    );
+    chmodSync(pending, 0o600);
+    renameSync(pending, credentialFile);
   }
   if (selected === "chatgpt") await ensureNpx();
   await run("Installing app dependencies", process.execPath, [

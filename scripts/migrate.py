@@ -4,12 +4,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Web/backend"))
 import psycopg
-from dotenv import load_dotenv
 
 from server import config
+from server.env import load_environment
 
-load_dotenv(config.ROOT / ".env.local")
-load_dotenv(config.ROOT / ".env")
+load_environment()
 
 with psycopg.connect(
     os.getenv("DATABASE_URL_UNPOOLED") or os.environ["DATABASE_URL"],

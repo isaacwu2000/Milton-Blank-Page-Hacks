@@ -124,3 +124,76 @@ def test_failed_install_explains_recovery_without_printing_secrets(checkout: Pat
     assert "run bash install.sh again" in result.stderr
     assert "private-test-value" not in result.stdout + result.stderr
     assert len((checkout / "calls").read_text().splitlines()) == 1
+
+
+def test_private_json_credentials_preserve_literal_characters(checkout: Path) -> None:
+    env = environment(checkout)
+    special = 'dollar$TEST_MARKER/${TEST_MARKER}/quote"/backslash\\/snow雪'
+    state = checkout / ".sportsbuilder"
+    state.mkdir()
+    keys = (
+        "DATABASE_URL",
+        "DAYTONA_API_KEY",
+        "NEON_STORAGE_ENDPOINT",
+        "NEON_STORAGE_ACCESS_KEY_ID",
+        "NEON_STORAGE_SECRET_ACCESS_KEY",
+        "OPENROUTER_API_KEY",
+    )
+    data = {key: special for key in keys}
+    path = state / "credentials.json"
+    path.write_text(json.dumps(data))
+    original = path.read_bytes()
+    env["TEST_MARKER"] = "must-not-expand"
+    (checkout / "bin/uv").write_text(
+        '#!/bin/sh\nprintf "%s" "$NEON_STORAGE_SECRET_ACCESS_KEY" > "$SETUP_CALLS"\n'
+    )
+    result = run_setup(checkout, env)
+    assert result.returncode == 0, result.stderr
+    assert (checkout / "calls").read_text() == special
+    assert special not in result.stdout + result.stderr
+    assert path.read_bytes() == original
+    assert not (checkout / ".env.local").exists()
+
+
+def test_default_install_starts_app_and_forwards_shutdown(checkout: Path) -> None:
+    import signal
+    import time
+
+    env = environment(checkout)
+    credentials(checkout)
+    (checkout / "dev.ts").write_text(
+        'import {writeFileSync} from "node:fs"; '
+        'writeFileSync("started", "yes"); '
+        'process.on("SIGTERM", () => {writeFileSync("stopped", "yes"); process.exit(0);}); '
+        "setInterval(() => {}, 1000);"
+    )
+    (checkout / "package.json").write_text(
+        json.dumps(
+            {"name": "setup-fixture", "scripts": {"build": "echo built", "dev": "bun dev.ts"}}
+        )
+    )
+    child = subprocess.Popen(
+        [str(BUN), "scripts/setup.ts", "--non-interactive"],
+        cwd=checkout,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        deadline = time.monotonic() + 10
+        while not (checkout / "started").exists() and time.monotonic() < deadline:
+            if child.poll() is not None:
+                pytest.fail(str(child.communicate()))
+            time.sleep(0.02)
+        assert (checkout / "started").exists()
+        child.terminate()
+        child.communicate(timeout=5)
+        assert (checkout / "stopped").exists()
+    finally:
+        try:
+            os.killpg(child.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        child.wait(timeout=5)

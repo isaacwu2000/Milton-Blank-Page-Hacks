@@ -13,11 +13,11 @@ bash install.sh
 That’s it. The installer adds missing Bun, uv, and Python 3.12, installs the app,
 prepares the database, checks video storage, builds it, and starts all services.
 You do not need pip, npm, or Python installed beforehand. It supports macOS and
-Linux; on Windows, run it inside Ubuntu/WSL.
+Ubuntu; on Windows, run it inside Ubuntu/WSL.
 
 It automatically reuses `.env.local`, `.env`, or exported credentials. Otherwise,
 it asks for your Neon database/storage details and Daytona key once, with hidden
-input, and saves only missing values in ignored `.env.local`. You need an existing
+input, and saves missing values in ignored `.sportsbuilder/credentials.json` (readable only by your user). Existing environment files stay untouched. You need an existing
 Neon database and private `videos` bucket, plus a Daytona account.
 
 If Codex is installed, setup uses the local ChatGPT sign-in and installs Node

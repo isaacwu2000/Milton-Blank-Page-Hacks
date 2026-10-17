@@ -8,7 +8,12 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { hasLocalCodex, selectProvider } from "./config";
+import {
+  hasLocalCodex,
+  selectProvider,
+  readLocalCredentials,
+  loadLocalCredentials,
+} from "./config";
 
 const temporaryDirectories: string[] = [];
 afterEach(() => {
@@ -57,5 +62,45 @@ describe("local Codex detection", () => {
     const path = directory();
     mkdirSync(join(path, "codex"));
     expect(hasLocalCodex(path, "linux", path)).toBe(false);
+  });
+});
+
+describe("installer credential loading", () => {
+  function saved(value: string) {
+    const root = directory();
+    mkdirSync(join(root, ".sportsbuilder"));
+    writeFileSync(join(root, ".sportsbuilder/credentials.json"), value);
+    return root;
+  }
+  it("fills blanks while preserving explicit values and ignoring unknown keys", () => {
+    const root = saved(
+      JSON.stringify({
+        OPENROUTER_API_KEY: "saved-key",
+        DATABASE_URL: "saved-url",
+        NODE_OPTIONS: "ignored",
+      }),
+    );
+    const environment: NodeJS.ProcessEnv = {
+      OPENROUTER_API_KEY: "explicit-key",
+      DATABASE_URL: " ",
+    };
+    loadLocalCredentials(root, environment);
+    expect(environment).toEqual({
+      OPENROUTER_API_KEY: "explicit-key",
+      DATABASE_URL: "saved-url",
+    });
+    expect(readLocalCredentials(directory())).toEqual({});
+  });
+  it("rejects malformed or invalid data without disclosing contents", () => {
+    for (const value of [
+      '{"OPENROUTER_API_KEY":"private-dummy-value',
+      "[]",
+      '{"OPENROUTER_API_KEY":42}',
+      '{"OPENROUTER_API_KEY":" "}',
+    ]) {
+      expect(() => readLocalCredentials(saved(value))).toThrow(
+        "Saved credentials could not be read. Rename .sportsbuilder/credentials.json and rerun bash install.sh to enter them again.",
+      );
+    }
   });
 });

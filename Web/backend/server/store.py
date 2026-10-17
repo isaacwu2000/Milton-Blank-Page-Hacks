@@ -12,16 +12,15 @@ if TYPE_CHECKING:
 
 import boto3
 from botocore.config import Config
-from dotenv import load_dotenv
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
 from server import config
+from server.env import load_environment
 from server.types import Calibration, Record, RecordKind
 
 ROOT = config.ROOT
-load_dotenv(ROOT / ".env.local")
-load_dotenv(ROOT / ".env")
+load_environment()
 BUCKET = config.STORAGE_BUCKET
 
 
