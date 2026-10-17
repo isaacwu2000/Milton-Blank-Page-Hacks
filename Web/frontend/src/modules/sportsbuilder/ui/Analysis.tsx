@@ -30,7 +30,12 @@ import {
   metricTarget,
   jointMeasurement,
 } from "../../../../../shared";
-import { IconButton, MeasurementUnit, NumberInput } from "../../../components";
+import {
+  IconButton,
+  MeasurementUnit,
+  NumberInput,
+  PromptBar,
+} from "../../../components";
 import { scaleFromAthleteHeight } from "../runtime/calibration";
 import { api, post } from "../services/api";
 import { type HomeData, type AgentJob } from "../types";
@@ -252,7 +257,9 @@ export function Workspace({
     [copied, setCopied] = useState(false);
   const athlete =
     profiles.find((profile) => profile.id === session?.profileId) ??
-    (sample ? profiles.find((profile) => profile.name === "Athlete") : undefined);
+    (sample
+      ? profiles.find((profile) => profile.name === "Athlete")
+      : undefined);
   const athleteHeight = athlete?.heightCm;
   const needsScale = !calibrated;
   const needsPhysicalScale = (unit: string) =>
@@ -1123,9 +1130,6 @@ function CoachPanel({
   return (
     <aside className="coach-panel">
       <div className="coach-heading">
-        <span className="coach-icon">
-          <Sparkles size={18} />
-        </span>
         <div>
           <h2>Your coach</h2>
           <span className="small muted">
@@ -1202,30 +1206,17 @@ function CoachPanel({
           Ask about {time.toFixed(2)}s
         </button>
       </div>
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
+      <PromptBar
+        value={text}
+        onChange={setText}
+        onSend={() => {
+          void send();
         }}
-      >
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          aria-label="Question for the coach"
-          placeholder="Ask your coach…"
-          rows={2}
-          maxLength={4000}
-          disabled={busy}
-        />
-        <IconButton
-          label="Send coach question"
-          onClick={() => send()}
-          disabled={busy || !text.trim()}
-        >
-          <ArrowRight size={17} />
-        </IconButton>
-      </form>
+        label="Question for the coach"
+        placeholder="Ask your coach…"
+        sendLabel="Send coach question"
+        disabled={busy}
+      />
       <p className="small muted coach-context">
         Uses your rubric, sampled frames, measurements, and athlete history.
       </p>

@@ -4,14 +4,19 @@ import {
   ArrowRight,
   Check,
   ChevronRight,
-  Film,
+  Plus,
   LoaderCircle,
   Sparkles,
   Target,
   X,
 } from "lucide-react";
 import { type Message, type Session } from "../../../../../shared";
-import { Input, IconButton } from "../../../components";
+import {
+  Input,
+  IconButton,
+  PromptBar,
+  ConfirmDialog,
+} from "../../../components";
 import { api, post } from "../services/api";
 import { type Brief, type AgentJob } from "../types";
 import { useAgentJob } from "../hooks/useAgentJob";
@@ -36,8 +41,10 @@ export function Builder({
     [error, setError] = useState(""),
     [brief, setBrief] = useState<Brief | null>(null),
     [ready, setReady] = useState(false),
+    [confirmEarlyBuild, setConfirmEarlyBuild] = useState(false),
     [referenceId, setReferenceId] = useState<string | undefined>(),
     [referenceName, setReferenceName] = useState(""),
+    [uploadingReference, setUploadingReference] = useState(false),
     [job, setJob] = useState<string | null>(null),
     [stage, setStage] = useState("Preparing your tool");
   const ref = useRef<HTMLInputElement>(null);
@@ -88,13 +95,16 @@ export function Builder({
     }
   }
   async function build() {
-    if (!brief) return;
+    const buildMessages = text.trim()
+      ? [...messages, { role: "user" as const, content: text.trim() }]
+      : messages;
+    setConfirmEarlyBuild(false);
     setBusy(true);
     setError("");
     try {
       const result = await post<{ id: string }>("/agent/build", {
-        brief,
-        messages,
+        brief: ready && !text.trim() ? (brief ?? undefined) : undefined,
+        messages: buildMessages,
         referenceId,
       });
       setJob(result.id);
@@ -105,6 +115,7 @@ export function Builder({
   }
   async function uploadRef(file: File) {
     setBusy(true);
+    setUploadingReference(true);
     try {
       const form = new FormData();
       form.set("file", file);
@@ -121,6 +132,7 @@ export function Builder({
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      setUploadingReference(false);
     }
   }
   return (
@@ -144,11 +156,6 @@ export function Builder({
           <div className="conversation" aria-live="polite">
             {messages.map((m, i) => (
               <div className={`message ${m.role}`} key={i}>
-                {m.role === "assistant" && (
-                  <span className="chat-mark">
-                    <Sparkles size={15} />
-                  </span>
-                )}
                 <div>{m.content}</div>
               </div>
             ))}
@@ -168,30 +175,51 @@ export function Builder({
               <ArrowRight size={15} />
             </button>
           )}
-          <form
-            className="composer"
-            onSubmit={(e) => {
-              e.preventDefault();
-              send();
+          <PromptBar
+            value={text}
+            onChange={setText}
+            onSend={() => {
+              void send();
             }}
-          >
-            <textarea
-              rows={2}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Tell me about your idea…"
-              aria-label="Answer the builder"
-              disabled={busy}
-              maxLength={4000}
-            />
-            <IconButton
-              label="Send answer"
-              disabled={busy || !text.trim()}
-              onClick={() => send()}
-            >
-              <ArrowRight size={18} />
-            </IconButton>
-          </form>
+            placeholder="Tell me about your idea…"
+            label="Answer the builder"
+            sendLabel="Send answer"
+            disabled={busy}
+            actions={
+              <>
+                <input
+                  className="sr-only"
+                  ref={ref}
+                  type="file"
+                  aria-label="Upload optional good form reference"
+                  accept=".mov,.mp4,.webm,video/*"
+                  disabled={busy}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void uploadRef(file);
+                    event.target.value = "";
+                  }}
+                />
+                <IconButton
+                  label="Add a good-form video"
+                  surface="transparent"
+                  disabled={busy}
+                  onClick={() => ref.current?.click()}
+                >
+                  <Plus size={18} aria-hidden="true" />
+                </IconButton>
+              </>
+            }
+            attachment={
+              uploadingReference ? (
+                <p className="prompt-bar-attachment" role="status">
+                  Uploading reference video…
+                </p>
+              ) : referenceName ? (
+                <p className="prompt-bar-attachment">{referenceName}</p>
+              ) : undefined
+            }
+          />
         </div>
         <aside className="brief-panel">
           <h2>Your tool, taking shape</h2>
@@ -240,28 +268,12 @@ export function Builder({
               appear here.
             </p>
           )}
-          <input
-            className="sr-only"
-            ref={ref}
-            type="file"
-            aria-label="Upload optional good form reference"
-            accept=".mov,.mp4,.webm,video/*"
-            onChange={(e) => {
-              if (e.target.files?.[0]) uploadRef(e.target.files[0]);
-            }}
-          />
-          <button
-            className="text-button"
-            disabled={busy}
-            onClick={() => ref.current?.click()}
-          >
-            <Film size={15} />
-            {referenceName || "Add a good-form video (optional)"}
-          </button>
           <button
             className="button"
-            disabled={!ready || !brief || busy}
-            onClick={build}
+            disabled={busy}
+            onClick={() =>
+              ready && !text.trim() ? build() : setConfirmEarlyBuild(true)
+            }
           >
             {job ? (
               <LoaderCircle className="spin" size={16} />
@@ -275,13 +287,31 @@ export function Builder({
               {stage}
             </p>
           )}
-          {!ready && (
-            <p className="small muted">
-              Finish the interview to review and build.
-            </p>
-          )}
         </aside>
       </div>
+      {confirmEarlyBuild && !busy && (
+        <ConfirmDialog
+          title="Build before finishing the interview?"
+          onClose={() => setConfirmEarlyBuild(false)}
+        >
+          <p className="small muted">
+            Your coach may miss details you haven’t shared. We’ll use what
+            you’ve told us and make conservative assumptions for the rest.
+          </p>
+          <div className="early-build-actions">
+            <button
+              autoFocus
+              className="button"
+              onClick={() => setConfirmEarlyBuild(false)}
+            >
+              Keep talking
+            </button>
+            <button className="button secondary" onClick={build}>
+              Build anyway
+            </button>
+          </div>
+        </ConfirmDialog>
+      )}
       {error && <ErrorNote message={error} />}
     </section>
   );

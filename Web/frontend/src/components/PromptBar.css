@@ -1,0 +1,99 @@
+/* Adapted from LearnUnlock's tutor PromptBar: raised white surface and bottom toolbar. */
+.prompt-bar {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex-shrink: 0;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 120px;
+  padding: 16px 12px 8px;
+  border-radius: 12px;
+  background: var(--neutral-light-100);
+  box-shadow: var(--shadow-md);
+}
+.prompt-bar textarea {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  max-height: 200px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--neutral-dark-300, var(--neutral-dark-400));
+  font: inherit;
+  font-size: 14px;
+  line-height: 24px;
+  resize: none;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--neutral-light-700, #d7ddda) transparent;
+}
+.prompt-bar textarea:focus {
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+}
+.prompt-bar:focus-within {
+  outline: 2px solid var(--accent-700);
+  outline-offset: 3px;
+}
+.prompt-bar textarea::placeholder {
+  color: var(--neutral-dark-500);
+  opacity: 1;
+}
+.prompt-bar-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 32px;
+}
+.prompt-bar-actions button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--neutral-dark-300, var(--neutral-dark-400));
+  color: var(--neutral-light-100);
+  transition: background-color 150ms;
+}
+.prompt-bar-actions button:hover:not(:disabled) {
+  background: var(--neutral-dark-150);
+}
+.prompt-bar-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .prompt-bar-actions button {
+    transition: none;
+  }
+}
+.prompt-bar-tools {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.prompt-bar .prompt-bar-tools button {
+  background: transparent;
+  color: var(--neutral-dark-400);
+}
+.prompt-bar .prompt-bar-tools button:hover:not(:disabled) {
+  background: var(--neutral-light-500);
+}
+.prompt-bar-attachment {
+  margin: 0;
+  padding: 4px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  color: var(--neutral-dark-400);
+}

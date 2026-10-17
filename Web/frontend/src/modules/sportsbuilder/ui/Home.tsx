@@ -315,14 +315,6 @@ export function Product() {
                 )}
               </section>
             </div>
-            <div className="sample-entry">
-              <button className="text-button" onClick={() => setSample(true)}>
-                Try a sample analysis <ArrowRight size={15} />
-              </button>
-              <p className="small muted">
-                Synthetic movement. No video upload needed.
-              </p>
-            </div>
           </div>
         </div>
       </main>
@@ -404,8 +396,7 @@ function UploadPanel({
       <div className="upload-icon">
         <CloudUpload size={28} strokeWidth={1.5} />
       </div>
-      <h1>Your Athletic Dreams Will Become a reality</h1>
-      <p>Drop your video here, or choose one to get started.</p>
+      <h1>Your Athletic Dreams Will Become a Reality</h1>
       <div className="upload-selects">
         <div className="flex min-w-0 flex-1 flex-col gap-2 text-[12px] text-(--neutral-dark-400)">
           <span>Coaching tool</span>
@@ -460,7 +451,9 @@ function UploadPanel({
         </div>
       )}
       <div className="w-full max-w-[420px] text-left">
-        <label htmlFor="sampling-interval">{formatFrameRate(interval)} fps</label>
+        <label htmlFor="sampling-interval">
+          {formatFrameRate(interval)} fps
+        </label>
         <input
           id="sampling-interval"
           aria-label="Frame sampling rate"

@@ -52,8 +52,8 @@ describe("saved workspace loading", () => {
       screen.queryByRole("button", { name: "Build your first tool" }),
     ).toBeNull();
     expect(
-      screen.getByRole("button", { name: /Try a sample analysis/ }),
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: /Try a sample analysis/ }),
+    ).toBeNull();
     await act(async () => {
       finish(saved);
     });
@@ -82,19 +82,25 @@ describe("saved workspace loading", () => {
     ).toBeNull();
     expect(api).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("alert")).toBeNull();
-    fireEvent.click(
-      screen.getByRole("button", { name: /Try a sample analysis/ }),
-    );
-    expect(screen.getByText("Sample analysis")).toBeTruthy();
   });
-  it("opens the synthetic sample when saved services are unavailable", async () => {
+  it("keeps the upload screen focused on real videos when saved services are unavailable", async () => {
     vi.mocked(api).mockRejectedValueOnce(Error("Saved workspace unavailable"));
     render(<Product />);
     await screen.findByRole("alert");
-    fireEvent.click(
-      screen.getByRole("button", { name: /Try a sample analysis/ }),
-    );
-    expect(screen.getByText("Sample analysis")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /Try a sample analysis/ }),
+    ).toBeNull();
+    expect(
+      screen.queryByText("Synthetic movement. No video upload needed."),
+    ).toBeNull();
+    expect(
+      screen.queryByText("Drop your video here, or choose one to get started."),
+    ).toBeNull();
+    expect(
+      screen.getByRole("heading", {
+        name: "Your Athletic Dreams Will Become a Reality",
+      }),
+    ).toBeTruthy();
     expect(api).toHaveBeenCalledTimes(1);
   });
   it("requires first-use height before upload and persists the single athlete", async () => {
@@ -123,7 +129,7 @@ describe("saved workspace loading", () => {
     fireEvent.change(height, { target: { value: "178" } });
     fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
     await screen.findByRole("heading", {
-      name: "Your Athletic Dreams Will Become a reality",
+      name: "Your Athletic Dreams Will Become a Reality",
     });
     expect(post).toHaveBeenCalledWith("/api/profiles", {
       name: "Athlete",
@@ -166,7 +172,7 @@ describe("saved workspace loading", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
     await screen.findByRole("heading", {
-      name: "Your Athletic Dreams Will Become a reality",
+      name: "Your Athletic Dreams Will Become a Reality",
     });
     expect(api).toHaveBeenCalledWith("/api/profiles/canonical", {
       method: "PATCH",
@@ -182,7 +188,9 @@ describe("saved workspace loading", () => {
     expect(slider.value).toBe("0.1");
     expect(slider.getAttribute("aria-valuetext")).toBe("10 frames per second");
     fireEvent.change(slider, { target: { value: "0.15" } });
-    expect(slider.getAttribute("aria-valuetext")).toBe("6.67 frames per second");
+    expect(slider.getAttribute("aria-valuetext")).toBe(
+      "6.67 frames per second",
+    );
     expect(
       screen.queryByRole("combobox", { name: "Tracking interval" }),
     ).toBeNull();

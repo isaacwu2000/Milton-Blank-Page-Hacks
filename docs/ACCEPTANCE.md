@@ -10,7 +10,7 @@ working tree; captures do not all represent one immutable final commit.
 The latest TypeScript typecheck and behavioral tests passed after height onboarding,
 custom numeric entry, three-section navigation, and thumbnail changes. The profile/calibration backend passed 62 pytest tests, ty, and Ruff.
 
-- **Vitest:** 54 tests across 11 files passed with the latest build/typecheck.
+- **Vitest:** The earlier full run passed 54 tests across 11 files. A later refinement checkpoint passed 63 tests and the production build before the warning popup replaced the inline warning; two focused popup cases and typecheck then passed. A final combined run after the popup remains to be recorded.
   Coverage includes nine Home, eight Player, and three Analysis cases, including
   sidebar reopening, canonical-height selection, calibration pause and seek reset.
   Coverage includes metric units/dependencies, provider parity/no paid fallback,
@@ -141,7 +141,7 @@ Your profile anchored at the bottom. Required
 height onboarding saves the single Athlete profile before upload; editing height
 reuses its identity. Custom numeric inputs preserve decimal drafts and validate
 range/step without browser spinners. Get coached centers an unframed upload task on the page background, with full-width
-video history below and a quiet sample link. Workspace breadcrumbs and duplicate
+video history below. That capture predates removal of the sample entry and duplicate subtitle. Workspace breadcrumbs and duplicate
 builder controls are removed. Completed recent rows show an arrow action and a
 private first-frame preview, with no aggregate count or Ready label. A visible
 pre-upload slider selects 0.05–2 seconds in 0.05-second steps (default 0.1), applied
@@ -198,3 +198,39 @@ live browser, including focus restoration.
 Raw footage, analysis images, signed-read checks, and transcripts stay in ignored
 local evidence storage. Keep secrets, temporary signed URLs, and private video
 artifacts out of commits containing this record.
+
+
+## Builder and prompt refinement checkpoint
+
+The current working tree adapts LearnUnlock's raised PromptBar in the interview
+and coach: optional-reference plus action in the builder, compact 28px circular
+send action, bounded textarea growth, and keyboard/composition guards. Decorative
+assistant-message icons are removed. The builder no longer sits inside a tall
+outer card; its conversation uses the thin LearnUnlock-style scrollbar. The
+sidebar logo is 24px. Get coached uses the title-case heading Your Athletic Dreams
+Will Become a Reality, with the subtitle and sample entry removed.
+
+Build is available during an unfinished interview. The current unsent prompt is
+included. A centered native popup warns about missing details; Keep talking is
+the primary, initially focused choice, and Build anyway is secondary. The backend
+accepts an absent brief and derives a validated one through the configured model
+before opening Daytona. Supplied briefs retain their existing path. Unanswered
+assistant suggestions must not be treated as user agreement; unresolved choices
+are labeled assumptions. Invalid generated briefs fail before sandbox creation.
+
+Deterministic evidence: three draft-brief service cases cover generation through
+the configured provider, unchanged supplied briefs without an extra model call,
+and rejection of invalid generated data. The four provider parity/failure cases
+also passed. A fresh live OAuth GPT-6.1 Sol medium call generated a validated
+beginner squat brief with two knee-angle metrics, conservative recording/form
+assumptions, and no invented numerical good-form thresholds. The first live
+attempt exposed overly long labels; explicit schema field lengths corrected that
+failure, and the fresh retry passed. This establishes live draft extraction,
+not completion of the new full early-build journey.
+
+`output/screenshots/early-build-popup.png` records the current popup over the
+unframed builder; `output/screenshots/builder-refinement.png` is an earlier
+refinement capture and must not be used as proof of the current popup. The current
+one-page refinement PDF uses the popup image only. A fresh full early-build
+browser/Daytona/save run is in progress at this checkpoint; its outcome is not
+claimed here. All refinement evidence is local, with no deployment.

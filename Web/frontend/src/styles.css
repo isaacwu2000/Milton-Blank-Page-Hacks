@@ -544,10 +544,8 @@ dd {
   justify-self: start;
 }
 .builder {
-  background: white;
-  border-radius: 12px;
-  box-shadow: var(--shadow-lg);
-  padding: 24px;
+  min-width: 0;
+  padding: 0;
 }
 .step-label {
   @apply inline-flex items-center gap-3;
@@ -567,25 +565,29 @@ dd {
 }
 .builder-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(260px, 1fr);
+  grid-template-columns: minmax(0, 1.5fr) minmax(240px, 1fr);
+  align-items: start;
   gap: 40px;
   margin-top: 24px;
 }
 .interview {
   @apply flex flex-col;
-  min-height: 440px;
+  min-height: 0;
+  height: clamp(400px, calc(100dvh - 220px), 720px);
+  min-width: 0;
 }
 .conversation {
   @apply flex flex-col gap-6;
   flex: 1;
-  max-height: 510px;
+  min-height: 0;
   overflow: auto;
-  padding: 8px 4px 24px;
+  overscroll-behavior: contain;
+  padding: 8px 12px 24px 0;
 }
 .message {
-  @apply flex items-start gap-3;
-  font-size: 12px;
-  line-height: 24px;
+  font-size: 14px;
+  line-height: 26px;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 .message.user {
@@ -593,32 +595,6 @@ dd {
   background: var(--neutral-light-500);
   padding: 12px 16px;
   border-radius: 12px;
-}
-.chat-mark {
-  color: var(--accent-700);
-  padding-top: 4px;
-}
-.composer {
-  @apply flex items-end gap-2 rounded-xl;
-  box-shadow: var(--shadow-inner);
-  background: var(--neutral-light-500);
-  padding: 12px;
-}
-.composer textarea {
-  padding: 0;
-  background: transparent;
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
-  resize: none;
-  outline: none;
-}
-.composer button {
-  background: var(--accent-700);
-  color: white;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
 }
 .example-prompt {
   @apply flex items-center gap-2 rounded-lg text-left;
@@ -630,7 +606,8 @@ dd {
 }
 .brief-panel {
   @apply flex flex-col gap-4;
-  padding: 0 8px;
+  min-width: 0;
+  padding: 0 0 0 24px;
 }
 .brief-panel > p {
   font-size: 12px;
@@ -645,6 +622,7 @@ dd {
 }
 .brief-panel .button {
   margin-top: 8px;
+  align-self: flex-start;
 }
 .metric-list {
   @apply flex flex-col gap-2;
@@ -1542,7 +1520,7 @@ progress {
   align-items: center;
   justify-content: space-between;
   gap: 4px;
-  padding: 20px 8px 28px;
+  padding: 10px 8px 16px;
 }
 .sidebar-header .brand-link {
   padding: 0;
@@ -1578,4 +1556,76 @@ progress {
   .sidebar-header .brand {
     font-size: 0;
   }
+}
+
+/* LearnUnlock TutorConversation: thin thumb, transparent track, no native rail. */
+html,
+.conversation,
+.coach-conversation,
+.brief-panel {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--neutral-dark-500) 35%, transparent)
+    transparent;
+}
+.conversation::-webkit-scrollbar,
+.coach-conversation::-webkit-scrollbar {
+  width: 6px;
+}
+.conversation::-webkit-scrollbar-track,
+.coach-conversation::-webkit-scrollbar-track {
+  background: transparent;
+}
+.conversation::-webkit-scrollbar-thumb,
+.coach-conversation::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--neutral-dark-500) 35%, transparent);
+}
+.sidebar-header .brand-mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+.sidebar-header .brand-mark svg {
+  width: 16px;
+  height: 16px;
+}
+.early-build-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.early-build-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.confirm-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(440px, calc(100vw - 48px));
+  max-height: calc(100dvh - 48px);
+  padding: 28px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--neutral-light-100);
+  color: var(--neutral-dark-200);
+  box-shadow: var(--shadow-lg);
+}
+.confirm-dialog::backdrop {
+  background: color-mix(in oklch, var(--neutral-dark-150) 30%, transparent);
+}
+.confirm-dialog > p {
+  margin-top: 12px;
+}
+.confirm-dialog .early-build-actions {
+  margin-top: 24px;
+}
+.confirm-dialog .early-build-actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
 }
