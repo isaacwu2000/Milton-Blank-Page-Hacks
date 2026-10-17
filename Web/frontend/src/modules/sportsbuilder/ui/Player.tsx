@@ -351,6 +351,7 @@ export function Player({
               markerHeight={analysis.width / 90}
               markerUnits="userSpaceOnUse"
               orient="auto"
+              overflow="visible"
             >
               <path
                 d="M 1 1 L 10 5 L 1 9"
@@ -364,7 +365,7 @@ export function Player({
             <line
               x1="0"
               y1={ground}
-              x2={analysis.width}
+              x2={analysis.width * 0.988}
               y2={ground}
               stroke="white"
               strokeWidth="5"
@@ -383,7 +384,7 @@ export function Player({
               aria-label="Ground baseline"
               x1="0"
               y1={ground}
-              x2={analysis.width}
+              x2={analysis.width * 0.988}
               y2={ground}
               stroke="#35494d"
               strokeWidth="2"
