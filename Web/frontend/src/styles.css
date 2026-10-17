@@ -54,6 +54,12 @@
 * {
   box-sizing: border-box;
 }
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+}
 body {
   margin: 0;
 }
@@ -222,6 +228,7 @@ small,
 }
 .app-shell {
   @apply flex min-h-screen;
+  width: 100%;
 }
 .sidebar {
   @apply flex flex-col shrink-0;
@@ -284,12 +291,8 @@ small,
   color: #496358;
 }
 .home-content {
+  width: 100%;
   padding: 24px 48px 64px;
-  max-width: 1600px;
-  margin: auto;
-}
-.home-content.coach-library {
-  max-width: none;
 }
 .page-heading {
   @apply flex items-center justify-between gap-4;
@@ -692,7 +695,6 @@ dd {
 .analysis-main {
   padding: 24px 32px;
   min-width: 0;
-  max-width: 1600px;
   width: 100%;
   margin: auto;
 }
