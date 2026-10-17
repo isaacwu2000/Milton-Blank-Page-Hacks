@@ -103,3 +103,44 @@ it("does not repair an interrupted provider stream", async () => {
   ).rejects.toThrow(/before completion/);
   expect(streamChat).toHaveBeenCalledOnce();
 });
+
+it("gives repair the exact nested formula path and operand units even after replacing the metric list", async () => {
+  const invalid = structuredClone(sampleTool.metrics);
+  invalid[0].formula = {
+    op: "abs",
+    args: [
+      {
+        op: "add",
+        args: [{ op: "time" }, { op: "speed", joint: "left_knee" }],
+      },
+    ],
+  };
+  vi.mocked(streamChat)
+    .mockClear()
+    .mockImplementationOnce(async function* () {
+      yield '{"type":"text","text":"I’ll update the metrics."}\n';
+      yield JSON.stringify({
+        type: "edit",
+        path: "/metrics",
+        old: sampleTool.metrics,
+        value: invalid,
+      }) + '\n{"type":"commit","baseRevision":2,"ready":false}';
+    })
+    .mockImplementationOnce(async function* () {
+      yield '{"type":"commit","baseRevision":2,"ready":false}';
+    });
+  await buildStream(
+    [{ role: "user", content: "Change metrics" }],
+    sampleTool,
+    2,
+    false,
+    undefined,
+    () => {},
+    new AbortController().signal,
+  );
+  const correction = JSON.stringify(vi.mocked(streamChat).mock.calls[1][0]);
+  expect(correction).toContain("/metrics/0/formula/args/0");
+  expect(correction).toContain("same scalar units");
+  expect(correction).toContain("time");
+  expect(correction).toContain("speed");
+});

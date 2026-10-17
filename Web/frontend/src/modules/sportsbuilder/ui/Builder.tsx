@@ -82,6 +82,11 @@ export function Builder({
   const { conversationRef, latestRef } = useConversationScroll(messages, busy);
   useEffect(() => () => active.current?.abort(), []);
 
+  /**
+   * Streams a turn and aborts its predecessor; only the active turn may publish state.
+   * - Failure restores history and retains the last valid preview and any typed follow-up.
+   * - Retry keeps a different unsent draft when keepDraft is true.
+   */
   async function send(
     content = text,
     force = false,
@@ -179,6 +184,7 @@ export function Builder({
     setConfirmEarlyBuild(false);
     void send(text, true);
   }
+  /** Saves the server-held validated draft once; generation and uploads block saving. */
   async function save() {
     if (!validatedId || busy || saving || uploadingReference) return;
     setSaving(true);
@@ -194,6 +200,7 @@ export function Builder({
       setSaving(false);
     }
   }
+  /** Uploads optional evidence; a new association invalidates the previous save reference. */
   async function uploadRef(file: File) {
     setUploadingReference(true);
     setError("");

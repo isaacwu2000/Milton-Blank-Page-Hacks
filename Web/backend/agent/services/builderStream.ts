@@ -7,6 +7,7 @@ import {
   makeSample,
   sampleTool,
   validateTool,
+  ToolValidationError,
   type Message,
   type ToolConfig,
 } from "../../../shared";
@@ -265,16 +266,24 @@ ${current ? `Current revision ${revision}: ${JSON.stringify(current)}` : `No per
       firstReply = reply;
       emit({ type: "status", message: "Fixing a configuration issue…" });
       const detail =
-        error instanceof z.ZodError
-          ? JSON.stringify(error.issues)
-          : error instanceof Error
-            ? error.message
-            : String(error);
+        error instanceof ToolValidationError
+          ? JSON.stringify({
+              name: error.name,
+              message: error.message,
+              path: error.path,
+              expected: error.expected,
+              actual: error.actual,
+            })
+          : error instanceof z.ZodError
+            ? JSON.stringify(error.issues)
+            : error instanceof Error
+              ? error.message
+              : String(error);
       conversation.push(
         { role: "assistant", content: output },
         {
           role: "user",
-          content: `Tool result: validation failed. No changes were applied. Detailed error: ${detail}. Attempted paths: ${JSON.stringify(paths)}. Repair the complete JSONL batch against ORIGINAL revision ${revision}, preserving the user's request. Return only corrected JSONL; do not repeat commentary already shown. A commit is required. Current configuration: ${JSON.stringify(current ?? null)}.`,
+          content: `Tool result: validation failed. No changes were applied. Detailed error: ${detail}. Attempted paths: ${JSON.stringify(paths)}. Repair the complete JSONL batch against ORIGINAL revision ${revision}, preserving the user's request. Return only corrected JSONL; ${reply ? "do not repeat commentary already shown" : "include a short text record because no commentary was shown"}. A commit is required. Current configuration: ${JSON.stringify(current ?? null)}.`,
         },
       );
     }
