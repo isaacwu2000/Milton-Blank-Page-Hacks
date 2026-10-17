@@ -760,7 +760,7 @@ app.post("/agent/coach", (req, res, next) => {
               drill: object({
                 title: { type: "string", minLength: 1, maxLength: 120 },
                 instructions: { type: "string", minLength: 1, maxLength: 400 },
-                steps: { type: "array", items: { type: "string", minLength: 1, maxLength: 300 }, minItems: 2, maxItems: 6 },
+                steps: { type: "array", items: { type: "string", minLength: 1, maxLength: 300 }, minItems: 2, maxItems: 6, uniqueItems: true },
               }, ["title", "instructions"]),
             },
             ["reply"],
