@@ -15,6 +15,7 @@ import {
   MeasurementUnit,
   Math as AxisMath,
 } from "../../../components";
+import { LoadingStatus } from "./common";
 export function Player({
   analysis,
   url,
@@ -54,7 +55,8 @@ export function Player({
     videoRef = externalRef ?? ownRef;
   const [playing, setPlaying] = useState(false),
     [playbackError, setPlaybackError] = useState(""),
-    [inspected, setInspected] = useState(false);
+    [inspected, setInspected] = useState(false),
+    [videoLoading, setVideoLoading] = useState(analysis.source === "video");
   const onTimeRef = useRef(onTime),
     playingChangeRef = useRef(onPlayingChange),
     lastReported = useRef<number | null>(null),
@@ -273,6 +275,12 @@ export function Player({
             muted={linkedPlaying !== undefined}
             playsInline
             preload="auto"
+            onLoadStart={() => setVideoLoading(true)}
+            onLoadedData={() => setVideoLoading(false)}
+            onCanPlay={() => setVideoLoading(false)}
+            onWaiting={() => setVideoLoading(true)}
+            onPlaying={() => setVideoLoading(false)}
+            onSeeking={() => setVideoLoading(true)}
             onLoadedMetadata={(e) => {
               e.currentTarget.currentTime = Math.min(
                 timeRef.current,
@@ -285,7 +293,7 @@ export function Player({
               if (e.currentTarget.paused)
                 reportTime(e.currentTarget.currentTime);
             }}
-            onSeeked={(e) => reportTime(e.currentTarget.currentTime)}
+            onSeeked={(e) => { setVideoLoading(false); reportTime(e.currentTarget.currentTime); }}
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
             onEnded={(e) => {
@@ -293,12 +301,16 @@ export function Player({
               reportTime(e.currentTarget.currentTime);
             }}
             onError={() => {
+              setVideoLoading(false);
               setPlaying(false);
               setPlaybackError(
                 "This video could not be played. The file may have expired or use an unsupported codec. Reload it, or export an H.264 MP4.",
               );
             }}
           />
+        )}
+        {!sample && videoLoading && !playbackError && (
+          <div className="video-loading"><LoadingStatus>Loading video…</LoadingStatus></div>
         )}
         <svg
           viewBox={`0 0 ${analysis.width} ${analysis.height}`}

@@ -316,3 +316,16 @@ describe("selected joint derivative vectors", () => {
     ).toBe(false);
   });
 });
+
+it("shows video buffering and clears it when playback is ready or fails", () => {
+  const view = render(<Player analysis={analysis([point()])} url="private.mp4" time={0} onTime={() => {}} joint="right_wrist" onJoint={() => {}} ground={200} />);
+  const video = view.container.querySelector("video")!;
+  expect(screen.getByRole("status").textContent).toContain("Loading video");
+  fireEvent.loadedData(video);
+  expect(screen.queryByRole("status")).toBeNull();
+  fireEvent.waiting(video);
+  expect(screen.getByRole("status")).toBeTruthy();
+  fireEvent.error(video);
+  expect(screen.queryByRole("status")).toBeNull();
+  expect(screen.getByText(/This video could not be played/)).toBeTruthy();
+});

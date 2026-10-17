@@ -633,7 +633,7 @@ dd {
 .interview {
   @apply flex flex-col;
   min-height: 0;
-  height: clamp(400px, calc(100dvh - 220px), 720px);
+  height: max(400px, calc(100dvh - 220px));
   min-width: 0;
   position: sticky;
   top: 24px;
@@ -1724,4 +1724,38 @@ html,
 }
 .coach-exercises li + li {
   margin-top: 8px;
+}
+
+.loading-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+button .loading-status {
+  color: inherit;
+}
+.video-loading {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--neutral-light-100);
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+
+.confirm-dialog-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.confirm-dialog-heading h2 {
+  flex: 1;
+}
+.confirm-dialog-heading button {
+  flex-shrink: 0;
 }

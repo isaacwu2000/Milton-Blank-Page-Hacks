@@ -40,7 +40,7 @@ import { api, post } from "../services/api";
 import { type HomeData, type AgentJob } from "../types";
 import { useAgentJob } from "../hooks/useAgentJob";
 import { useConversationScroll } from "../hooks/useConversationScroll";
-import { Logo, ErrorNote } from "./common";
+import { Logo, ErrorNote, LoadingStatus } from "./common";
 import { fmt } from "../runtime/format";
 import { Player, Chart } from "./Player";
 import { CoachExercises } from "./CoachExercises";
@@ -57,6 +57,8 @@ export function SessionWorkspace({
 }) {
   const [pollGeneration, setPollGeneration] = useState(0);
   const [closing, setClosing] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [session, setSession] = useState<Session | null>(null),
     [analysis, setAnalysis] = useState<Analysis | null>(null),
     [url, setUrl] = useState(""),
@@ -128,6 +130,8 @@ export function SessionWorkspace({
   }
   const tool = data.tools.find((t) => t.id === session?.toolId);
   async function start() {
+    if (starting) return;
+    setStarting(true);
     setError("");
     try {
       setSession(await post<Session>(`/api/sessions/${sessionId}/analyze`, {}));
@@ -135,6 +139,21 @@ export function SessionWorkspace({
       setPollGeneration((g) => g + 1);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setStarting(false);
+    }
+  }
+  /** Refreshes saved progress once without overlapping manual refresh requests. */
+  async function refresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    setError("");
+    try {
+      await load();
+    } catch (problem) {
+      setError((problem as Error).message);
+    } finally {
+      setRefreshing(false);
     }
   }
   if (analysis && session && !tool && !closing)
@@ -195,7 +214,10 @@ export function SessionWorkspace({
               ? "Ready to look closer"
               : "Following your movement"}
         </h1>
-        <p>{session?.name ?? "Loading your video…"}</p>
+        <p>{session?.name ?? "Your recording"}</p>
+        {!error && !closing && (!session || (session.status === "complete" && !analysis)) && (
+          <LoadingStatus>{session ? "Loading measured analysis…" : "Loading your video…"}</LoadingStatus>
+        )}
         {error && <ErrorNote message={error} />}
         {closing && <p role="status">Cancelling analysis… Your video stays saved.</p>}
         <p className="muted">
@@ -216,16 +238,21 @@ export function SessionWorkspace({
             </p>
             <button
               className="text-button"
-              onClick={() => load().catch((e) => setError(e.message))}
+              onClick={() => { void refresh(); }}
+              disabled={refreshing || closing}
             >
-              Refresh status
+              {refreshing ? <LoadingStatus>Refreshing status…</LoadingStatus> : "Refresh status"}
             </button>
           </>
         )}
+        {error && !session && (
+          <button className="text-button" disabled={refreshing} onClick={() => { void refresh(); }}>
+            {refreshing ? <LoadingStatus>Loading your video…</LoadingStatus> : "Retry loading video"}
+          </button>
+        )}
         {session && ["failed", "uploaded"].includes(session.status) && (
-          <button className="button" onClick={start}>
-            Analyze video
-            <ArrowRight size={16} />
+          <button className="button" onClick={start} disabled={starting || closing}>
+            {starting ? <LoadingStatus>Starting analysis…</LoadingStatus> : <>Analyze video<ArrowRight size={16} /></>}
           </button>
         )}
       </div>
@@ -259,7 +286,9 @@ export function Workspace({
     [settings, setSettings] = useState(false),
     [coachOpen, setCoachOpen] = useState(true),
     [tab, setTab] = useState<"movement" | "metrics">("movement"),
-    [copied, setCopied] = useState(false);
+    [copied, setCopied] = useState(false),
+    [copying, setCopying] = useState(false),
+    [deleting, setDeleting] = useState(false);
   const coachWidth = useCoachWidth();
   const ground = session?.ground ?? session?.calibration?.ground ?? analysis.ground;
   const scale = session?.calibration?.metersPerPixel ?? 1;
@@ -327,6 +356,8 @@ export function Workspace({
           : "length");
   const setCurrentTime = setTime;
   async function copy() {
+    if (copying) return;
+    setCopying(true);
     const text = JSON.stringify(tool, null, 2);
     try {
       await navigator.clipboard.writeText(text);
@@ -334,6 +365,8 @@ export function Workspace({
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setError("Clipboard unavailable. Use the Download tool action.");
+    } finally {
+      setCopying(false);
     }
   }
   function download() {
@@ -346,13 +379,16 @@ export function Workspace({
     URL.revokeObjectURL(a.href);
   }
   async function remove() {
-    if (!session || !confirm("Delete this video and its saved analysis?"))
+    if (deleting || !session || !confirm("Delete this video and its saved analysis?"))
       return;
+    setDeleting(true);
     try {
       await api(`/api/sessions/${session.id}`, { method: "DELETE" });
       onBack();
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setDeleting(false);
     }
   }
   return (
@@ -403,9 +439,8 @@ export function Workspace({
                 <summary>Tool definition</summary>
                 <p>{tool.rubric}</p>
                 <div className="wrap-actions">
-                  <button className="text-button" onClick={copy}>
-                    <Clipboard size={14} />
-                    {copied ? "Copied" : "Copy JSON"}
+                  <button className="text-button" onClick={copy} disabled={copying}>
+                    {copying ? <LoadingStatus>Copying tool…</LoadingStatus> : <><Clipboard size={14} />{copied ? "Copied" : "Copy JSON"}</>}
                   </button>
                   <button className="text-button" onClick={download}>
                     Download tool
@@ -413,9 +448,8 @@ export function Workspace({
                 </div>
               </details>
               {session && (
-                <button className="text-button error-text" onClick={remove}>
-                  <Trash2 size={14} />
-                  Delete video
+                <button className="text-button error-text" onClick={remove} disabled={deleting}>
+                  {deleting ? <LoadingStatus>Deleting video…</LoadingStatus> : <><Trash2 size={14} />Delete video</>}
                 </button>
               )}
             </section>

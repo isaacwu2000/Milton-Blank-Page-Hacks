@@ -408,3 +408,13 @@ describe("mobile sidebar drawer", () => {
     );
   });
 });
+
+it("announces profile saving until the saved height returns", async () => {
+  vi.mocked(api).mockResolvedValueOnce(saved).mockReturnValueOnce(new Promise(() => {}));
+  render(<Product />);
+  await screen.findAllByText(sampleTool.name);
+  fireEvent.click(screen.getByRole("button", { name: "Your profile" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
+  expect(screen.getByRole("status").textContent).toContain("Saving your profile");
+  expect((screen.getByRole("textbox", { name: "Height (cm)" }) as HTMLInputElement).disabled).toBe(true);
+});
