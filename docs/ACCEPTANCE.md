@@ -354,3 +354,38 @@ size and the upstream AnyIO deprecation remain warnings. Evidence (ignored):
 `height-autosave-toolbar.png`, and `output/pdf/coach-height-fixes.pdf`.
 The report distinguishes live coaching from deterministic calibration checks.
 No deployment or push to main was performed.
+
+## Coach builder streaming — 2026-10-17
+
+Implementation checkpoints: `cbcc818` and `ae5b189`. The routine builder now
+streams JSONL commentary, creates an initial JSON configuration, and applies only
+targeted edits on later turns. Expected old values and the starting revision guard
+atomic batches. Trusted schema, unit and calculation checks enable explicit saving
+of a server-held immutable draft without waiting for Daytona. Sol remains medium
+for both providers. The older screenshot-review endpoint remains diagnostic only.
+
+Local live OAuth evidence: one API creation returned useful text at 3.042 seconds
+and a validated preview at 10.410 seconds. A fresh laptop browser creation showed
+text at about 4.9 seconds, then validated and saved a seated elbow-bend coach.
+The saved coach was reopened, renamed through a targeted edit, saved as a new
+record, and reopened in a 390×844 CSS-pixel browser. These individual samples do
+not establish a latency distribution or a speedup against a measured baseline.
+
+Detailed repair feedback includes the rejected output, original configuration,
+exact nested formula pointer and expected/actual units. Deterministic tests verify
+one repair, atomic failure, interrupted streams, stale-result suppression,
+concurrent immutable saves, and draft-preserving retries. A synthetic failed-repair
+browser response preserved the prior preview; retry against the live model
+completed while retaining an unsent follow-up. Streaming also survives navigation
+to a recording in the integration test. Both standards and spec reviews are clear
+after the formula-diagnostic fix.
+
+Verification: 175 Vitest tests and 135 pytest tests passed; TypeScript checking,
+frontend build, Ruff checks/formatting and ty passed. The build retains the existing
+large-bundle advisory. Browser evidence uses laptop Chromium at 1440×1000 and a
+supplemental 390×844 viewport, both 100% zoom. Screenshots, a three-page acceptance
+PDF, timing output, raw logs and the journey matrix are under ignored
+`output/builder-stream/`. OpenRouter streaming is covered by simulated wire events,
+not a fresh paid-provider call. A new real optional-reference upload and new video
+inference were not repeated for this configuration/streaming change; no production
+or deployment acceptance is claimed.
