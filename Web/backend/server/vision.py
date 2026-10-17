@@ -238,6 +238,8 @@ def analyze(path: str | Path, record_id: str, interval: float, progress: Progres
     detector_processor, detector, processor, pose = models()
     cap = cv2.VideoCapture(str(path))
     frames: list[Frame] = []
+    first_timestamp: float | None = None
+    previous_frame_index = -1
     requested = np.arange(0, duration, interval)
     previous_center = None
     ground: float | None = None
@@ -249,18 +251,26 @@ def analyze(path: str | Path, record_id: str, interval: float, progress: Progres
                 raise RuntimeError("Analysis cancelled.")
             # Actual decoded frame timestamps are retained, not the requested nominal interval.
             frame_index = min(round(t * fps), int(count) - 1)
-            if frames and frame_index / fps <= frames[-1]["time"]:
+            if frame_index <= previous_frame_index:
                 continue
+            previous_frame_index = frame_index
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
             ok, bgr = cap.read()
             if not ok:
                 raise ValueError("The video stopped decoding. Try exporting it as an MP4.")
             timestamp = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
-            if not math.isfinite(timestamp) or timestamp < 0:
-                raise ValueError("This video has invalid frame timing. Try exporting it as an MP4.")
-            if frames and timestamp <= frames[-1]["time"]:
+            if not math.isfinite(timestamp):
                 raise ValueError(
-                    "This video has unsupported frame timing. Try exporting it as an MP4."
+                    "This video has invalid frame timing. Re-export it with a constant frame rate."
+                )
+            # Presentation clocks may start slightly negative or at a nonzero
+            # offset. Shift their origin, preserving every actual time interval.
+            if first_timestamp is None:
+                first_timestamp = timestamp
+            timestamp -= first_timestamp
+            if not math.isfinite(timestamp) or (frames and timestamp <= frames[-1]["time"]):
+                raise ValueError(
+                    "This video's frame times do not advance correctly. Re-export it with a constant frame rate."
                 )
             ratio = min(1, config.TRACKING_MAX_SIDE / max(width, height))
             rgb = cv2.cvtColor(
