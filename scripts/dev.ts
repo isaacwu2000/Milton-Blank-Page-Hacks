@@ -1,11 +1,17 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { resolve } from "node:path";
+import { delimiter, resolve } from "node:path";
+import { homedir } from "node:os";
 import { config, provider } from "../Web/backend/agent";
 
 // Bun loads the ignored root .env.local; every child inherits the same private agent token.
-const env = {
+const env: NodeJS.ProcessEnv = {
   ...process.env,
+  PATH: [
+    resolve(".sportsbuilder/node/bin"),
+    resolve(homedir(), ".local/bin"),
+    process.env.PATH ?? "",
+  ].join(delimiter),
   AGENT_INTERNAL_SECRET:
     process.env.AGENT_INTERNAL_SECRET ?? randomBytes(32).toString("hex"),
 };
@@ -13,9 +19,12 @@ const children: ChildProcess[] = [];
 let stopping = false;
 function signalChild(child: ChildProcess, signal: NodeJS.Signals) {
   try {
-    if (process.platform !== "win32" && child.pid) process.kill(-child.pid, signal);
+    if (process.platform !== "win32" && child.pid)
+      process.kill(-child.pid, signal);
     else child.kill(signal);
-  } catch { /* The child may already have exited. */ }
+  } catch {
+    /* The child may already have exited. */
+  }
 }
 function stop(code = 0) {
   if (stopping) return;
@@ -49,7 +58,18 @@ function start(name: string, command: string, args: string[]) {
 }
 process.on("SIGINT", () => stop());
 process.on("SIGTERM", () => stop());
-if (provider() === "chatgpt") {
+const selectedProvider = provider();
+env.SOL_PROVIDER = selectedProvider;
+if (
+  selectedProvider === "openrouter" &&
+  !process.env.OPENROUTER_API_KEY?.trim()
+) {
+  console.error(
+    "OpenRouter needs an API key. Run bash install.sh to finish setup, or add OPENROUTER_API_KEY to .env.local.",
+  );
+  process.exit(1);
+}
+if (selectedProvider === "chatgpt") {
   const ready = await fetch(`${config.localProxyUrl}/models`, {
     signal: AbortSignal.timeout(2000),
   })
@@ -75,5 +95,5 @@ start("Video service", "uv", [
 start("AI service", process.execPath, ["Web/backend/agent/server.ts"]);
 start("Frontend", process.execPath, ["run", "web"]);
 console.log(
-  "SportsBuilder is starting at http://127.0.0.1:5173. Complete ChatGPT sign-in in the proxy instructions if prompted.",
+  `SportsBuilder is starting at http://127.0.0.1:5173.${selectedProvider === "chatgpt" ? " Complete ChatGPT sign-in in the proxy instructions if prompted." : " AI provider: OpenRouter."}`,
 );

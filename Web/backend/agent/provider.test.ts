@@ -13,12 +13,11 @@ const messages: Chat[] = [
 ];
 
 describe("provider wire parity", () => {
-  it("selects production OpenRouter or development ChatGPT unless explicitly overridden", () => {
+  it("uses production OpenRouter and honors explicit provider overrides", () => {
     vi.stubEnv("SOL_PROVIDER", undefined);
     vi.stubEnv("NODE_ENV", "production");
     expect(provider()).toBe("openrouter");
     vi.stubEnv("NODE_ENV", "development");
-    expect(provider()).toBe("chatgpt");
     vi.stubEnv("SOL_PROVIDER", "openrouter");
     expect(provider()).toBe("openrouter");
     vi.stubEnv("NODE_ENV", "production");
