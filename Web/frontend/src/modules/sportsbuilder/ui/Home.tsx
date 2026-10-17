@@ -44,6 +44,7 @@ export function Product() {
     [error, setError] = useState(""),
     [view, setView] = useState<"coached" | "profile" | "builder">("coached"),
     [builder, setBuilder] = useState(false),
+    [editingTool, setEditingTool] = useState<ToolConfig | undefined>(),
     [opened, setOpened] = useState<string | null>(null),
     [sample, setSample] = useState(false),
     [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900),
@@ -247,7 +248,7 @@ export function Product() {
       </aside>
       <main className="home-main" inert={isMobile && !sidebarCollapsed}>
         <div className="home-content">
-          {view !== "coached" && (
+          {view !== "coached" && !(view === "builder" && builder) && (
             <div className="page-heading">
               <div>
                 <h1>
@@ -273,7 +274,7 @@ export function Product() {
                 <IconButton
                   label="Create a new coach"
                   disabled={!loaded || !workspaceAvailable}
-                  onClick={() => setBuilder(true)}
+                  onClick={() => { setEditingTool(undefined); setBuilder(true); }}
                 >
                   <Plus size={18} />
                 </IconButton>
@@ -310,10 +311,10 @@ export function Product() {
           {builder && (
             <div hidden={view !== "builder"}>
               <Builder
+                initialTool={editingTool}
+                onUse={() => setView("coached")}
                 onClose={() => setBuilder(false)}
                 onBuilt={() => {
-                  setBuilder(false);
-                  setView("builder");
                   reload();
                 }}
               />
@@ -324,7 +325,7 @@ export function Product() {
               data.tools.length > 0 ? (
                 <div className="tool-grid">
                   {data.tools.map((tool) => (
-                    <ToolSummary key={tool.id} tool={tool} />
+                    <ToolSummary key={tool.id} tool={tool} onEdit={() => { setEditingTool(tool); setBuilder(true); }} />
                   ))}
                 </div>
               ) : (
@@ -407,7 +408,7 @@ export function Product() {
     </div>
   );
 }
-function ToolSummary({ tool }: { tool: ToolConfig }) {
+function ToolSummary({ tool, onEdit }: { tool: ToolConfig; onEdit: () => void }) {
   return (
     <article className="tool-summary">
       <div className="tool-symbol">
@@ -418,6 +419,7 @@ function ToolSummary({ tool }: { tool: ToolConfig }) {
         <p>
           {tool.sport} · {tool.metrics.length} metrics
         </p>
+        <button type="button" className="text-button" onClick={onEdit}>Refine coach</button>
       </div>
     </article>
   );

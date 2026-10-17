@@ -603,9 +603,9 @@ dd {
 }
 .builder-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(240px, 1fr);
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.6fr);
   align-items: start;
-  gap: 40px;
+  gap: 32px;
   margin-top: 24px;
 }
 .interview {
@@ -613,7 +613,52 @@ dd {
   min-height: 0;
   height: clamp(400px, calc(100dvh - 220px), 720px);
   min-width: 0;
+  position: sticky;
+  top: 24px;
 }
+.coach-preview {
+  min-width: 0;
+}
+.preview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-bottom: 20px;
+  font-size: 12px;
+}
+.preview-toolbar [role="status"] {
+  max-width: 36ch;
+}
+.coach-preview-content > header h2 {
+  font-size: 20px;
+  line-height: 28px;
+  margin-bottom: 8px;
+}
+.coach-preview-content > header p {
+  margin: 8px 0;
+}
+.preview-disclosure {
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--neutral-dark-400);
+  margin: 16px 0;
+}
+.preview-rubric {
+  margin-top: 24px;
+  font-size: 12px;
+  line-height: 22px;
+}
+.preview-rubric summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+.preview-rubric p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.builder-use { margin-top: 16px; }
 .conversation {
   @apply flex flex-col gap-6;
   flex: 1;
@@ -847,8 +892,8 @@ dd {
   line-height: 28px;
 }
 .live-stats small {
-  font-size: 10px;
-  color: var(--neutral-dark-500);
+  font-size: 14px;
+  color: var(--neutral-dark-400);
 }
 .graph-controls {
   @apply flex items-center justify-between gap-4;
@@ -911,9 +956,9 @@ dd {
   line-height: 28px;
 }
 .metric-readout strong small {
-  font-size: 10px;
+  font-size: 16px;
   margin-left: 8px;
-  color: var(--neutral-dark-500);
+  color: var(--neutral-dark-400);
 }
 .metric-readout > small {
   font-size: 10px;
@@ -1199,6 +1244,8 @@ progress {
   }
   .interview {
     min-height: 300px;
+    position: static;
+    height: 380px;
   }
   .conversation {
     max-height: 360px;

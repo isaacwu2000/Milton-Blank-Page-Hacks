@@ -1,73 +1,167 @@
-import { POLLING, DEFAULT_SAMPLING_INTERVAL } from "../config";
+import { DEFAULT_SAMPLING_INTERVAL } from "../config";
 import { useEffect, useRef, useState } from "react";
+import { Check, Plus, LoaderCircle, X } from "lucide-react";
 import {
-  Check,
-  ChevronRight,
-  Plus,
-  LoaderCircle,
-  X,
-} from "lucide-react";
-import { type Message, type Session } from "../../../../../shared";
-import {
-  Input,
-  IconButton,
-  PromptBar,
-  ConfirmDialog,
-} from "../../../components";
+  sampleTool,
+  validateTool,
+  type Message,
+  type Session,
+  type ToolConfig,
+  type SavedTool,
+} from "../../../../../shared";
+import { IconButton, PromptBar, ConfirmDialog } from "../../../components";
 import { api, post } from "../services/api";
 import { type Brief, type AgentJob } from "../types";
 import { useAgentJob } from "../hooks/useAgentJob";
 import { useConversationScroll } from "../hooks/useConversationScroll";
 import { ErrorNote } from "./common";
 import { BUILDER_WELCOME } from "../config";
+import { BuilderPreview } from "./BuilderPreview";
 
+const starter: ToolConfig = {
+  ...sampleTool,
+  name: "Your movement workspace",
+  sport: "Example",
+  audience: "Explore before building",
+  description:
+    "Play the sample, select a body point, and explore an angle over time.",
+  rubric:
+    "This starter demonstrates the workspace. Describe your sport to create your own rubric and metrics.",
+  coachPrompt: "This is an example workspace, not an assessment of an athlete.",
+  metrics: [sampleTool.metrics[0]],
+};
+
+/**
+ * Swaps complete validated previews, then reviews each configuration before saving.
+ * - New edits keep the current preview visible and queue behind an active review.
+ * - Only the server's accepted job can be saved; failed edits retain the last checked coach.
+ */
 export function Builder({
   onClose,
   onBuilt,
+  initialTool,
+  onUse,
 }: {
   onClose: () => void;
   onBuilt: () => void;
+  initialTool?: ToolConfig;
+  onUse?: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([
-      {
-        role: "assistant",
-        content: BUILDER_WELCOME,
-      },
-    ]),
-    [text, setText] = useState(""),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
-    [brief, setBrief] = useState<Brief | null>(null),
-    [ready, setReady] = useState(false),
-    [confirmEarlyBuild, setConfirmEarlyBuild] = useState(false),
-    [referenceId, setReferenceId] = useState<string | undefined>(),
-    [referenceName, setReferenceName] = useState(""),
-    [uploadingReference, setUploadingReference] = useState(false),
-    [job, setJob] = useState<string | null>(null),
-    [stage, setStage] = useState("Preparing your tool");
+    {
+      role: "assistant",
+      content: initialTool
+        ? "What would you like to change? Your saved coach stays available while we review a new version."
+        : BUILDER_WELCOME,
+    },
+  ]);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [brief, setBrief] = useState<Brief | null>(null);
+  const [ready, setReady] = useState(false);
+  const [confirmEarlyBuild, setConfirmEarlyBuild] = useState(false);
+  const [referenceId, setReferenceId] = useState<string | undefined>(
+    initialTool?.referenceId,
+  );
+  const [referenceName, setReferenceName] = useState("");
+  const [uploadingReference, setUploadingReference] = useState(false);
+  const [job, setJob] = useState<string | null>(null);
+  const [reviewedId, setReviewedId] = useState<string | null>(null);
+  const [stage, setStage] = useState("");
+  const [preview, setPreview] = useState<ToolConfig>(initialTool ?? starter);
+  const [revision, setRevision] = useState(initialTool ? 1 : 0);
+  const [saved, setSaved] = useState(Boolean(initialTool));
+  const [queued, setQueued] = useState<ToolConfig | null>(null);
+  const [startingReview, setStartingReview] = useState(false);
+  const [failedDraft, setFailedDraft] = useState<ToolConfig | null>(null);
   const ref = useRef<HTMLInputElement>(null);
+  const lastChecked = useRef<{ tool: ToolConfig; jobId: string | null; revision: number; saved: boolean } | undefined>(
+    initialTool ? { tool: initialTool, jobId: null, revision: 1, saved: true } : undefined,
+  );
+  const nextRevision = useRef(initialTool ? 1 : 0);
+  const reviewing = useRef<ToolConfig | null>(null);
+  const pending = useRef(queued);
+  pending.current = queued;
   const { conversationRef, latestRef } = useConversationScroll(messages, busy);
+
+  function showPreview(tool: ToolConfig) {
+    setPreview((previous) => {
+      if (JSON.stringify(previous) === JSON.stringify(tool)) return previous;
+      return tool;
+    });
+  }
   useAgentJob(
     job,
-    () => {
+    (result) => {
+      const completedId = job;
       setJob(null);
-      onBuilt();
+      if (pending.current) return;
+      if (!result.preview) {
+        setError("The review returned no coach. Please retry.");
+        return;
+      }
+      const tool = validateTool(result.preview);
+      nextRevision.current = Math.max(nextRevision.current, 1);
+      setRevision((value) => value || 1);
+      lastChecked.current = { tool, jobId: completedId, revision: revision || 1, saved: false };
+      showPreview(tool);
+      setReviewedId(completedId);
+      setStage("Checked on desktop and mobile · Ready to save");
+      setFailedDraft(null);
     },
-    (e) => {
+    (message) => {
       setJob(null);
-      setBusy(false);
-      setError(e);
+      if (pending.current) return;
+      setFailedDraft(reviewing.current);
+      if (lastChecked.current) {
+        showPreview(lastChecked.current.tool);
+        setReviewedId(lastChecked.current.jobId);
+        setRevision(lastChecked.current.revision);
+        setSaved(lastChecked.current.saved);
+      }
+      setStage(
+        lastChecked.current
+          ? "Previous checked version · Update needs attention"
+          : "Draft · Review needs attention",
+      );
+      setError(message);
+    },
+    (progress) => {
+      if (pending.current) return;
+      setStage(`Draft · ${progress.stage}`);
+      if (progress.preview) {
+        const tool = validateTool(progress.preview);
+        showPreview(tool);
+        reviewing.current = tool;
+        nextRevision.current = Math.max(nextRevision.current, 1);
+        setRevision((value) => value || nextRevision.current);
+      }
     },
   );
+
   useEffect(() => {
-    if (!job) return;
-    const t = setInterval(() => {
-      api<AgentJob>(`/agent/jobs/${job}`)
-        .then((j) => setStage(j.stage))
-        .catch(() => {});
-    }, POLLING.agentStageMs);
-    return () => clearInterval(t);
-  }, [job]);
+    if (!queued || job || startingReview) return;
+    const candidate = queued;
+    setQueued(null);
+    setStartingReview(true);
+    reviewing.current = candidate;
+    setStage("Draft · Preparing desktop and mobile review…");
+    void post<{ id: string }>("/agent/build", {
+      candidate,
+      messages,
+      referenceId,
+      save: false,
+    })
+      .then((result) => setJob(result.id))
+      .catch((problem: Error) => {
+        setFailedDraft(candidate);
+        setError(problem.message);
+        setStage("Draft · Review needs attention");
+      })
+      .finally(() => setStartingReview(false));
+  }, [queued, job, startingReview, messages, referenceId]);
+
   async function send(content = text) {
     if (!content.trim() || busy) return;
     const next = [
@@ -75,7 +169,6 @@ export function Builder({
       { role: "user" as const, content: content.trim() },
     ];
     setMessages(next);
-    setStage("Preparing your next question…");
     setText("");
     setBusy(true);
     setError("");
@@ -84,71 +177,116 @@ export function Builder({
         reply: string;
         brief?: Brief;
         ready: boolean;
-      }>("/agent/interview", { messages: next });
+        preview?: ToolConfig;
+      }>("/agent/interview", {
+        messages: next,
+        ...(revision ? { current: preview } : {}),
+      });
+      // Validate the whole response before replacing either the conversation or preview.
+      const tool = result.preview ? validateTool(result.preview) : undefined;
       setMessages([...next, { role: "assistant", content: result.reply }]);
       if (result.brief) setBrief(result.brief);
       setReady(result.ready);
-    } catch (e) {
+      if (tool) {
+        showPreview(tool);
+        setRevision(++nextRevision.current);
+        setReviewedId(null);
+        setSaved(false);
+        setFailedDraft(null);
+        setQueued(tool);
+      }
+    } catch (problem) {
       setMessages(messages);
       setText(content);
-      setError((e as Error).message);
+      setError((problem as Error).message);
     } finally {
       setBusy(false);
     }
   }
   async function build() {
-    const buildMessages = text.trim()
-      ? [...messages, { role: "user" as const, content: text.trim() }]
-      : messages;
     setConfirmEarlyBuild(false);
-    setStage("Preparing your coach…");
     setBusy(true);
     setError("");
+    setStage("Preparing your coach…");
+    const next = text.trim()
+      ? [...messages, { role: "user" as const, content: text.trim() }]
+      : messages;
     try {
       const result = await post<{ id: string }>("/agent/build", {
         brief: ready && !text.trim() ? (brief ?? undefined) : undefined,
-        messages: buildMessages,
+        messages: next,
         referenceId,
+        save: false,
       });
+      reviewing.current = null;
+      setReviewedId(null);
+      setSaved(false);
       setJob(result.id);
-    } catch (e) {
+      if (text.trim()) {
+        setMessages(next);
+        setText("");
+      }
+    } catch (problem) {
+      setError((problem as Error).message);
+    } finally {
       setBusy(false);
-      setError((e as Error).message);
+    }
+  }
+  async function save() {
+    if (!reviewedId || busy || job || queued || startingReview) return;
+    setBusy(true);
+    setError("");
+    try {
+      await post<SavedTool>(`/agent/jobs/${reviewedId}/save`, {});
+      setSaved(true);
+      if (lastChecked.current?.jobId === reviewedId) lastChecked.current.saved = true;
+      setStage("Saved · Ready for your recordings");
+      onBuilt();
+    } catch (problem) {
+      setError((problem as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
   async function uploadRef(file: File) {
     setBusy(true);
     setUploadingReference(true);
+    setError("");
     try {
       const form = new FormData();
       form.set("file", file);
       form.set("reference", "true");
       form.set("interval", String(DEFAULT_SAMPLING_INTERVAL));
-      const s = await api<Session>("/api/upload", {
+      const session = await api<Session>("/api/upload", {
         method: "POST",
         body: form,
       });
-      setReferenceId(s.id);
+      await post(`/api/sessions/${session.id}/analyze`, {});
+      setReferenceId(session.id);
       setReferenceName(file.name);
-      await post(`/api/sessions/${s.id}/analyze`, {});
-    } catch (e) {
-      setError((e as Error).message);
+      // A reference change requires review too; it cannot reuse an older acceptance.
+      if (revision) {
+        const updated = { ...preview, referenceId: session.id };
+        showPreview(updated);
+        setReviewedId(null);
+        setSaved(false);
+        setQueued(updated);
+      }
+    } catch (problem) {
+      setError((problem as Error).message);
     } finally {
       setBusy(false);
       setUploadingReference(false);
     }
   }
+  const checking = !!job || startingReview || !!queued;
   return (
     <section className="builder">
       <div className="section-heading">
-        <span className="step-label">
-          <span className={ready ? "done" : ""}>1</span> Interview{" "}
-          <ChevronRight size={13} />
-          <span className={ready ? "" : "pending"}>2</span> Review & build
-        </span>
+        <h1>{initialTool ? "Refine your coach" : "Build your coach"}</h1>
         <IconButton
           label="Close tool builder"
-          disabled={!!job}
+          disabled={checking || busy}
           onClick={onClose}
         >
           <X size={17} />
@@ -156,15 +294,26 @@ export function Builder({
       </div>
       <div className="builder-columns">
         <div className="interview">
-          <div ref={conversationRef} className="conversation" aria-live="polite">
-            {messages.map((m, i) => (
-              <div className={`message ${m.role}`} key={i}>
-                <div>{m.content}</div>
+          <div
+            ref={conversationRef}
+            className="conversation"
+            aria-live="polite"
+          >
+            {messages.map((message, index) => (
+              <div className={`message ${message.role}`} key={index}>
+                <div>{message.content}</div>
               </div>
             ))}
-            {busy && !job && !uploadingReference && (
+            {busy && !uploadingReference && (
               <p className="muted small" role="status">
-                <LoaderCircle className="spin inline" size={14} aria-hidden="true" /> {stage}
+                <LoaderCircle
+                  className="spin inline"
+                  size={14}
+                  aria-hidden="true"
+                />{" "}
+                {saved
+                  ? "Saving your coach…"
+                  : "Preparing your next question and preview…"}
               </p>
             )}
             <div ref={latestRef} />
@@ -175,7 +324,11 @@ export function Builder({
             onSend={() => {
               void send();
             }}
-            placeholder="Tell me about your idea…"
+            placeholder={
+              revision
+                ? "Describe a change to your coach…"
+                : "Tell me about your idea…"
+            }
             label="Answer the builder"
             sendLabel="Send answer"
             disabled={busy}
@@ -187,7 +340,7 @@ export function Builder({
                   type="file"
                   aria-label="Upload optional good form reference"
                   accept=".mov,.mp4,.webm,video/*"
-                  disabled={busy}
+                  disabled={busy || checking}
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (file) void uploadRef(file);
@@ -197,7 +350,7 @@ export function Builder({
                 <IconButton
                   label="Add a good-form video"
                   surface="transparent"
-                  disabled={busy}
+                  disabled={busy || checking}
                   onClick={() => ref.current?.click()}
                 >
                   <Plus size={18} aria-hidden="true" />
@@ -205,80 +358,83 @@ export function Builder({
                 <button
                   type="button"
                   className="button builder-build"
-                  disabled={busy}
-                  onClick={() =>
-                    ready && !text.trim() ? build() : setConfirmEarlyBuild(true)
+                  disabled={
+                    busy ||
+                    (!(text.trim() && revision > 0) &&
+                      (checking || saved || (revision > 0 && !reviewedId)))
                   }
+                  onClick={() => {
+                    if (text.trim() && revision > 0) void send();
+                    else if (reviewedId) void save();
+                    else if (ready && !text.trim()) void build();
+                    else setConfirmEarlyBuild(true);
+                  }}
                 >
-                  {job && <LoaderCircle className="spin" size={16} />}
-                  {job ? "Building your tool…" : "Build my tool"}
+                  {checking && <LoaderCircle className="spin" size={16} />}
+                  {text.trim() && revision > 0 ? (
+                    "Update preview"
+                  ) : saved ? (
+                    <>
+                      <Check size={14} /> Saved
+                    </>
+                  ) : revision || reviewedId ? (
+                    "Save coach"
+                  ) : checking ? (
+                    "Building your tool…"
+                  ) : (
+                    "Build my tool"
+                  )}
                 </button>
               </>
             }
             attachment={
               uploadingReference ? (
                 <p className="prompt-bar-attachment" role="status">
-                  Uploading reference video…
+                  <LoaderCircle className="spin inline" size={14} aria-hidden="true" /> Uploading reference video…
                 </p>
               ) : referenceName ? (
                 <p className="prompt-bar-attachment">{referenceName}</p>
               ) : undefined
             }
           />
-          {job && (
-            <p className="small muted builder-stage" role="status">
-              {stage}
-            </p>
+          {error && <ErrorNote message={error} />}
+          {failedDraft && (
+            <button
+              className="text-button"
+              disabled={busy || checking}
+              onClick={() => {
+                setError("");
+                setQueued(failedDraft);
+              }}
+            >
+              Retry review
+            </button>
+          )}
+          {saved && onUse && (
+            <button className="text-button builder-use" onClick={onUse}>
+              Try on a recording
+            </button>
           )}
         </div>
-        <aside className="brief-panel">
-          <h2>Your tool, taking shape</h2>
-          {brief ? (
-            <>
-              <label>
-                Name
-                <Input
-                  value={brief.name}
-                  onChange={(e) => setBrief({ ...brief, name: e.target.value })}
-                />
-              </label>
-              <dl>
-                <div>
-                  <dt>Sport</dt>
-                  <dd>{brief.sport}</dd>
-                </div>
-                <div>
-                  <dt>For</dt>
-                  <dd>{brief.audience}</dd>
-                </div>
-              </dl>
-              <label>
-                What good form means
-                <textarea
-                  rows={5}
-                  value={brief.rubric}
-                  onChange={(e) =>
-                    setBrief({ ...brief, rubric: e.target.value })
-                  }
-                />
-              </label>
-              <h3>What to measure</h3>
-              <ul className="metric-list">
-                {brief.metrics.map((m, i) => (
-                  <li key={i}>
-                    <Check size={14} />
-                    {m}
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <p className="muted">
-              As we talk, your sport, goals, metrics, and form rubric will
-              appear here.
-            </p>
-          )}
-        </aside>
+        <section className="coach-preview" aria-label="Coach preview">
+          <div className="preview-toolbar">
+            <span>
+              Preview{" "}
+              {revision > 0 && (
+                <span className="muted">· Version {revision}</span>
+              )}
+            </span>
+            <span className="small muted" role="status">
+              {busy
+                ? "Updating · Current preview stays visible"
+                : stage ||
+                  (saved
+                    ? "Saved coach"
+                    : "Example · Describe your coach to personalize it")}
+            </span>
+          </div>
+          <BuilderPreview tool={preview} />
+        </section>
       </div>
       {confirmEarlyBuild && !busy && (
         <ConfirmDialog
@@ -303,7 +459,6 @@ export function Builder({
           </div>
         </ConfirmDialog>
       )}
-      {error && <ErrorNote message={error} />}
     </section>
   );
 }

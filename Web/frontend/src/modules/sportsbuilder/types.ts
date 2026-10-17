@@ -1,4 +1,4 @@
-import type { CoachDrill, CoachFeedback, Profile, SavedTool, Session } from "../../../../shared";
+import type { CoachDrill, CoachFeedback, Profile, SavedTool, Session, ToolConfig } from "../../../../shared";
 export type HomeData = {
   profiles: Profile[];
   tools: SavedTool[];
@@ -17,6 +17,9 @@ export type AgentJob = {
   stage: string;
   error?: string;
   tool?: SavedTool;
+  preview?: ToolConfig;
+  previewRevision?: number;
+  timings?: { previewMs?: number; reviewMs?: number };
   reply?: string;
   drill?: CoachDrill;
   feedback?: CoachFeedback;

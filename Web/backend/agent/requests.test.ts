@@ -48,6 +48,23 @@ function post(path: string, body: unknown) {
   });
 }
 describe("builder and coach request boundary", () => {
+  it("returns a complete validated preview from the first useful idea", async () => {
+    vi.mocked(chat).mockResolvedValue({ role: "assistant", content: JSON.stringify({
+      reply: "Here is a draft. Shall we use these defaults?", ready: false, preview: sampleTool,
+    }) });
+    const response = await post("/agent/interview", { messages });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ preview: sampleTool, ready: false });
+  });
+  it("never publishes a preview whose formula disagrees with its unit", async () => {
+    const invalid = { ...sampleTool, metrics: [{ ...sampleTool.metrics[0], unit: "speed" }] };
+    vi.mocked(chat).mockResolvedValue({ role: "assistant", content: JSON.stringify({
+      reply: "Here is your coach", ready: false, preview: invalid,
+    }) });
+    const response = await post("/agent/interview", { messages });
+    expect(response.status).toBe(503);
+    expect(await response.json()).not.toHaveProperty("preview");
+  });
   it("answers a valid first builder prompt when the model has no brief yet", async () => {
     vi.mocked(chat).mockResolvedValue({
       role: "assistant",

@@ -15,9 +15,10 @@ The coach is a separate conversation. It loads actual decoded images and matchin
 Endpoints:
 
 - `GET /agent/health`: configured provider/model and local proxy readiness.
-- `POST /agent/interview`: `{messages}` → `{reply,ready,brief?}`.
-- `POST /agent/build`: `{brief,messages,referenceId?}` → `{id}`.
+- `POST /agent/interview`: `{messages,current?}` → `{reply,ready,brief?,preview?}`. Complete preview configurations pass formula and unit validation; invalid output receives one correction attempt. The client keeps the previous stable preview until a complete result arrives.
+- `POST /agent/build`: `{brief?,candidate?,messages,referenceId?,save?}` → `{id}`. A validated candidate avoids redundant drafting turns. `save:false` reviews without saving; omission preserves the original automatic-save API. Local preview publication precedes remote environment preparation.
+- `POST /agent/jobs/:id/save`: saves the server-held accepted configuration only after that build completes. Concurrent/repeated saves share one write; caller-supplied configurations are not accepted here. Refinements create a new record and preserve existing recordings' tools.
 - `POST /agent/coach`: `{sessionId,tool,messages,selectedTime,calibration?}` → `{id}`.
-- `GET /agent/jobs/:id`: `{status,stage,tool?,reply?,drill?,error?}`.
+- `GET /agent/jobs/:id`: `{status,stage,preview?,previewRevision?,timings?,tool?,reply?,drill?,error?}`. Preview is a math-checked sample configuration, not permission to use it on athlete footage. Completion of a build establishes screenshot acceptance; saving remains separate when requested.
 
 Jobs are held in memory for this single local process. Restarting the agent invalidates pending jobs; the client must retry. No deployment, production load guarantee, or live pose-estimation accuracy is established by a successful synthetic browser review. Railway hosting requires separately configured secrets, processes, storage, networking, and resource limits; none is deployed by this implementation.

@@ -3,12 +3,22 @@ import { normalizePracticeStep } from "../../../shared";
 import { briefSchema } from "./buildBrief";
 import { chat, parseJSON } from "./provider";
 import type { Chat, Tool } from "../types";
+import { validateTool } from "../../../shared";
 
 export const interviewResponseSchema = z
   .object({
     reply: z.string().min(1).max(8000),
     ready: z.boolean(),
     brief: briefSchema.nullish().transform((brief) => brief ?? undefined),
+    preview: z.unknown().transform((source, context) => {
+      if (source == null) return undefined;
+      try {
+        return validateTool(source);
+      } catch (error) {
+        context.addIssue({ code: z.ZodIssueCode.custom, message: error instanceof Error ? error.message : "Invalid coach configuration" });
+        return z.NEVER;
+      }
+    }),
   })
   .refine((response) => !response.ready || Boolean(response.brief), {
     message: "A ready interview requires a complete brief.",

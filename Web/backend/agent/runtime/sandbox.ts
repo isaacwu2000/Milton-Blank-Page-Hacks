@@ -2,27 +2,28 @@ import { Daytona, type Sandbox } from "@daytonaio/sdk";
 import { readdir, readFile, mkdir, writeFile } from "node:fs/promises";
 import { resolve, relative, dirname } from "node:path";
 import { existsSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import type { ToolConfig } from "../../../shared";
 
 import { config } from "../config";
 const WORK = config.sandbox.workspace;
 const quote = (s: string) => `'${s.replaceAll("'", "'\\''")}'`;
-const browserScript = String.raw`import asyncio,json,os,traceback
+const browserScript = String.raw`import asyncio,json,sys
 from playwright.async_api import async_playwright
 async def main():
-    request=json.load(open('${WORK}/browser-request.json'))
+    request=json.load(open(sys.argv[1]))
     async with async_playwright() as p:
         browser=await p.chromium.launch(headless=True,args=['--no-sandbox'])
         page=await browser.new_page(viewport=request.get('viewport',{'width':1440,'height':1000}),device_scale_factor=1)
         errors=[]
         page.on('pageerror',lambda error:errors.append(str(error)))
         await page.goto(request['url'],wait_until='networkidle',timeout=45000)
-        await page.wait_for_timeout(900)
+        await page.evaluate('document.fonts.ready')
         if request.get('script'):
             namespace={'page':page,'asyncio':asyncio}
             exec('async def action(page):\n'+''.join('    '+line+'\n' for line in request['script'].splitlines()),namespace)
             await namespace['action'](page)
-        await page.screenshot(path='${WORK}/preview.png',full_page=True)
+        await page.screenshot(path=request['output'],full_page=True)
         print(json.dumps({'title':await page.title(),'text':(await page.locator('body').inner_text())[:14000],'errors':errors}))
         await browser.close()
 asyncio.run(main())
@@ -164,19 +165,22 @@ export class BuildSandbox {
       throw Error("Validate a tool draft first so the browser can preview it.");
     const { referenceId, ...preview } = this.active;
     const url = `http://127.0.0.1:5173/?preview=${Buffer.from(JSON.stringify(preview)).toString("base64url")}`;
+    // Each inspection owns its request and screenshot so desktop and mobile can run together.
+    const capture = `${WORK}/capture-${randomUUID()}`;
     await this.instance.fs.uploadFile(
       Buffer.from(
         JSON.stringify({
           url,
+          output: `${capture}.png`,
           script,
           viewport: mobile
             ? { width: 390, height: 844 }
             : { width: 1440, height: 1000 },
         }),
       ),
-      `${WORK}/browser-request.json`,
+      `${capture}.json`,
     );
-    const result = await this.run(`${this.python()} ${WORK}/browser.py`, config.sandbox.browserTimeoutSeconds);
+    const result = await this.run(`${this.python()} ${WORK}/browser.py ${quote(`${capture}.json`)}`, config.sandbox.browserTimeoutSeconds);
     if (result.exitCode !== 0)
       throw Error(`Browser inspection failed: ${result.result.slice(-1800)}`);
     const lines = result.result.trim().split("\n");
@@ -186,7 +190,7 @@ export class BuildSandbox {
     } catch {
       throw Error("Browser inspection returned no readable result.");
     }
-    const pixels = await this.instance.fs.downloadFile(`${WORK}/preview.png`);
+    const pixels = await this.instance.fs.downloadFile(`${capture}.png`);
     if (pixels.length < 1000)
       throw Error("The browser returned an empty screenshot.");
     await mkdir(`${config.evidenceDirectory}/builds/${this.jobId}`, { recursive: true });
