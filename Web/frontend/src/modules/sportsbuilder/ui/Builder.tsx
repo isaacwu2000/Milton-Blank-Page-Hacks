@@ -219,6 +219,7 @@ export function Builder({
             attachment={
               uploadingReference ? (
                 <p className="prompt-bar-attachment" role="status">
+                  <LoaderCircle className="spin inline" size={14} aria-hidden="true" />{ " " }
                   Uploading reference video…
                 </p>
               ) : referenceName ? (
