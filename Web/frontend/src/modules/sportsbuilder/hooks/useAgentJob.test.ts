@@ -57,3 +57,22 @@ describe("agent job polling", () => {
     expect(failed).not.toHaveBeenCalled();
   });
 });
+
+it("releases a pending review when its status request never resolves", async () => {
+  vi.useFakeTimers();
+  vi.mocked(api).mockReturnValue(new Promise(() => {}));
+  const failed = vi.fn();
+  renderHook(() => useAgentJob("stalled", vi.fn(), failed));
+  await act(async () => { await vi.advanceTimersByTimeAsync(POLLING.agentStatusTimeoutMs); });
+  expect(failed).toHaveBeenCalledWith("Could not check this review. Please retry your message.");
+});
+
+it("bounds a review that keeps reporting running forever", async () => {
+  vi.useFakeTimers();
+  vi.mocked(api).mockResolvedValue({ status: "running", stage: "Reviewing frames" });
+  const failed = vi.fn();
+  renderHook(() => useAgentJob("stalled", vi.fn(), failed));
+  await act(async () => { await vi.advanceTimersByTimeAsync(POLLING.agentMaxWaitMs); });
+  expect(failed).toHaveBeenCalledWith("This review is taking too long. Please retry your message.");
+  expect(failed).toHaveBeenCalledTimes(1);
+});

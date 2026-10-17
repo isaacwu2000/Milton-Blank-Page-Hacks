@@ -15,6 +15,9 @@ export const BUILDER_EXAMPLE =
 
 export const POLLING = {
   agentJobMs: 1200,
+  agentStartTimeoutMs: 15_000,
+  agentStatusTimeoutMs: 15_000,
+  agentMaxWaitMs: 16 * 60_000,
   agentStageMs: 1500,
   videoStatusMs: 1800,
   signedUrlRefreshMs: 12 * 60 * 1000,

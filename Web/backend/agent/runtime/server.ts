@@ -45,8 +45,13 @@ const messagesSchema = z
   .min(1)
   .max(40);
 const jobs = new Map<string, Job>();
+const reviewCancellations = new Map<string, AbortController>();
 let building = false;
-const job = (work: (id: string, state: Job) => Promise<void>) => {
+/** Starts a background job; an optional controller permits stopping a coaching review. */
+const job = (
+  work: (id: string, state: Job) => Promise<void>,
+  cancellation?: AbortController,
+) => {
   if (jobs.size > 100) {
     for (const [id, j] of jobs) if (j.status !== "running") jobs.delete(id);
   }
@@ -57,16 +62,20 @@ const job = (work: (id: string, state: Job) => Promise<void>) => {
       createdAt: Date.now(),
     };
   jobs.set(id, state);
+  if (cancellation) reviewCancellations.set(id, cancellation);
   void work(id, state)
     .then(() => {
+      if (state.status !== "running") return;
       state.status = "complete";
       state.stage = "Ready";
     })
     .catch((error) => {
+      if (state.status !== "running") return;
       state.status = "failed";
       state.stage = "Unable to finish";
       state.error = safeError(error);
-    });
+    })
+    .finally(() => reviewCancellations.delete(id));
   return id;
 };
 function safeError(error: unknown) {
@@ -574,8 +583,12 @@ app.post("/agent/coach", (req, res, next) => {
     const data = coachInput.parse(req.body);
     const {id: _savedId, createdAt: _createdAt, ...candidate} = z.record(z.unknown()).parse(data.tool);
     const tool = validateTool(candidate);
+    const cancellation = new AbortController();
     const id = job(async (_id, state) => {
-      const signal = AbortSignal.timeout(config.coachBudgetMs);
+      const signal = AbortSignal.any([
+        cancellation.signal,
+        AbortSignal.timeout(config.coachBudgetMs),
+      ]);
       state.stage = "Loading the measured footage";
       const [analysis, session, home] = await Promise.all([
         backend<Analysis>(
@@ -750,12 +763,28 @@ app.post("/agent/coach", (req, res, next) => {
         coachResponseSchema,
         signal,
       );
+      signal.throwIfAborted();
       Object.assign(state, response);
-    });
+    }, cancellation);
     res.json({ id });
   } catch (e) {
     next(e);
   }
+});
+app.post("/agent/jobs/:id/cancel", (req, res) => {
+  const state = jobs.get(req.params.id);
+  if (!state) {
+    res.status(404).json({ error: "This review no longer exists." });
+    return;
+  }
+  const cancellation = reviewCancellations.get(req.params.id);
+  if (state.status === "running" && cancellation) {
+    state.status = "failed";
+    state.stage = "Stopped";
+    state.error = "Review stopped. You can edit your question and retry.";
+    cancellation.abort();
+  }
+  res.json({ status: state.status });
 });
 app.get("/agent/jobs/:id", (req, res) => {
   const value = jobs.get(req.params.id);
