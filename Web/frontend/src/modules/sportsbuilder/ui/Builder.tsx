@@ -17,6 +17,7 @@ import {
 import { api, post } from "../services/api";
 import { type Brief, type AgentJob } from "../types";
 import { useAgentJob } from "../hooks/useAgentJob";
+import { useConversationScroll } from "../hooks/useConversationScroll";
 import { ErrorNote } from "./common";
 import { BUILDER_WELCOME } from "../config";
 
@@ -45,6 +46,7 @@ export function Builder({
     [job, setJob] = useState<string | null>(null),
     [stage, setStage] = useState("Preparing your tool");
   const ref = useRef<HTMLInputElement>(null);
+  const { conversationRef, latestRef } = useConversationScroll(messages, busy);
   useAgentJob(
     job,
     () => {
@@ -73,6 +75,7 @@ export function Builder({
       { role: "user" as const, content: content.trim() },
     ];
     setMessages(next);
+    setStage("Preparing your next question…");
     setText("");
     setBusy(true);
     setError("");
@@ -98,6 +101,7 @@ export function Builder({
       ? [...messages, { role: "user" as const, content: text.trim() }]
       : messages;
     setConfirmEarlyBuild(false);
+    setStage("Preparing your coach…");
     setBusy(true);
     setError("");
     try {
@@ -152,17 +156,18 @@ export function Builder({
       </div>
       <div className="builder-columns">
         <div className="interview">
-          <div className="conversation" aria-live="polite">
+          <div ref={conversationRef} className="conversation" aria-live="polite">
             {messages.map((m, i) => (
               <div className={`message ${m.role}`} key={i}>
                 <div>{m.content}</div>
               </div>
             ))}
-            {busy && !job && (
-              <p className="muted small">
-                <LoaderCircle className="spin inline" size={14} /> Thinking…
+            {busy && !job && !uploadingReference && (
+              <p className="muted small" role="status">
+                <LoaderCircle className="spin inline" size={14} aria-hidden="true" /> {stage}
               </p>
             )}
+            <div ref={latestRef} />
           </div>
           <PromptBar
             value={text}
