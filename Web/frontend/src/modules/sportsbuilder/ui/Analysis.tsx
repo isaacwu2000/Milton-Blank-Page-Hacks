@@ -59,25 +59,30 @@ export function SessionWorkspace({
   onBack: () => void;
 }) {
   const [pollGeneration, setPollGeneration] = useState(0);
+  const [closing, setClosing] = useState(false);
   const [session, setSession] = useState<Session | null>(null),
     [analysis, setAnalysis] = useState<Analysis | null>(null),
     [url, setUrl] = useState(""),
     [error, setError] = useState("");
-  const load = useCallback(async () => {
-    const s = await api<Session>(`/api/sessions/${sessionId}`);
+  const load = useCallback(async (signal?: AbortSignal) => {
+    const s = await api<Session>(`/api/sessions/${sessionId}`, { signal });
+    if (signal?.aborted) return s;
     setSession(s);
-    if (s.status === "complete")
-      setAnalysis(await api<Analysis>(`/api/sessions/${sessionId}/analysis`));
+    if (s.status === "complete") {
+      const analysis = await api<Analysis>(`/api/sessions/${sessionId}/analysis`, { signal });
+      if (!signal?.aborted) setAnalysis(analysis);
+    }
     return s;
   }, [sessionId]);
   useEffect(() => {
+    const controller = new AbortController();
     let stopped = false,
       timer: ReturnType<typeof setTimeout>;
     setAnalysis(null);
     setError("");
     const poll = async () => {
       try {
-        const s = await load();
+        const s = await load(controller.signal);
         if (!stopped && (s.status === "processing" || s.status === "queued"))
           timer = setTimeout(poll, POLLING.videoStatusMs);
       } catch (e) {
@@ -85,14 +90,14 @@ export function SessionWorkspace({
       }
     };
     poll();
-    api<{ url: string }>(`/api/sessions/${sessionId}/video`)
+    api<{ url: string }>(`/api/sessions/${sessionId}/video`, { signal: controller.signal })
       .then((v) => {
         if (!stopped) setUrl(v.url);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => { if (!stopped) setError(e.message); });
     const renew = setInterval(
       () =>
-        api<{ url: string }>(`/api/sessions/${sessionId}/video`)
+        api<{ url: string }>(`/api/sessions/${sessionId}/video`, { signal: controller.signal })
           .then((v) => {
             if (!stopped) setUrl(v.url);
           })
@@ -101,10 +106,29 @@ export function SessionWorkspace({
     );
     return () => {
       stopped = true;
+      controller.abort();
       clearTimeout(timer);
       clearInterval(renew);
     };
   }, [sessionId, load, pollGeneration]);
+  const knownSession = session ?? data.sessions.find((value) => value.id === sessionId);
+  const processing = knownSession && ["queued", "processing"].includes(knownSession.status);
+  /** Stops actual tracking if needed, then returns without deleting stored video or analysis. */
+  async function close() {
+    if (closing) return;
+    setClosing(true);
+    setError("");
+    try {
+      if (processing || !knownSession) {
+        await post(`/api/sessions/${sessionId}/cancel`, {});
+      }
+      onBack();
+    } catch (error) {
+      setError((error as Error).message);
+    } finally {
+      setClosing(false);
+    }
+  }
   const tool = data.tools.find((t) => t.id === session?.toolId);
   async function start() {
     setError("");
@@ -116,7 +140,7 @@ export function SessionWorkspace({
       setError((e as Error).message);
     }
   }
-  if (analysis && session && !tool)
+  if (analysis && session && !tool && !closing)
     return (
       <div className="processing-content">
         <h1>Coaching tool unavailable</h1>
@@ -129,7 +153,7 @@ export function SessionWorkspace({
         </button>
       </div>
     );
-  if (analysis && session && tool)
+  if (analysis && session && tool && !closing)
     return (
       <Workspace
         analysis={analysis}
@@ -150,6 +174,15 @@ export function SessionWorkspace({
           All videos
         </button>
         <Logo />
+        <IconButton
+          label={processing || !knownSession ? "Cancel analysis" : "Close video loading"}
+          surface="transparent"
+          disabled={closing}
+          aria-busy={closing}
+          onClick={() => { void close(); }}
+        >
+          {closing ? <LoaderCircle size={18} className="spin" /> : <X size={18} />}
+        </IconButton>
       </header>
       <div className="processing-content">
         <div className="processing-icon">
@@ -168,6 +201,7 @@ export function SessionWorkspace({
         </h1>
         <p>{session?.name ?? "Loading your video…"}</p>
         {error && <ErrorNote message={error} />}
+        {closing && <p role="status">Cancelling analysis… Your video stays saved.</p>}
         <p className="muted">
           {session?.error ??
             (session as Session & { stage?: string })?.stage ??

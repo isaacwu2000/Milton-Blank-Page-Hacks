@@ -204,7 +204,8 @@ def analyze(path: str | Path, record_id: str, interval: float, progress: Progres
     import torch
 
     fps, count, width, height, duration = inspect_video(path)
-    progress(0.02, "Loading body tracking model")
+    if progress(0.02, "Loading body tracking model") is False:
+        raise RuntimeError("Analysis cancelled.")
     detector_processor, detector, processor, pose = models()
     cap = cv2.VideoCapture(str(path))
     frames: list[Frame] = []
