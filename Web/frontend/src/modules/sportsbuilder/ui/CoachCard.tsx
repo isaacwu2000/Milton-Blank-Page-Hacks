@@ -84,6 +84,7 @@ export function CoachCard({
           : "Could not update this coach. Try again.",
       );
     } finally {
+      if (action === "delete") restoreFocus.current = true;
       setBusy(null);
     }
   }

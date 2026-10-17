@@ -129,6 +129,7 @@ it("reports a failed delete and leaves the card available for retry", async () =
   await screen.findByRole("alert");
   expect(onUpdated).not.toHaveBeenCalled();
   expect((trigger as HTMLButtonElement).disabled).toBe(false);
+  expect(document.activeElement).toBe(trigger);
   fireEvent.click(trigger);
   expect(screen.getByRole("menuitem", { name: "Delete" })).toBeTruthy();
 });
