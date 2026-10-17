@@ -292,3 +292,42 @@ needs increasing. Native Windows PowerShell 5.1 execution, ACL enforcement, and
 cold-runtime downloads therefore remain unverified until that workflow can run.
 No billing settings were changed. This is local installer implementation,
 not a production deployment.
+
+## Automatic scale and single-video coaching
+
+SportsBuilder now estimates image-plane stature from the head, torso and leg
+segments instead of requiring straight knees and hips. It uses the saved athlete
+height (178 cm for this workspace), confidence and joint-angle checks, visible
+head/shoe boundaries, proportion checks, and three consecutive stable samples.
+Bent-knee and bent-hip geometry fixtures retain the same 850-pixel straightened
+stature as their upright reference. Raised hands do not enlarge the estimate.
+This is approximate 2D calibration; it does not recover depth or perspective.
+
+A fresh, read-only inference of the saved IMG_9964.mov V-up clip processed 42
+frames over 4.10 seconds and produced no reliable height reference. Floor poses
+with feet above the head are unsupported by this boundary-based estimator; scale
+is withheld rather than invented. Existing calibration and analysis records were
+not overwritten. Evidence: `output/auto-height-evidence.json`. Reanalysis is
+available for existing recordings; advanced manual calibration remains a fallback.
+
+The comparison player and reference-selection controls are removed from the
+prototype. Optional builder reference uploads remain available as coaching
+evidence. Single-video analysis, metrics and coaching remain. Future synchronized
+comparison is tracked in GitHub issue #4:
+https://github.com/isaacwu2000/Milton-Blank-Page-Hacks/issues/4.
+The browser document title is SportsBuilder.
+
+Workspace loading retries safe GET requests up to four attempts. A failed load
+shows a retry state instead of displaying an empty workspace or discarding the
+last loaded workspace. POST and other mutations do not receive automatic retries.
+Focused API and Home checks cover recovery and failure behavior.
+
+Verification: 93 pytest cases (including 17 calibration cases), ty and Ruff
+lint/format passed. All 81 TypeScript cases passed before the GET-recovery fix;
+after that fix, 22 focused API, Home and Analysis cases plus TypeScript checking
+and the build passed.
+The local browser capture and one-page report are
+`output/screenshots/automatic-scale-single-video.png` and
+`output/pdf/automatic-scale-review.pdf`. Browser dimensions and tested revision
+are recorded in the report. This is local implementation evidence, not deployment
+or proof that every sport/pose can be physically calibrated.
