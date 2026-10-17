@@ -515,14 +515,20 @@ function UploadPanel({
         </div>
       )}
       <div className="w-full max-w-[420px] text-left">
-        <label htmlFor="sampling-interval">
-          {formatFrameRate(interval)} fps
+        <label htmlFor="sampling-interval" className="flex-row! justify-between gap-4!">
+          <span>Frame sampling</span>
+          <span>{formatFrameRate(interval)} fps</span>
         </label>
+        <p id="sampling-help" className="small muted mt-1">
+          One frame every {interval} {interval === 1 ? "second" : "seconds"}
+        </p>
         <input
           id="sampling-interval"
           aria-label="Frame sampling rate"
-          aria-valuetext={`${formatFrameRate(interval)} frames per second`}
+          aria-valuetext={`${formatFrameRate(interval)} ${interval === 1 ? "frame" : "frames"} per second, one frame every ${interval} ${interval === 1 ? "second" : "seconds"}`}
+          aria-describedby="sampling-help"
           type="range"
+          dir="rtl"
           min={SAMPLING_RANGE.min}
           max={SAMPLING_RANGE.max}
           step={SAMPLING_RANGE.step}
@@ -533,12 +539,12 @@ function UploadPanel({
         />
         <div className="flex justify-between gap-6 text-[10px] text-(--neutral-dark-500)">
           <span>
-            {formatFrameRate(SAMPLING_RANGE.min)} fps
-            <span className="mt-1 block">Slower loading, more precision</span>
+            {formatFrameRate(SAMPLING_RANGE.max)} fps
+            <span className="mt-1 block">Fewer frames · faster processing</span>
           </span>
           <span className="text-right">
-            {formatFrameRate(SAMPLING_RANGE.max)} fps
-            <span className="mt-1 block">Faster loading, less precision</span>
+            {formatFrameRate(SAMPLING_RANGE.min)} fps
+            <span className="mt-1 block">More frames · longer processing</span>
           </span>
         </div>
       </div>
