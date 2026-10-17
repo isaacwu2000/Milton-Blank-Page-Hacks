@@ -1,0 +1,216 @@
+{
+  "skillVersion": "7",
+  "rubricVersion": "2",
+  "cases": [
+    {
+      "id": "algebra-training",
+      "version": "4",
+      "family": "algebra",
+      "split": "training",
+      "length": "short",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "approved",
+      "approvalRecord": "User requested rerun of the four reviewed version-4 cases with alternating mobile/desktop.",
+      "device": "mobile"
+    },
+    {
+      "id": "geometry-training",
+      "version": "4",
+      "family": "geometry",
+      "split": "training",
+      "length": "short",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "approved",
+      "approvalRecord": "User requested rerun of the four reviewed version-4 cases with alternating mobile/desktop.",
+      "device": "desktop"
+    },
+    {
+      "id": "advanced-geometry-training",
+      "version": "1",
+      "family": "advanced-geometry",
+      "split": "training",
+      "length": "medium",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "draft"
+    },
+    {
+      "id": "spatial-training",
+      "version": "1",
+      "family": "spatial",
+      "split": "training",
+      "length": "long",
+      "sessions": 2,
+      "visualRequest": "explicit",
+      "approval": "draft"
+    },
+    {
+      "id": "statistics-training",
+      "version": "1",
+      "family": "statistics",
+      "split": "training",
+      "length": "long",
+      "sessions": 3,
+      "visualRequest": "natural",
+      "approval": "draft"
+    },
+    {
+      "id": "ai-training",
+      "version": "4",
+      "family": "ai",
+      "split": "training",
+      "length": "medium",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "approved",
+      "approvalRecord": "User requested rerun of the four reviewed version-4 cases with alternating mobile/desktop.",
+      "device": "mobile"
+    },
+    {
+      "id": "physics-training",
+      "version": "4",
+      "family": "physics",
+      "split": "training",
+      "length": "short",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "approved",
+      "approvalRecord": "User requested rerun of the four reviewed version-4 cases with alternating mobile/desktop.",
+      "device": "desktop"
+    },
+    {
+      "id": "life-physical-science-training",
+      "version": "1",
+      "family": "life-physical-science",
+      "split": "training",
+      "length": "medium",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "draft"
+    },
+    {
+      "id": "algebra-held-out",
+      "version": "1",
+      "family": "algebra",
+      "split": "held-out",
+      "length": "medium",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "draft"
+    },
+    {
+      "id": "geometry-held-out",
+      "version": "1",
+      "family": "geometry",
+      "split": "held-out",
+      "length": "short",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "draft"
+    },
+    {
+      "id": "advanced-geometry-held-out",
+      "version": "1",
+      "family": "advanced-geometry",
+      "split": "held-out",
+      "length": "medium",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "draft"
+    },
+    {
+      "id": "spatial-held-out",
+      "version": "1",
+      "family": "spatial",
+      "split": "held-out",
+      "length": "medium",
+      "sessions": 1,
+      "visualRequest": "explicit",
+      "approval": "draft"
+    },
+    {
+      "id": "statistics-held-out",
+      "version": "1",
+      "family": "statistics",
+      "split": "held-out",
+      "length": "short",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "draft"
+    },
+    {
+      "id": "ai-held-out",
+      "version": "1",
+      "family": "ai",
+      "split": "held-out",
+      "length": "long",
+      "sessions": 2,
+      "visualRequest": "natural",
+      "approval": "draft"
+    },
+    {
+      "id": "physics-held-out",
+      "version": "1",
+      "family": "physics",
+      "split": "held-out",
+      "length": "short",
+      "sessions": 1,
+      "visualRequest": "explicit",
+      "approval": "draft"
+    },
+    {
+      "id": "life-physical-science-held-out",
+      "version": "1",
+      "family": "life-physical-science",
+      "split": "held-out",
+      "length": "long",
+      "sessions": 3,
+      "visualRequest": "natural",
+      "approval": "draft"
+    },
+    {
+      "id": "algebra-challenge-training",
+      "version": "1",
+      "family": "algebra",
+      "split": "training",
+      "length": "medium",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "draft",
+      "device": "mobile"
+    },
+    {
+      "id": "geometry-challenge-training",
+      "version": "2",
+      "family": "geometry",
+      "split": "training",
+      "length": "medium",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "draft",
+      "device": "desktop",
+      "approvalRecord": "User supplied the revised opening. Full revised case awaits approval."
+    },
+    {
+      "id": "trigonometry-challenge-training",
+      "version": "1",
+      "family": "trigonometry",
+      "split": "training",
+      "length": "long",
+      "sessions": 1,
+      "visualRequest": "natural",
+      "approval": "approved",
+      "approvalRecord": "User changed the opening to let's do trig, then instructed: run the eval now and see how it goes.",
+      "device": "mobile"
+    }
+  ],
+  "deviceSequence": {
+    "nextDevice": "desktop",
+    "lastDevice": "mobile",
+    "lastRunId": "prod-trig-2026-10-04-attempt-1",
+    "lastCaseId": "trigonometry-challenge-training",
+    "note": "Continue alternating across invocations; the last completed attempt was mobile."
+  }
+}

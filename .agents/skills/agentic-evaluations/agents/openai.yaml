@@ -1,0 +1,5 @@
+interface:
+  display_name: "Agentic Evaluations"
+  short_description: "Run student browser evaluations and export evidence reports"
+policy:
+  allow_implicit_invocation: false

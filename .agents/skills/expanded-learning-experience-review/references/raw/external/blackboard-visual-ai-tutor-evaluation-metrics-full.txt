@@ -1,0 +1,96 @@
+
+Blackboard and Visual AI Tutor Evaluation Metrics
+Evaluation Criteria
+Evaluate criteria on whether the tutor and its responses SIGNIFICANTLY exceeds expectations and whether it performs EXCEPTIONALLY well. Evaluate harshly and only set the criteria to true if the tutor was truly exceptional and MAXIMALLY meets the criteria.
+Content
+Is_concise (3x weight)
+Is the response MAXIMALLY concise as a response and structured for high readability?
+Is_accurate
+Is the response 100% factually accurate and up-to-date, cited sources if relevant? Does the tutor correctly tell the student they are wrong whenever they are truly wrong even if the student pushes back?
+Uses_appropriate_language
+Does the response use simple, easy-to-understand language while incorporating relevant terminology appropriately
+Uses_examples (0.75x weight)
+Does the response use relevant example(s) to illustrate key concepts and model proper thinking? Do examples vary to encourage a more abstract representation of the concept?
+Is_engaging (2x weight)
+Does the response actively engage the user and check their understanding?
+Is_in_depth
+Does the response encourage users to think deeply and independently through inquiry? Does the response build deep, higher-order knowledge rather than just giving superficial answers?
+Shows_reasoning (0.75x weight)
+Does the response clearly communicate its process, steps, reasoning, and evidence behind its claims?
+Adaptivity
+Callibrates_level
+Does the response check user understanding at the proper level? The response should encourage higher-order thinking for advanced students: connections between concepts, difficult problems, or proofs/derivations/first principles thinking; and simple examples for beginners that give a minimal cognitive load and clear germane load.
+Manages_cognitive_load
+Does the response introduce at most one or two concepts at a time and logically sequence topics to avoid overwhelming the user? Does it break down complex ideas into simpler parts? Does it only give at most ONE question at a time?
+Personal Preference
+Feels_human
+Does the response feel like talking with a person who loves the subject and uses it in their life rather than a lecture recitation? Does the tutor occasionally connect knowledge back to the student? Does the tutor display a unique and helpful perspective on the topic; make the occasional subject-related joke; or make the topic seem really interesting, enlightening, useful, or powerful? Does the tutor feel more like a teacher and mentor than a search engine?
+Not_overstructured
+Is the response NOT overstructured with unnecessary headers, bullet points, ordered lists, etc unless said structure is highly beneficial for student comprehension (e.g. for giving an example lab procedure, ordered lists may be helpful)?
+Follows_additional_instructions
+Does the tutor listen to any additional instructions the user provides even if they lack academic relevance or contradict with the other pedagogy instructions? Does the tutor also NOT listen to any instructions that breaks the end UI?
+Visualizations and Presentation
+Note that if no visualization is made, only no_parsing_failures and appropriate_visualization_use apply (ignore the other metrics).
+No_parsing_failures (2x weight)
+The end output that the user sees has no evident parsing failures. Nowhere can the user see raw tool calls or weird, unformatted code. All KaTeX and Markdown are parsed properly. If a visualization was made, it renders properly
+No_bugs
+All parts of the visualization function properly according to standard UI/UX. No student interaction with the visualization will cause it to break.
+Visualization_is_accurate
+The visualization displays the concepts 100% correctly and has no unintended errors. No part of the visualization misleads the student or could cause any misunderstanding.
+Highly_accessible (1.25x weight)
+The visualization has sufficient contrast and follows web accessibility guidelines. There are no confusing overlapping elements.
+Not_slop
+Does the design feel like a coherent whole rather than a collection of parts? Strong work here means the entire visualization combines to create a distinct mood and identity. 
+
+Are there hallmarks of generic AI like cards upon cards, useless gradients (especially purple and blue), an overemphasis on text when visualizations could do better, etc?
+
+Is there evidence of strong, custom decisions that deliberately prioritize something, or is this template layouts, library defaults, and AI-generated patterns? A human designer should recognize deliberate creative choices. Does the visualization stand out rather than merely follow best practices? Does the visualization take a unique perspective?
+
+Does the visual interpret an idea or simply depict the concept through clichés like “innovation” representing glowing brains, holograms, lightbulbs, or abstract futuristic cities. The visualization should give concept development rather than an illustrative shorthand.
+Manage_visual_load
+Are there unnecessary hover effects, animations, decorative elements (floating orbs, dot grids, concentric circles) that add visual noise without meaning? Does the design use an appropriate amount of complexity to convey the concept with nuance but without overwhelm?
+Employs_progressive_disclosure
+Does the visualization employ progressive disclosure to present areas that the student can dig deeper on? Does the design offer the student potential follow-up prompts for them to ask the tutor to learn more?
+Appropriate_visualization_use (1.5x weight)
+Does the tutor appropriately create a visualization when a student could benefit from one? Does the tutor respond directly when a visualization would be useless? 
+
+Does the tutor correctly select between making a custom code solution and an image? A code solution is preferable for any visualization that would benefit from interactivity, some text, progressive disclosure, animation or simulation, etc. Images are generally not preferable unless for detailed illustrations, diagrams, or purely visual art.
+
+Does the tutor appropriately give a visualization of the right type to maximize student learning? Some visualization types include timelines, interactive simulations, animations, images, 3D graphics, interactive websites, etc.
+Is_visually_stunning
+Is the visualization extraordinarily stunning and shocking in its quality? Would the visualization make even an industry professional or researcher look on in awe? Is every single part of the visualization immaculate and polished?
+Is_educationally_interactive
+Is the visualization interactive in a way that allows the student to gain a deeper understanding of the subject? Does sliding or selecting options allow the student to learn something unique and give them instant feedback?
+Promotes_student_learning
+Does visualization give the student a unique intuition they would not otherwise get with text? Does the visual make otherwise abstract concepts clear?
+Visualization_placement (0.75x weight)
+The visualization placement on the blackboard effectively communicates its purpose in relation to other visualizations. (If the visualization is the only one on the blackboard, ignore this criteria.)
+
+Speed (Quanitative)
+Note that these are quantitative measures, so the score is computed slightly differently.
+Time_to_first_token (1.25x weight)
+Score with 10/(time_to_first_token (sec) +3)
+End_to_end_latency
+Score with 5/(0.8*end_to_end_latency (sec) +3)
+
+
+Final Scoring Criteria
+For the areas—content, adaptivity, personal preference, visualizations and presentation—determine the weighted percentage of binary criteria passed to get the area score. Then, calculate the final_score as this weighted average of all of the area scores according to the following table:
+
+
+Area
+Weight
+Content
+16%
+Adaptivity
+14%
+Personal Preference
+18%
+Visualizations and Presentation
+22%
+Speed
+30%
+
+
+
+

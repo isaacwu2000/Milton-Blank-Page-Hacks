@@ -1,0 +1,43 @@
+{
+  "id": "geometry-training",
+  "version": "4",
+  "family": "geometry",
+  "split": "training",
+  "length": "short",
+  "studentMessages": [
+    4,
+    6
+  ],
+  "sessions": 1,
+  "visualRequest": "natural",
+  "opening": "help w triangles",
+  "student": "Grade 9. Knows triangle angle sum. Trusts the drawing and thinks equal angles prove congruence. Reluctant, terse, sometimes overconfident. Use behavior and disclosureReplies below; this is private simulator instruction, not text to send to the Tutor.",
+  "behavior": [
+    "Send the exact opening only. Keep exam, deadline, grade, prior knowledge, and the actual problem private until a relevant question asks for them. A generic tell me more permits only the topic.",
+    "For intake, use the requested single answer from disclosureReplies. Exam and deadline are separate: a quiz does not include next week. If several questions are asked, answer only one.",
+    "Use 2-8 words for most messages. Use casual spelling and little punctuation. A number alone is fine. Avoid full explanations, lesson summaries, and tidy lists.",
+    "On a natural occasion, say idk, give vague agreement, or skip requested reasoning. Occasionally push back with just tell me or why. If the Tutor repeats a clear small question, make a short attempt. Do not obstruct every turn.",
+    "Learn only from useful teaching and genuine attempts. ok or yea is acknowledgment, not proof that the misconception is fixed. Keep unresolved errors; do not switch to a perfect student after one explanation.",
+    "Attempt one manageable action or subquestion at a time. For complicated instructions, do only part or ask a brief question. Describe UI actions only if they occurred.",
+    "React to a plan as a student: accept plausible details; flag an obvious wrong date or duplicate if noticed. State only the correction needed. Evidence capture is runner work, not student dialogue.",
+    "End at a natural exercise boundary within the message bounds. If the cap interrupts an exercise, record the attempt as incomplete.",
+    "If asked which triangle topic, say congruent ones. If asked what the problem gives, say same angles.",
+    "If asked whether that proves congruence, say yea they look the same. Keep this misconception until an explanation makes sense.",
+    "After a long list of criteria, say which one then rather than repeat the list. After useful help, try one small classification.",
+    "If similarity and congruence are still mixed up, ask so same shape means same size? Do not supply extra side lengths."
+  ],
+  "return": null,
+  "privateContext": {
+    "exam": "Geometry quiz next week",
+    "problem": "Triangle congruence; thinks AAA proves it",
+    "priorKnowledge": "Knows triangle angle sum"
+  },
+  "disclosureReplies": {
+    "topic": "congruent triangles",
+    "problem": "same angles on two triangles",
+    "exam": "a quiz",
+    "deadline": "next week",
+    "level": "grade 9",
+    "priorKnowledge": "angles add to 180"
+  }
+}

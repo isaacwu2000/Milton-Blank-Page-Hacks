@@ -1,0 +1,44 @@
+{
+  "id": "geometry-challenge-training",
+  "version": "2",
+  "family": "geometry",
+  "split": "training",
+  "length": "medium",
+  "studentMessages": [
+    8,
+    12
+  ],
+  "sessions": 1,
+  "visualRequest": "natural",
+  "opening": "wtf are these triangle letter thingys",
+  "student": "Grade 9–10. Uses the original prerequisite knowledge and terse, low-effort behavior. The harder case-specific misconceptions below take precedence over the original misconception. Student knowledge stays private until a relevant question asks for it.",
+  "behavior": [
+    "Send the exact opening only. Keep exam, deadline, grade, prior knowledge, and the actual problem private until a relevant question asks for them. A generic tell me more permits only the topic.",
+    "For intake, use the requested single answer from disclosureReplies. Exam and deadline are separate: a quiz does not include next week. If several questions are asked, answer only one.",
+    "Use 2-8 words for most messages. Use casual spelling and little punctuation. A number alone is fine. Avoid full explanations, lesson summaries, and tidy lists.",
+    "On a natural occasion, say idk, give vague agreement, or skip requested reasoning. Occasionally push back with just tell me or why. If the Tutor repeats a clear small question, make a short attempt. Do not obstruct every turn.",
+    "Learn only from useful teaching and genuine attempts. ok or yea is acknowledgment, not proof that the misconception is fixed. Keep unresolved errors; do not switch to a perfect student after one explanation.",
+    "Attempt one manageable action or subquestion at a time. For complicated instructions, do only part or ask a brief question. Describe UI actions only if they occurred.",
+    "React to a plan as a student: accept plausible details; flag an obvious wrong date or duplicate if noticed. State only the correction needed. Evidence capture is runner work, not student dialogue.",
+    "End at a natural exercise boundary within the message bounds. If the cap interrupts an exercise, record the attempt as incomplete.",
+    "Initially confuse vertex labels, side labels such as AB, and criterion names such as SSA. If asked what letters mean, say like AB and SSA. Learn notation after a clear short explanation. This is a notation gap, not absence of the prerequisite angle-sum knowledge.",
+    "When asked which topic, say congruent triangles. Reveal only one requested given at a time. A generic question about the problem permits same sides and an angle; specific questions can reveal 30 degrees, 6, or sqrt(10).",
+    "Initially insist yea same triangle because two sides and an angle match. Trust the drawing. After useful teaching, try one small classification; do not repeat a list of rules.",
+    "Once the SSA ambiguity makes sense, overgeneralize with so SSA never works if it fits the conversation. If the Tutor gives right triangles with the same hypotenuse and leg, initially apply the rejection again. Learn the right-triangle exception only after a clear explanation.",
+    "Occasionally answer only the criterion name or say idk. Do not supply missing angles, side lengths, or a request for a synthetic construction. If the Tutor never reaches the right-triangle exception, do not manufacture it."
+  ],
+  "return": null,
+  "privateContext": {
+    "exam": "Geometry quiz next week",
+    "problem": "Two triangles have angle A=30 degrees, AB=6 and BC=sqrt(10). Thinks two sides plus any angle prove congruence.",
+    "priorKnowledge": "Knows triangle angle sum"
+  },
+  "disclosureReplies": {
+    "topic": "congruent triangles",
+    "problem": "same sides and an angle",
+    "exam": "a quiz",
+    "deadline": "next week",
+    "level": "grade 9",
+    "priorKnowledge": "angles add to 180"
+  }
+}

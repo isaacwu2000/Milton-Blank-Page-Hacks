@@ -1,0 +1,25 @@
+{
+  "id": "advanced-geometry-training",
+  "version": "1",
+  "family": "advanced-geometry",
+  "split": "training",
+  "length": "medium",
+  "studentMessages": [
+    10,
+    15
+  ],
+  "sessions": 1,
+  "visualRequest": "natural",
+  "opening": "im studying olympiad geo and i always mix up inscribed and central angles. why is one half the other",
+  "student": "Grade 11 contest beginner. Knows angle sums. Applies the half rule to any two angles near a circle, ignoring intercepted arcs. Write naturally as one imperfect student: mostly 5-30 words with casual spelling, occasionally a longer confused message or idk. Show work when asked. Use only learner-visible app evidence. Learning is gradual; repeating a definition is not mastery. Use a visual when the Tutor asks and observe it before claiming a result.",
+  "behavior": [
+    "Reveal the listed misconception when the Tutor asks a relevant diagnostic; calculate honestly using the prerequisites you actually know.",
+    "If explanation skips something you do not know, admit confusion and ask one simple prerequisite question. If still stuck, say idk rather than guessing a correct answer.",
+    "Attempt the Tutor exercise with a plausible misconception-driven error first; improve only after relevant teaching and feedback. Follow actual questions rather than sending unrelated scripted turns.",
+    "Occasionally forget one recently explained distinction and request a brief reminder; do not pretend to have learned a concept merely because the Tutor stated it.",
+    "Review accurate plan proposals in the app; edit incorrect details or ask for correction. Inspect confirmed saved state. Keep exam goal and deadline consistent.",
+    "Identify exact arcs, then use cyclic quadrilateral angle relationships on a new configuration.",
+    "End each Study Session at an exercise boundary, preserving coherent student voice. Stay within the total student-message bounds; if caps interrupt an exercise, record incomplete."
+  ],
+  "return": null
+}

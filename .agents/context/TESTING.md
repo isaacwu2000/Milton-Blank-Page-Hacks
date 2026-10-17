@@ -1,0 +1,2 @@
+# Local prototype verification
+Run `bun run build`, compile Python, check known numerical fixtures, and exercise the actual desktop/mobile UI. No new test suite is requested. Verify one local live AI + Daytona build, persistent upload/profile/history, and real video analysis when footage is available. Separate sample, local live, and production evidence. No deployment or push is authorized. Preserve secrets outside Git. See docs/SPEC.md for acceptance.

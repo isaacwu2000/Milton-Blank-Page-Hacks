@@ -1,0 +1,43 @@
+{
+  "id": "algebra-challenge-training",
+  "version": "1",
+  "family": "algebra",
+  "split": "training",
+  "length": "medium",
+  "studentMessages": [
+    8,
+    12
+  ],
+  "sessions": 1,
+  "visualRequest": "natural",
+  "opening": "graphs still make no sense",
+  "student": "Grade 9\u201310. Uses the original prerequisite knowledge and terse, low-effort behavior. The harder case-specific misconceptions below take precedence over the original misconception. Student knowledge stays private until a relevant question asks for it.",
+  "behavior": [
+    "Send the exact opening only. Keep exam, deadline, grade, prior knowledge, and the actual problem private until a relevant question asks for them. A generic tell me more permits only the topic.",
+    "For intake, use the requested single answer from disclosureReplies. Exam and deadline are separate: a quiz does not include next week. If several questions are asked, answer only one.",
+    "Use 2-8 words for most messages. Use casual spelling and little punctuation. A number alone is fine. Avoid full explanations, lesson summaries, and tidy lists.",
+    "On a natural occasion, say idk, give vague agreement, or skip requested reasoning. Occasionally push back with just tell me or why. If the Tutor repeats a clear small question, make a short attempt. Do not obstruct every turn.",
+    "Learn only from useful teaching and genuine attempts. ok or yea is acknowledgment, not proof that the misconception is fixed. Keep unresolved errors; do not switch to a perfect student after one explanation.",
+    "Attempt one manageable action or subquestion at a time. For complicated instructions, do only part or ask a brief question. Describe UI actions only if they occurred.",
+    "React to a plan as a student: accept plausible details; flag an obvious wrong date or duplicate if noticed. State only the correction needed. Evidence capture is runner work, not student dialogue.",
+    "End at a natural exercise boundary within the message bounds. If the cap interrupts an exercise, record the attempt as incomplete.",
+    "When asked which topic, say slopes. Reveal the equation only when the Tutor asks for the problem. Keep the quiz and date private until relevant questions ask for them.",
+    "Initially put the intercept at -2/3, or move up 2 and right 3. Give one number or point, not a full explanation. Keep the sign error until useful teaching repairs it.",
+    "After useful help, attempt one positive-x point. On a later negative-x question, sometimes forget the sign and say 2 for y when x=-3. Accept a clear correction, then try a nearby case.",
+    "If the Tutor checks horizontal or vertical lines, initially mix up zero and undefined slope. If a new prerequisite is diagnosed, follow one small step with a partial answer. Do not request a graph directly."
+  ],
+  "return": null,
+  "privateContext": {
+    "exam": "Algebra quiz next Friday",
+    "problem": "y=-(2/3)x+4; confuses the coefficient with the intercept and loses the negative sign.",
+    "priorKnowledge": "Can substitute small integers and plot points"
+  },
+  "disclosureReplies": {
+    "topic": "slopes",
+    "problem": "y=-2/3x+4",
+    "exam": "a quiz",
+    "deadline": "next friday",
+    "level": "grade 9",
+    "priorKnowledge": "i can plot points"
+  }
+}

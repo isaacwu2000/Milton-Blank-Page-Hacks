@@ -1,0 +1,116 @@
+{
+  "algebra-training": {
+    "visual": "A real coordinate graph clarifies slope and intercept of a straight line; use a small change or comparison if controls exist.",
+    "difficulty": "Small integer substitutions, slope/intercept identification and simple positive/negative slopes; avoid calculus.",
+    "route": "Coordinate graph route.",
+    "focus": "After the swapped interpretation is exposed, distinguish y at x=0 from rise per unit run; address negative-slope confusion if it occurs."
+  },
+  "algebra-held-out": {
+    "visual": "A coordinate graph compares original and shifted quadratics.",
+    "difficulty": "Integer shifts of a basic quadratic; roots and vertex without advanced algebra.",
+    "route": "Coordinate graph route.",
+    "focus": "Explain inside versus outside shifts and independently test a new shift rather than repeat the same coefficients."
+  },
+  "geometry-training": {
+    "visual": "A synthetic triangle diagram distinguishes givens from appearance and congruence from similarity.",
+    "difficulty": "Grade 9 triangle angles and basic congruence tests.",
+    "route": "Synthetic 2D geometry route when visibly exposed.",
+    "focus": "Correct the AAA-means-congruent misconception and require sufficient givens."
+  },
+  "geometry-held-out": {
+    "visual": "A synthetic parallelogram diagram clearly separates slanted side from perpendicular height.",
+    "difficulty": "Rectangle/parallelogram area with simple numbers.",
+    "route": "Synthetic 2D geometry route when visibly exposed.",
+    "focus": "Correct slanted-side-as-height reasoning and preserve equal-area reasoning under shear."
+  },
+  "advanced-geometry-training": {
+    "visual": "A synthetic circle diagram clearly identifies intercepted arcs, central and inscribed angles.",
+    "difficulty": "Angle sums and cyclic angle reasoning; a new arrangement rather than a rote identical diagram.",
+    "route": "Synthetic 2D geometry route when visibly exposed.",
+    "focus": "Tie angle relations to matching arcs, not proximity in a diagram."
+  },
+  "advanced-geometry-held-out": {
+    "visual": "A synthetic similarity diagram makes corresponding sides and area scaling clear.",
+    "difficulty": "AA similarity, proportional sides and squared area scale; no unsupported advanced theorem.",
+    "route": "Synthetic 2D geometry route when visibly exposed.",
+    "focus": "Separate length ratios from area ratios and check a new scale factor."
+  },
+  "spatial-training": {
+    "visual": "A 3D graph shows a plane cutting a cube and permits viewpoint/plane exploration where provided.",
+    "difficulty": "Coordinates and cross-section polygons; explain any plane notation first.",
+    "route": "3D coordinate graph route; synthetic 3D construction is not required.",
+    "focus": "Correct always-square cross sections and retain the distinction on return."
+  },
+  "spatial-held-out": {
+    "visual": "A 3D coordinate graph distinguishes a vector and its projection onto a plane.",
+    "difficulty": "Small coordinate vectors and elementary projection after prerequisites.",
+    "route": "3D coordinate graph route.",
+    "focus": "Distinguish projection from rotation and retained versus discarded components."
+  },
+  "statistics-training": {
+    "visual": "A grapher/data visualization contrasts distributions with and without an outlier.",
+    "difficulty": "Small datasets, mean/median, qualitative skew.",
+    "route": "Data/coordinate graph route.",
+    "focus": "Correct typical-equals-mean and outlier-always-changes-median claims; retain plan state across returns."
+  },
+  "statistics-held-out": {
+    "visual": "A clear visual or interactive natural-frequency representation exposes base-rate effects.",
+    "difficulty": "Small-count frequency reasoning and introductory conditional probability.",
+    "route": "Appropriate app-visible visual route; no specific hidden parameter required.",
+    "focus": "Distinguish test sensitivity from probability after a positive result."
+  },
+  "ai-training": {
+    "visual": "A graph of training versus validation performance or an interactive comparison clarifies generalization.",
+    "difficulty": "Beginner classification and simple held-out examples; explain loss notation if used.",
+    "route": "Appropriate graph/Artifact route visible in app.",
+    "focus": "Correct training-accuracy-as-success reasoning and explain leakage or overfitting without endorsing it."
+  },
+  "ai-held-out": {
+    "visual": "A visual of attention weights and contextual contribution supports learner manipulation/comparison.",
+    "difficulty": "Dot-product prerequisites and normalized weights, introduced gradually.",
+    "route": "Appropriate app-visible graph/diagram/Artifact route.",
+    "focus": "Correct nearest-word-only attention and distinguish contextual weighting from fixed meaning labels; preserve continuity."
+  },
+  "physics-training": {
+    "visual": "A graph or interactive motion comparison separates velocity direction and acceleration/net force.",
+    "difficulty": "One-dimensional carts, signed velocity changes and qualitative force.",
+    "route": "Appropriate app-visible graph/Artifact route.",
+    "focus": "Address a cart moving right while slowing without falsely equating force with velocity."
+  },
+  "physics-held-out": {
+    "visual": "A coordinate wave graph shows phase and superposition with an observable changed state.",
+    "difficulty": "Sinusoidal shape, phase and introductory interference.",
+    "route": "Coordinate graph route.",
+    "focus": "Distinguish local displacement cancellation from permanent disappearance of waves/energy."
+  },
+  "life-physical-science-training": {
+    "visual": "A particle/flux diagram or simulation shows two-way random motion and net concentration-driven flux.",
+    "difficulty": "Grade 11 diffusion and concentration; no unexplained stochastic calculus.",
+    "route": "Appropriate app-visible diagram/Artifact route.",
+    "focus": "Correct purposeful molecular movement and equilibrium-stops-motion reasoning."
+  },
+  "life-physical-science-held-out": {
+    "visual": "A molecular shape visual makes geometry and dipole cancellation spatially clear.",
+    "difficulty": "Introductory VSEPR and polarity with simple molecules.",
+    "route": "3D graph or appropriate molecular Artifact route.",
+    "focus": "Distinguish bond from molecular polarity and revisit lone-pair effects across sessions."
+  },
+  "algebra-challenge-training": {
+    "visual": "A real coordinate graph clarifies slope and intercept of a straight line; use a small change or comparison if controls exist.",
+    "difficulty": "Small rational slopes and basic coordinate reasoning; no calculus.",
+    "route": "Coordinate graph route.",
+    "focus": "Distinguish negative fractional slope from intercept; test a negative-x substitution and zero versus undefined slope if those opportunities occur."
+  },
+  "geometry-challenge-training": {
+    "visual": "A synthetic triangle diagram distinguishes givens from appearance and congruence from similarity.",
+    "difficulty": "Triangle congruence, SSA ambiguity, and right-triangle hypotenuse-leg congruence; introduce any unfamiliar notation.",
+    "route": "Synthetic 2D geometry route when visibly exposed.",
+    "focus": "Clarify vertex/side labels and criterion names when confusion appears. Check SSA ambiguity with the actual givens; correct the later overgeneralization using right-triangle hypotenuse-leg congruence if the opportunity occurs."
+  },
+  "trigonometry-challenge-training": {
+    "visual": "Use correct coordinate graphs when they clarify the circle-to-function relationship or polar representation. Capture the Tutor link and rendered graph. Check any plotted coordinates, phase, period, and polar radius interpretation against the displayed values.",
+    "difficulty": "Begin with a small diagnostic. After demonstrated success, offer a meaningfully harder or different task. Preserve strong algebra and trig prerequisites while addressing specific polar or periodic-solution gaps.",
+    "route": "Coordinate graph route when visibly exposed; evaluate displayed mathematics and interaction rather than infer hidden parameters.",
+    "focus": "Record each correct independent answer and the next task. Count eligible progression opportunities and successes: a new challenge, a targeted diagnostic, or work on an exposed gap qualifies; redundant easy drills do not. Short replies alone do not show low ability. Check unit-circle coordinates, sinusoidal transformations, and polar equivalence when reached. Count a missed topic separately from inability to verify; do not claim the case covered topics it never reached."
+  }
+}
