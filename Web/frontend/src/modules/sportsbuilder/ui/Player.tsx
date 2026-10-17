@@ -10,7 +10,7 @@ import {
   type Analysis,
   type Joint,
 } from "../../../../../shared";
-import { IconButton } from "../../../components";
+import { IconButton, Math as AxisMath } from "../../../components";
 export function Player({
   analysis,
   url,
@@ -324,24 +324,30 @@ export function Player({
               </marker>
             ))}
           </defs>
-          <line
-            x1="0"
-            y1={ground}
-            x2={analysis.width}
-            y2={ground}
-            stroke="#648d7d"
-            strokeDasharray="8 8"
-            opacity=".75"
-            strokeWidth={analysis.width / 650}
-          />
-          <text
-            x="12"
-            y={ground - 10}
-            fill="#1f5141"
-            fontSize={analysis.width / 55}
+          <g
+            aria-label="Coordinate axes"
+            stroke="#657779"
+            strokeWidth="1.5"
+            vectorEffect="non-scaling-stroke"
+            opacity=".85"
           >
-            y = 0
-          </text>
+            <line
+              aria-label="Ground baseline"
+              x1="0"
+              y1={ground}
+              x2={analysis.width}
+              y2={ground}
+              vectorEffect="non-scaling-stroke"
+            />
+            <line
+              aria-label="Left image edge"
+              x1="0"
+              y1="0"
+              x2="0"
+              y2={analysis.height}
+              vectorEffect="non-scaling-stroke"
+            />
+          </g>
           {EDGES.map(([a, b]) => {
             const p = frame?.joints[a],
               q = frame?.joints[b];
@@ -458,6 +464,39 @@ export function Player({
             />
           )}
         </svg>
+        <div
+          className="axis-label-chip"
+          style={{
+            position: "absolute",
+            top: 8,
+            left: 8,
+            background: "#fff",
+            borderRadius: 3,
+            padding: "2px 6px",
+            fontSize: 12,
+            color: "#4b5e60",
+            pointerEvents: "none",
+          }}
+        >
+          <AxisMath expression="x=0" label="x equals zero" />
+        </div>
+        <div
+          className="axis-label-chip"
+          style={{
+            position: "absolute",
+            top: `${Math.min(98, Math.max(12, (ground / analysis.height) * 100))}%`,
+            right: 8,
+            transform: "translateY(calc(-100% - 5px))",
+            background: "#fff",
+            borderRadius: 3,
+            padding: "2px 6px",
+            fontSize: 12,
+            color: "#4b5e60",
+            pointerEvents: "none",
+          }}
+        >
+          <AxisMath expression="y=0" label="y equals zero" />
+        </div>
       </div>
       {playbackError && (
         <p className="error-note" role="alert">

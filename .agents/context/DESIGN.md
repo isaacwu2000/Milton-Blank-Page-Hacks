@@ -98,7 +98,8 @@ stretching them across the analysis surface.
 
 ## Layout
 
-Two primary surfaces remain: home and analysis. The builder interview opens within
+Two primary surfaces remain: home and analysis. Home has one athlete implicitly;
+its navigation exposes Home and Coaching tools. Sampling settings sit below upload. The builder interview opens within
 home; the athlete's coach belongs beside analysis. Feature composition lives in
 `Web/frontend/src/modules/sportsbuilder/ui/`.
 
@@ -117,9 +118,22 @@ calibration, reference alignment, metric detail, and rubric content.
 
 ## Elevation & Depth
 
-Surface contrast, spacing, and the stylesheet's restrained `--shadow` establish
-hierarchy. Inputs use quieter recessed chrome. Reuse these treatments rather than
-adding one-off shadows or nested card layers.
+Surface contrast, spacing, and LearnUnlock's exact three-layer shadows establish
+hierarchy. `Web/frontend/src/styles.css` copies `--shadow-sm`, `--shadow-md`,
+`--shadow-mdlg`, `--shadow-lg`, and `--shadow-inner` from LearnUnlock's
+`Web/src/app/globals.css`. Each layer uses
+`color-mix(in oklch, var(--neutral-dark-150) <opacity>, transparent)`.
+
+| Token | Layers: x / y / blur / opacity | Shipped use |
+| --- | --- | --- |
+| `--shadow-sm` | -1px / 1px / 1px / 7.5%; -1px / 1px / 3px / 4%; -1px / 2px / 6px / 2% | Small cards, active items, white Build tool action |
+| `--shadow-md` | -0.5px / 0.5px / 2px / 7.5%; -0.5px / 0.5px / 5px / 2%; -0.5px / 1.5px / 10px / 2% | Menus, forms, charts, settings; `--shadow` aliases this token |
+| `--shadow-mdlg` | -1px / 1px / 2px / 7.5%; -1px / 2px / 8px / 4%; -1px / 4px / 16px / 2% | Player surface |
+| `--shadow-lg` | -1px / 1.5px / 3px / 5%; -1px / 3px / 10px / 4%; -1px / 6px / 20px / 2% | Upload and builder surfaces |
+| `--shadow-inner` | inset -1px / 1px / 1px / 2.5%; inset -1px / 1px / 4px / 2.5%; inset -1px / 2px / 8px / 2% | Recessed fields, dropdown triggers, composer |
+
+Reuse these tokens for their existing roles. The dropdown combines a recessed
+trigger with a raised menu; surface depth supports the action hierarchy.
 
 ## Shapes
 
@@ -144,9 +158,11 @@ Keep sports presentation in its feature and use the feature's public entry.
   acceleration arrows belong to the selected joint/current sampled frame. Their
   separate scales stay fixed within a clip. A joint click opens its closable custom
   details panel; plain scalar Speed/Acceleration readings, units, and missing evidence
-  belong there. Keep formulas and vector-component notation out of that panel,
-  and persistent joint names, numbers, and math text off the video
-  overlay. Components use x right / y up and truthful units.
+  belong there, alongside the joint name. Keep formulas and vector-component
+  notation out of that panel. The video carries neutral axes and
+  white-backed KaTeX `x=0`/`y=0` chips, inspired by LearnUnlock’s grapher. Its origin
+  stays at the left frame edge and estimated initial shoe-contact line; positive y
+  points upward. Components use truthful units.
 - **Feedback:** errors explain a recoverable problem once; progress names the
   actual stage; synthetic and unavailable evidence remain explicit.
 

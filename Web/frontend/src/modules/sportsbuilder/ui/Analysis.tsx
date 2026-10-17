@@ -825,7 +825,7 @@ export function Workspace({
               ? "Sample values are synthetic."
               : "Measurements are sampled 2D estimates."}{" "}
             Gaps indicate missing points or insufficient neighbors. The ground
-            line starts at the initially detected feet.
+            line starts at estimated initial shoe contact.
           </p>
         </main>
         {coachOpen && (

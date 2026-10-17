@@ -167,7 +167,7 @@ export function DropdownSelect<Value extends string>({
                 aria-expanded={isOpen}
                 aria-haspopup="listbox"
                 aria-label={label}
-                className={`inline-flex min-h-[44px] w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-lg border-0 bg-(--neutral-light-500) py-1.5 pr-2 pl-2.5 text-[12px] text-(--neutral-dark-150) transition-colors duration-150 hover:bg-(--neutral-light-400) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-700) disabled:cursor-not-allowed disabled:text-(--neutral-dark-500) aria-expanded:bg-(--neutral-light-400) motion-reduce:transition-none ${triggerClassName ?? ""}`}
+                className={`inline-flex min-h-[44px] w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-lg border-0 bg-(--neutral-light-500) py-1.5 pr-2 pl-2.5 text-[12px] text-(--neutral-dark-150) shadow-(--shadow-inner) transition-colors duration-150 hover:bg-(--neutral-light-400) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-700) disabled:cursor-not-allowed disabled:text-(--neutral-dark-500) aria-expanded:bg-(--neutral-light-400) motion-reduce:transition-none ${triggerClassName ?? ""}`}
                 disabled={disabled || options.length === 0}
                 onClick={() => isOpen ? setIsOpen(false) : open()}
                 onKeyDown={handleKeyDown}
@@ -187,7 +187,7 @@ export function DropdownSelect<Value extends string>({
             {isOpen ? (
                 <div
                     aria-label={label}
-                    className={`absolute top-[calc(100%+8px)] left-1/2 z-50 flex w-full min-w-[max(100%,136px)] -translate-x-1/2 max-h-72 overflow-y-auto flex-col gap-0.5 rounded-xl bg-(--neutral-light-100) p-1.5 shadow-(--shadow) ${menuClassName ?? ""}`}
+                    className={`absolute top-[calc(100%+8px)] left-1/2 z-50 flex w-full min-w-[max(100%,136px)] -translate-x-1/2 max-h-72 overflow-y-auto flex-col gap-0.5 rounded-xl bg-(--neutral-light-100) p-1.5 shadow-(--shadow-md) ${menuClassName ?? ""}`}
                     id={listboxId}
                     ref={listboxRef}
                     role="listbox"

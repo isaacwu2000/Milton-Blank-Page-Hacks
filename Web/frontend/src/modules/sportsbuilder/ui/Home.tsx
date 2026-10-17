@@ -3,12 +3,10 @@ import {
   useEffect,
   useRef,
   useState,
-  type FormEvent,
 } from "react";
 import {
   Activity,
   ArrowRight,
-  Check,
   ChevronRight,
   CloudUpload,
   Film,
@@ -16,16 +14,15 @@ import {
   LoaderCircle,
   Plus,
   Target,
-  Users,
-  X,
 } from "lucide-react";
 import {
   pretty,
   sampleTool,
+  type Profile,
   type Session,
   type ToolConfig,
 } from "../../../../../shared";
-import { Input, IconButton, DropdownSelect } from "../../../components";
+import { IconButton, DropdownSelect } from "../../../components";
 import { api, post } from "../services/api";
 import { type HomeData } from "../types";
 import { Logo, ErrorNote, Empty } from "./common";
@@ -43,9 +40,8 @@ export function Product() {
   const [data, setData] = useState<HomeData>(EMPTY_HOME_DATA),
     [loaded, setLoaded] = useState(false),
     [error, setError] = useState(""),
-    [view, setView] = useState<"home" | "profiles" | "tools">("home"),
+    [view, setView] = useState<"home" | "tools">("home"),
     [builder, setBuilder] = useState(false),
-    [profileForm, setProfileForm] = useState(false),
     [opened, setOpened] = useState<string | null>(null),
     [sample, setSample] = useState(false);
   const reload = useCallback(async () => {
@@ -94,7 +90,6 @@ export function Product() {
           {(
             [
               { id: "home", label: "Home", icon: Home },
-              { id: "profiles", label: "Athletes", icon: Users },
               { id: "tools", label: "Coaching tools", icon: Target },
             ] as const
           ).map(({ id, label, icon: Icon }) => (
@@ -104,7 +99,6 @@ export function Product() {
               onClick={() => {
                 setView(id);
                 setBuilder(false);
-                setProfileForm(false);
               }}
             >
               <Icon size={18} />
@@ -112,31 +106,15 @@ export function Product() {
             </button>
           ))}
         </nav>
-        <div className="sidebar-foot">
-          <span className="status-dot" />
-          Local workspace
-          <span className="small muted">Your movement, made clearer.</span>
-        </div>
       </aside>
       <main className="home-main">
         <header className="topbar">
           <span className="muted">
             Workspace <ChevronRight size={13} />
             <span className="ink">
-              {view === "home"
-                ? "Home"
-                : view === "tools"
-                  ? "Coaching tools"
-                  : "Athletes"}
+              {view === "home" ? "Home" : "Coaching tools"}
             </span>
           </span>
-          <button
-            className="avatar"
-            aria-label="View athletes"
-            onClick={() => setView("profiles")}
-          >
-            <Users size={17} />
-          </button>
         </header>
         <div className="home-content">
           <div className="page-heading">
@@ -144,18 +122,14 @@ export function Product() {
               <h1>
                 {builder
                   ? "Build your coaching tool"
-                  : view === "profiles"
-                    ? "Your athletes"
-                    : view === "tools"
+                  : view === "tools"
                       ? "Your coaching tools"
                       : "See your next move."}
               </h1>
               <p>
                 {builder
                   ? "A few questions. A coach built around what matters to you."
-                  : view === "profiles"
-                    ? "A little context helps your coach give more useful advice."
-                    : view === "tools"
+                  : view === "tools"
                       ? "Reusable metrics, a clear rubric, and a coach for your sport."
                       : "Look closer at your movement. Find one thing to practise."}
               </p>
@@ -206,10 +180,6 @@ export function Product() {
                       setOpened(s.id);
                       reload();
                     }}
-                    onCreateProfile={() => {
-                      setView("profiles");
-                      setProfileForm(true);
-                    }}
                     onCreateTool={() => setBuilder(true)}
                   />
                   <div className="home-columns">
@@ -252,10 +222,7 @@ export function Product() {
                                 <span className="session-copy">
                                   <strong>{s.name}</strong>
                                   <small>
-                                    {data.profiles.find(
-                                      (p) => p.id === s.profileId,
-                                    )?.name ?? "Athlete"}{" "}
-                                    · {s.duration.toFixed(1)}s ·{" "}
+                                    {s.duration.toFixed(1)}s ·{" "}
                                     {formatDate(s.createdAt)}
                                   </small>
                                 </span>
@@ -317,66 +284,6 @@ export function Product() {
                   </div>
                 </>
               )}
-              {view === "profiles" && (
-                <>
-                  <div className="section-heading">
-                    <span className="muted">
-                      Profiles are shared in this local workspace.
-                    </span>
-                    <button
-                      className="button"
-                      onClick={() => setProfileForm(!profileForm)}
-                    >
-                      <Plus size={16} />
-                      Add athlete
-                    </button>
-                  </div>
-                  {profileForm && (
-                    <ProfileForm
-                      onCancel={() => setProfileForm(false)}
-                      onSaved={() => {
-                        setProfileForm(false);
-                        reload();
-                      }}
-                    />
-                  )}
-                  <div className="profile-grid">
-                    {data.profiles.map((p) => (
-                      <article className="profile-card" key={p.id}>
-                        <div className="profile-initial">
-                          {p.name.charAt(0)}
-                        </div>
-                        <h3>{p.name}</h3>
-                        <p>
-                          {p.experience || "Athlete"}
-                          {p.dominantSide ? ` · ${p.dominantSide} handed` : ""}
-                        </p>
-                        <dl>
-                          <div>
-                            <dt>Height</dt>
-                            <dd>
-                              {p.heightCm ? `${p.heightCm} cm` : "Not set"}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Weight</dt>
-                            <dd>
-                              {p.weightKg ? `${p.weightKg} kg` : "Not set"}
-                            </dd>
-                          </div>
-                        </dl>
-                        {p.notes && <p>{p.notes}</p>}
-                      </article>
-                    ))}
-                  </div>
-                  {!data.profiles.length && !profileForm && (
-                    <Empty title="Who is moving?">
-                      Add your first athlete to keep their videos and progress
-                      together.
-                    </Empty>
-                  )}
-                </>
-              )}
               {view === "tools" && (
                 <>
                   <button className="button" onClick={() => setBuilder(true)}>
@@ -422,35 +329,35 @@ function UploadPanel({
   data,
   loading = false,
   onUploaded,
-  onCreateProfile,
   onCreateTool,
 }: {
   data: HomeData;
   loading?: boolean;
   onUploaded: (s: Session) => void;
-  onCreateProfile: () => void;
   onCreateTool: () => void;
 }) {
-  const [profile, setProfile] = useState(""),
-    [tool, setTool] = useState(""),
+  const [tool, setTool] = useState(""),
     [interval, setInterval] = useState(DEFAULT_SAMPLING_INTERVAL),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const profileId = profile || data.profiles[0]?.id || "",
-    toolId = tool || data.tools[0]?.id || "";
+  const createdProfile = useRef<Profile | null>(null);
+  const toolId = tool || data.tools[0]?.id || "";
   async function upload(file: File) {
-    if (loading) return;
-    if (!profileId || !toolId) {
-      setError("Add an athlete and build a coaching tool first.");
+    if (loading || busy) return;
+    if (!toolId) {
+      setError("Build a coaching tool first.");
       return;
     }
     setBusy(true);
     setError("");
     try {
+      const profile = data.profiles.find((p) => p.name === "Athlete") ?? createdProfile.current ??
+        await post<Profile>("/api/profiles", { name: "Athlete" });
+      createdProfile.current = profile;
       const form = new FormData();
       form.set("file", file);
-      form.set("profileId", profileId);
+      form.set("profileId", profile.id);
       form.set("toolId", toolId);
       form.set("interval", String(interval));
       const s = await api<Session>("/api/upload", {
@@ -482,16 +389,6 @@ function UploadPanel({
       <p>Drop your video here, or choose one to get started.</p>
       <div className="upload-selects">
         <div className="flex min-w-0 flex-1 flex-col gap-2 text-[12px] text-(--neutral-dark-400)">
-          <span>Athlete</span>
-          <DropdownSelect
-            label="Athlete for upload"
-            disabled={loading || busy || !data.profiles.length}
-            value={profileId}
-            onChange={setProfile}
-            options={loading ? [{value: profileId, label: "Loading saved workspace…"}] : data.profiles.length ? data.profiles.map(p => ({value: p.id, label: p.name})) : [{value: "", label: "Add an athlete first"}]}
-          />
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-2 text-[12px] text-(--neutral-dark-400)">
           <span>Coaching tool</span>
           <DropdownSelect
             label="Coaching tool for upload"
@@ -515,7 +412,7 @@ function UploadPanel({
       />
       <button
         className="button"
-        disabled={loading || busy || !profileId || !toolId}
+        disabled={loading || busy || !toolId}
         onClick={() => fileRef.current?.click()}
       >
         {busy ? (
@@ -528,13 +425,8 @@ function UploadPanel({
       <span className="small muted">
         Up to 30 seconds · MP4, MOV, WebM · 100 MiB
       </span>
-      {!loading && (!profileId || !toolId) && (
+      {!loading && !toolId && (
         <div className="prerequisites">
-          {!profileId && (
-            <button className="text-button" onClick={onCreateProfile}>
-              Add an athlete <ArrowRight size={13} />
-            </button>
-          )}
           {!toolId && (
             <button className="text-button" onClick={onCreateTool}>
               Build your first tool <ArrowRight size={13} />
@@ -565,118 +457,5 @@ function UploadPanel({
       </details>
       {error && <ErrorNote message={error} />}
     </section>
-  );
-}
-function ProfileForm({
-  onSaved,
-  onCancel,
-}: {
-  onSaved: () => void;
-  onCancel: () => void;
-}) {
-  const [error, setError] = useState(""),
-    [busy, setBusy] = useState(false),
-    [imperial, setImperial] = useState(false);
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    setBusy(true);
-    try {
-      await post("/api/profiles", {
-        name: f.get("name"),
-        heightCm: f.get("height")
-          ? Number(f.get("height")) * (imperial ? 2.54 : 1)
-          : null,
-        weightKg: f.get("weight")
-          ? Number(f.get("weight")) * (imperial ? 0.45359237 : 1)
-          : null,
-        dominantSide: f.get("side"),
-        experience: f.get("experience"),
-        notes: f.get("notes"),
-      });
-      onSaved();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <form className="inline-form" onSubmit={submit}>
-      <div className="section-heading">
-        <h2>Add athlete</h2>
-        <IconButton label="Close athlete form" onClick={onCancel}>
-          <X size={16} />
-        </IconButton>
-      </div>
-      <label>
-        Name
-        <Input
-          name="name"
-          required
-          maxLength={80}
-          autoFocus
-          placeholder="e.g. Alex"
-        />
-      </label>
-      <div className="form-pair">
-        <label>
-          Height ({imperial ? "in" : "cm"})
-          <input
-            name="height"
-            type="number"
-            min={imperial ? 12 : 30}
-            max={imperial ? 118 : 300}
-            step="any"
-          />
-        </label>
-        <label>
-          Weight ({imperial ? "lb" : "kg"})
-          <input
-            name="weight"
-            type="number"
-            min="1"
-            max={imperial ? 1320 : 600}
-            step="any"
-          />
-        </label>
-      </div>
-      <label className="check-label">
-        <input
-          type="checkbox"
-          checked={imperial}
-          onChange={(e) => setImperial(e.target.checked)}
-        />
-        Use inches and pounds
-      </label>
-      <div className="form-pair">
-        <label>
-          Dominant side
-          <select name="side">
-            <option>Right</option>
-            <option>Left</option>
-            <option>Both</option>
-          </select>
-        </label>
-        <label>
-          Experience
-          <Input name="experience" placeholder="e.g. Beginner" />
-        </label>
-      </div>
-      <label>
-        Anything your coach should know
-        <textarea
-          name="notes"
-          rows={2}
-          maxLength={1000}
-          placeholder="Your goals, movement preferences, or relevant context"
-        />
-      </label>
-      {error && <ErrorNote message={error} />}
-      <button className="button" disabled={busy}>
-        {busy ? "Saving…" : "Save athlete"}
-        <Check size={15} />
-      </button>
-    </form>
   );
 }

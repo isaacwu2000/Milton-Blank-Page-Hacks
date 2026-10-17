@@ -7,7 +7,7 @@ import {
   screen,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api } from "../services/api";
+import { api, post } from "../services/api";
 import { sampleTool } from "../../../../../shared";
 import { Product } from "./Home";
 vi.mock("../services/api", () => ({ api: vi.fn(), post: vi.fn() }));
@@ -30,11 +30,11 @@ describe("saved workspace loading", () => {
       }),
     );
     render(<Product />);
-    const athlete = screen.getByRole("combobox", {
-      name: "Athlete for upload",
+    const tool = screen.getByRole("combobox", {
+      name: "Coaching tool for upload",
     }) as HTMLButtonElement;
-    expect(athlete.disabled).toBe(true);
-    expect(athlete.textContent).toBe("Loading saved workspace…");
+    expect(tool.disabled).toBe(true);
+    expect(tool.textContent).toBe("Loading saved workspace…");
     expect(screen.queryByRole("button", { name: "Add an athlete" })).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Build your first tool" }),
@@ -45,8 +45,8 @@ describe("saved workspace loading", () => {
     await act(async () => {
       finish(saved);
     });
-    expect(athlete.disabled).toBe(false);
-    expect(athlete.textContent).toBe("Alex");
+    expect(tool.disabled).toBe(false);
+    expect(tool.textContent).toBe(sampleTool.name);
     expect(
       (
         screen.getByRole("button", {
@@ -64,8 +64,8 @@ describe("saved workspace loading", () => {
       name: "Retry loading workspace",
     });
     fireEvent.click(retry);
-    await screen.findByRole("combobox", { name: "Athlete for upload" });
-    expect(screen.getByRole("combobox", { name: "Athlete for upload" }).textContent).toBe("Alex");
+    await screen.findAllByText(sampleTool.name);
+    expect(screen.queryByRole("combobox", { name: "Athlete for upload" })).toBeNull();
     expect(api).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("alert")).toBeNull();
     fireEvent.click(
@@ -83,35 +83,43 @@ describe("saved workspace loading", () => {
     expect(screen.getByText("Sample analysis")).toBeTruthy();
     expect(api).toHaveBeenCalledTimes(1);
   });
-  it("selects an athlete with LearnUnlock's custom keyboard listbox and closes on Escape", async () => {
-    vi.mocked(api).mockResolvedValueOnce({...saved, profiles:[...saved.profiles,{id:"other-athlete",name:"Jordan"}]});
+  it("creates the default athlete once for uploads without exposing athlete management", async () => {
+    vi.mocked(api).mockResolvedValueOnce({...saved,profiles:[]}).mockRejectedValue(Error("Upload unavailable"));
+    vi.mocked(post).mockResolvedValue({id:"default-athlete",name:"Athlete"});
     render(<Product />);
-    const athlete=await screen.findByRole("combobox", {name:"Athlete for upload"});
+    await screen.findAllByText(sampleTool.name);
+    expect(screen.queryByRole("button",{name:"Athletes"})).toBeNull();
+    expect(screen.queryByRole("button",{name:"View athletes"})).toBeNull();
+    expect(screen.queryByText("Local workspace")).toBeNull();
+    const input=screen.getByLabelText("Upload sports video");
+    const file=new File(["video"],"jump.mp4",{type:"video/mp4"});
+    fireEvent.change(input,{target:{files:[file]}});
+    await screen.findByText("Upload unavailable");
+    expect(post).toHaveBeenCalledWith("/api/profiles",{name:"Athlete"});
+    const upload=vi.mocked(api).mock.calls.find(([path])=>path==="/api/upload");
+    expect((upload?.[1]?.body as FormData).get("profileId")).toBe("default-athlete");
+    fireEvent.change(input,{target:{files:[file]}});
     await act(async()=>{});
-    fireEvent.keyDown(athlete,{key:"ArrowDown"});
-    expect(screen.getByRole("listbox",{name:"Athlete for upload"})).toBeTruthy();
-    fireEvent.keyDown(athlete,{key:"End"});
-    fireEvent.keyDown(athlete,{key:"Enter"});
-    expect(athlete.textContent).toBe("Jordan");
-    expect(screen.queryByRole("listbox")).toBeNull();
-    fireEvent.click(athlete);
-    fireEvent.keyDown(athlete,{key:"Escape"});
-    expect(screen.queryByRole("listbox")).toBeNull();
-    expect(athlete.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(athlete);
-    const alex=screen.getByRole("option",{name:"Alex"});
-    fireEvent.pointerDown(alex);
-    fireEvent.click(alex);
-    fireEvent.click(screen.getByRole("combobox",{name:"Coaching tool for upload"}));
-    expect(athlete.textContent).toBe("Alex");
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+  it("reuses the canonical athlete without assigning an old test profile to new uploads", async () => {
+    vi.mocked(api).mockResolvedValueOnce({...saved,profiles:[...saved.profiles,{id:"canonical",name:"Athlete"}]}).mockRejectedValue(Error("Upload unavailable"));
+    render(<Product />);
+    await screen.findAllByText(sampleTool.name);
+    fireEvent.change(screen.getByLabelText("Upload sports video"),{target:{files:[new File(["video"],"jump.mp4",{type:"video/mp4"})]}});
+    await screen.findByText("Upload unavailable");
+    expect(post).not.toHaveBeenCalled();
+    const upload=vi.mocked(api).mock.calls.find(([path])=>path==="/api/upload");
+    expect((upload?.[1]?.body as FormData).get("profileId")).toBe("canonical");
   });
   it("selects a coaching tool from the custom menu and dismisses outside clicks", async () => {
     vi.mocked(api).mockResolvedValueOnce({...saved,tools:[...saved.tools,{...sampleTool,id:"second-tool",name:"Jump check",createdAt:"2026-10-17T12:00:00Z"}]});
     render(<Product />);
     const tool=await screen.findByRole("combobox",{name:"Coaching tool for upload"});
     await act(async()=>{});
-    fireEvent.click(tool);
-    fireEvent.click(screen.getByRole("option",{name:"Jump check"}));
+    fireEvent.keyDown(tool,{key:"ArrowDown"});
+    fireEvent.keyDown(tool,{key:"End"});
+    fireEvent.keyDown(tool,{key:"Enter"});
     expect(tool.textContent).toBe("Jump check");
     expect(document.activeElement).toBe(tool);
     fireEvent.click(tool);

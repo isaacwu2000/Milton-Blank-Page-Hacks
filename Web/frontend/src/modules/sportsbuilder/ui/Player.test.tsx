@@ -211,4 +211,30 @@ describe("selected joint derivative vectors", () => {
       y2: 146,
     });
   });
+  it("typesets zero-axis labels on white chips without changing the physical image origin or scalar panel", () => {
+    const view = render(<InteractivePlayer data={analysis([point()])} />);
+    const ground = view.container.querySelector(
+      '[aria-label="Ground baseline"]',
+    )!;
+    expect(ground.getAttribute("y1")).toBe("200");
+    expect(ground.getAttribute("y2")).toBe("200");
+    expect(
+      view.container
+        .querySelector('[aria-label="Left image edge"]')!
+        .getAttribute("x1"),
+    ).toBe("0");
+    const label = screen.getByLabelText("y equals zero");
+    expect(label.querySelector("math")).toBeTruthy();
+    expect((label.parentElement as HTMLElement).style.background).toBe(
+      "rgb(255, 255, 255)",
+    );
+    expect(label.querySelector("annotation")!.textContent).toBe("y=0");
+    fireEvent.click(screen.getByRole("button", { name: "Select Right wrist" }));
+    expect(
+      screen
+        .getByRole("region", { name: "Right wrist details" })
+        .querySelector("math"),
+    ).toBeNull();
+    expect(screen.getByLabelText("Speed").textContent).toBe("0.5 m/s");
+  });
 });

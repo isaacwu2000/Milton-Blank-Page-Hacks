@@ -21,7 +21,34 @@
   --neutral-dark-200: oklch(19.9% 0.011 260);
   --neutral-dark-400: #47524f;
   --neutral-dark-500: oklch(50.1% 0.009 260);
-  --shadow: 0 2px 12px #182f2610;
+  /* LearnUnlock soft-lift surfaces and three-layer recessed fields. */
+  --shadow-sm:
+    -1px 1px 1px color-mix(in oklch, var(--neutral-dark-150) 7.5%, transparent),
+    -1px 1px 3px color-mix(in oklch, var(--neutral-dark-150) 4%, transparent),
+    -1px 2px 6px color-mix(in oklch, var(--neutral-dark-150) 2%, transparent);
+  --shadow-md:
+    -0.5px 0.5px 2px
+      color-mix(in oklch, var(--neutral-dark-150) 7.5%, transparent),
+    -0.5px 0.5px 5px
+      color-mix(in oklch, var(--neutral-dark-150) 2%, transparent),
+    -0.5px 1.5px 10px
+      color-mix(in oklch, var(--neutral-dark-150) 2%, transparent);
+  --shadow-mdlg:
+    -1px 1px 2px color-mix(in oklch, var(--neutral-dark-150) 7.5%, transparent),
+    -1px 2px 8px color-mix(in oklch, var(--neutral-dark-150) 4%, transparent),
+    -1px 4px 16px color-mix(in oklch, var(--neutral-dark-150) 2%, transparent);
+  --shadow-lg:
+    -1px 1.5px 3px color-mix(in oklch, var(--neutral-dark-150) 5%, transparent),
+    -1px 3px 10px color-mix(in oklch, var(--neutral-dark-150) 4%, transparent),
+    -1px 6px 20px color-mix(in oklch, var(--neutral-dark-150) 2%, transparent);
+  --shadow-inner:
+    inset -1px 1px 1px
+      color-mix(in oklch, var(--neutral-dark-150) 2.5%, transparent),
+    inset -1px 1px 4px
+      color-mix(in oklch, var(--neutral-dark-150) 2.5%, transparent),
+    inset -1px 2px 8px
+      color-mix(in oklch, var(--neutral-dark-150) 2%, transparent);
+  --shadow: var(--shadow-md);
 }
 * {
   box-sizing: border-box;
@@ -160,7 +187,7 @@ small,
 .button.secondary {
   background: white;
   color: var(--neutral-dark-200);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 .text-button {
   @apply inline-flex items-center gap-2;
@@ -210,7 +237,7 @@ small,
 .nav-item.active {
   background: white;
   color: var(--neutral-dark-150);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 .nav-item.active svg {
   color: var(--accent-700);
@@ -267,7 +294,7 @@ small,
   @apply flex flex-col items-center gap-4 rounded-2xl;
   text-align: center;
   background: white;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-lg);
   padding: 40px 24px 24px;
 }
 .upload-icon {
@@ -411,7 +438,7 @@ small,
   margin-top: 24px;
   padding: 16px;
   background: white;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 .sample-link > span:nth-child(2) {
   flex: 1;
@@ -462,7 +489,7 @@ small,
 .profile-card {
   @apply rounded-xl p-6;
   background: white;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-md);
 }
 .profile-card p {
   font-size: 12px;
@@ -497,7 +524,7 @@ dd {
   padding: 24px;
   background: white;
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-md);
   display: grid;
   gap: 16px;
 }
@@ -521,7 +548,7 @@ dd {
 .builder {
   background: white;
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-lg);
   padding: 24px;
 }
 .step-label {
@@ -575,7 +602,7 @@ dd {
 }
 .composer {
   @apply flex items-end gap-2 rounded-xl;
-  box-shadow: inset 0 1px 5px #173b2710;
+  box-shadow: var(--shadow-inner);
   background: var(--neutral-light-500);
   padding: 12px;
 }
@@ -697,7 +724,7 @@ dd {
   background: white;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-mdlg);
 }
 .video-stage {
   position: relative;
@@ -784,7 +811,8 @@ dd {
 }
 .measurement-tabs button[aria-selected="true"] {
   color: var(--accent-700);
-  box-shadow: 0 2px 0 var(--accent-700);
+  border-bottom: 2px solid var(--accent-700);
+  padding-bottom: 6px;
 }
 .measurement-tabs > span {
   margin-left: auto;
@@ -848,7 +876,7 @@ dd {
   background: white;
   padding: 20px 24px 12px;
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-md);
 }
 .chart svg {
   width: 100%;
@@ -882,7 +910,7 @@ dd {
   min-width: 150px;
   flex: 1;
   color: inherit;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
   opacity: 1 !important;
 }
 .metric-readout > span {
@@ -940,7 +968,7 @@ dd {
   background: white;
   border-radius: 12px;
   margin: 0 0 24px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-md);
 }
 .analysis-settings h2 {
   margin-bottom: 8px;

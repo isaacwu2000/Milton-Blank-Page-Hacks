@@ -1,6 +1,6 @@
 # SportsBuilder
 
-A local prototype for inspecting sports footage and building reusable coaching tools through an interview. The fixed analysis workspace handles clickable body joints, position/velocity/acceleration, custom metrics, reference comparison, athlete profiles, and image-grounded coaching.
+A local prototype for inspecting sports footage and building reusable coaching tools through an interview. The fixed analysis workspace handles clickable body joints, position/velocity/acceleration, custom metrics, reference comparison, one athlete’s history, and image-grounded coaching.
 
 ## Run locally
 

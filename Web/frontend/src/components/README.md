@@ -9,7 +9,9 @@ and global focus/reduced-motion behavior; the visual direction lives in
 | --- | --- | --- |
 | `Input` | Text, email, password, search, telephone, URL | Forwards native props/ref. Supply an associated label or accessible name. Number, file, and range types are intentionally outside its API. |
 | `IconButton` | Compact icon-only actions | Supply `label`; choose raised or transparent `surface`. Preserve native disabled/button semantics and visible focus. |
-| `DropdownSelect` | Athlete/tool choice and other compact single-choice menus | Adapted from LearnUnlock's actual `DropdownSelect.tsx`. Controlled value/options/onChange; required accessible label; `disabled` covers loading/uploading. Preserves arrow/Home/End/Enter/Space/Escape/Tab navigation, outside-pointer dismissal, focus restoration, and a raised listbox. Uses this app's existing surface/focus/shadow tokens. |
+| `DropdownSelect` | Coaching-tool choice and other compact single-choice menus | Adapted from LearnUnlock's actual `DropdownSelect.tsx`. Controlled value/options/onChange; required accessible label; `disabled` covers loading/uploading. Preserves arrow/Home/End/Enter/Space/Escape/Tab navigation, outside-pointer dismissal, focus restoration, and a raised listbox. Uses the copied LearnUnlock surface/focus/shadow tokens. |
+
+| `Math` | Short coordinate-axis labels | Supply `expression` and an accessible `label`. Renders KaTeX HTML plus MathML with `trust: false`; current use is limited to white-backed x=0/y=0 chips. Joint detail readings remain plain numbers and units. |
 
 `InputSurface` and `MultilineInput` remain in `Input.tsx` from LearnUnlock but are
 not public exports or used by this MVP. Promote one when a real reuse needs it;

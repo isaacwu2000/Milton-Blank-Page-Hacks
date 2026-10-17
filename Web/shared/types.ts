@@ -38,6 +38,8 @@ export type Analysis = {
   width: number;
   height: number;
   ground: number;
+  groundTime?: number;
+  groundSource?: "person_boundary";
   duration: number;
   interval: number;
   frames: Frame[];
