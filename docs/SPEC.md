@@ -8,7 +8,7 @@ A local React/TypeScript application with Your profile, Build your coach, and Ge
 
 ## User Stories
 1. As an athlete, I can upload a clip up to 30 seconds and see processing progress and actionable errors.
-2. As a user, I complete height onboarding for one athlete before uploading. Save the canonical Athlete profile with required height in centimeters, edit it under Your profile, and preserve older records and session associations.
+2. As a user, I complete height onboarding for one athlete before uploading. Save the canonical Athlete profile with required height in centimeters, edit it under Your profile, and preserve older records and session associations. Include optional weight in kilograms, free-text gender, and general notes (up to 1000 characters); persist edits and clearing, and include saved details in the coaching prompt.
 3. As an athlete, I can revisit uploads and choose a reusable coaching tool.
 4. As a builder, I can answer a guided AI interview about sport, audience, desired metrics, and good form.
 5. As a builder, I can review the rubric and optional reference footage before building, or start early after a warning that missing interview details require conservative assumptions.

@@ -170,6 +170,7 @@ class ProfileRecord(TypedDict):
     name: str
     heightCm: NotRequired[float | None]
     weightKg: NotRequired[float | None]
+    gender: NotRequired[str]
     dominantSide: NotRequired[str]
     experience: NotRequired[str]
     notes: NotRequired[str]

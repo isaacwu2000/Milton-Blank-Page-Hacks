@@ -109,7 +109,7 @@ describe("builder and coach request boundary", () => {
         if (url.endsWith(`/api/sessions/${sessionId}`))
           return Response.json({ id: sessionId, profileId: "athlete" });
         if (url.endsWith("/api/home"))
-          return Response.json({ profiles: [], sessions: [] });
+          return Response.json({ profiles: [{ id: "athlete", name: "Athlete", heightCm: 180, weightKg: 75.5, gender: "Woman", notes: "Focus on endurance" }], sessions: [] });
         throw Error("Unexpected backend request");
       }),
     );
@@ -139,6 +139,10 @@ describe("builder and coach request boundary", () => {
         reply: "Your knee is bent at 0 seconds.",
       });
       expect(result.drill).toBeUndefined();
+      const prompt = JSON.stringify(vi.mocked(chat).mock.calls.at(-1));
+      expect(prompt).toContain('\\"weightKg\\":75.5');
+      expect(prompt).toContain('\\"gender\\":\\"Woman\\"');
+      expect(prompt).toContain("Focus on endurance");
     });
   });
 });

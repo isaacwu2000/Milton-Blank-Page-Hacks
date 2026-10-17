@@ -119,7 +119,8 @@ async def home() -> HomeData:
 class ProfileInput(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     heightCm: float | None = Field(default=None, ge=30, le=300)
-    weightKg: float | None = Field(default=None, ge=1, le=600)
+    weightKg: float | None = Field(default=None, ge=1, le=600, allow_inf_nan=False)
+    gender: str = Field(default="", max_length=100)
     dominantSide: str = "Right"
     experience: str = Field(default="", max_length=100)
     notes: str = Field(default="", max_length=1000)
@@ -162,6 +163,9 @@ class ProfileUpdate(BaseModel):
     model_config = {"extra": "forbid"}
     name: str | None = Field(default=None, min_length=1, max_length=80)
     heightCm: float | None = Field(default=None, ge=30, le=300, allow_inf_nan=False)
+    weightKg: float | None = Field(default=None, ge=1, le=600, allow_inf_nan=False)
+    gender: str = Field(default="", max_length=100)
+    notes: str = Field(default="", max_length=1000)
 
 
 @app.patch("/api/profiles/{profile_id}")
@@ -169,7 +173,7 @@ async def update_profile(profile_id: str, data: ProfileUpdate) -> ProfileRecord:
     """Save only edited profile fields; preserve identity, history, and other measurements."""
     await asyncio.to_thread(record, "profiles", profile_id)
     changes = data.model_dump(exclude_unset=True)
-    if any(value is None for value in changes.values()):
+    if any(changes[key] is None for key in ("name", "heightCm") if key in changes):
         raise HTTPException(422, "Enter a name and an athlete height between 30 and 300 cm.")
     async with session_lock:
         saved = await asyncio.to_thread(store.patch, "profiles", profile_id, changes)
