@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { EllipsisVertical, Target } from "lucide-react";
+import { EllipsisVertical, Pencil, Target, Trash2 } from "lucide-react";
 import { type SavedTool } from "../../../../../shared";
 import { ConfirmDialog, IconButton, Input } from "../../../components";
 import { api } from "../services/api";
@@ -83,8 +83,8 @@ export function CoachCard({ tool, onOpen, onRenamed, onDeleted }: {
         } else if (event.key === "Escape") { event.preventDefault(); setMenu(false); trigger.current?.focus(); }
         else if (event.key === "Tab") setMenu(false);
       }}>
-      <button type="button" role="menuitem" onClick={() => choose("rename")}>Rename</button>
-      <button type="button" role="menuitem" className="destructive-action" onClick={() => choose("delete")}>Delete</button>
+      <button type="button" role="menuitem" onClick={() => choose("rename")}><Pencil size={16} aria-hidden="true" />Rename</button>
+      <button type="button" role="menuitem" className="destructive-action" onClick={() => choose("delete")}><Trash2 size={16} aria-hidden="true" />Delete</button>
     </div>}
     {action && <ConfirmDialog title={action === "rename" ? "Rename coach" : "Delete coach?"} onClose={() => { if (!busy) setAction(null); }}>
       <form className="coach-card-form" onSubmit={submit}>

@@ -1808,7 +1808,9 @@ button .loading-status {
   box-shadow: var(--shadow-md);
 }
 .coach-card-menu button {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   padding: 8px 12px;
   border: 0;
