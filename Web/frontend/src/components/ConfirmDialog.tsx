@@ -18,6 +18,7 @@ export function ConfirmDialog({
   useEffect(() => {
     const element = dialog.current;
     element?.showModal();
+    element?.querySelector<HTMLElement>("[data-dialog-initial-focus]")?.focus();
     return () => {
       element?.close();
       previousFocus.current?.focus();

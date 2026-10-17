@@ -303,6 +303,7 @@ export function Builder({
           <div className="early-build-actions">
             <button
               autoFocus
+              data-dialog-initial-focus
               className="button"
               onClick={() => setConfirmEarlyBuild(false)}
             >

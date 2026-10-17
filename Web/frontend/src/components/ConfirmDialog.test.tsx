@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { ConfirmDialog } from "./ConfirmDialog";
 beforeEach(() => {
-  HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
+  HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); this.querySelector<HTMLElement>("button")?.focus(); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
 });
 afterEach(cleanup);
@@ -13,7 +13,7 @@ function Warning() {
   return <>
     <button onClick={() => setOpen(true)}>Build my tool</button>
     {open && <ConfirmDialog title="Build before finishing the interview?" onClose={() => setOpen(false)}>
-      <button autoFocus onClick={() => setOpen(false)}>Keep talking</button>
+      <button autoFocus data-dialog-initial-focus onClick={() => setOpen(false)}>Keep talking</button>
       <button>Build anyway</button>
     </ConfirmDialog>}
   </>;
