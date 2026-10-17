@@ -81,3 +81,93 @@ def test_profile_response_retains_measurements(monkeypatch: pytest.MonkeyPatch):
     assert response.status_code == 200
     for key, value in body.items():
         assert response.json()[key] == value
+
+
+def test_height_patch_preserves_identity_and_other_profile_fields(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(PROFILE))
+    monkeypatch.setattr(store, "records", lambda kind: [])
+    monkeypatch.setattr(
+        store, "patch", lambda kind, identifier, changes: {**deepcopy(PROFILE), **changes}
+    )
+    response = TestClient(app).patch(f"/api/profiles/{PROFILE['id']}", json={"heightCm": 178})
+    assert response.status_code == 200
+    assert response.json() == {**PROFILE, "heightCm": 178}
+
+
+@pytest.mark.parametrize("height", [None, 29, 301])
+def test_height_patch_rejects_missing_or_out_of_range_measurement(
+    monkeypatch: pytest.MonkeyPatch, height: float | None
+):
+    monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(PROFILE))
+    response = TestClient(app).patch(f"/api/profiles/{PROFILE['id']}", json={"heightCm": height})
+    assert response.status_code == 422
+
+
+def test_preview_redirect_uses_private_object_without_analysis(monkeypatch: pytest.MonkeyPatch):
+    session = {"id": PROFILE["id"], "previewKey": "previews/first.jpg"}
+    monkeypatch.setattr(store, "get", lambda kind, identifier: session)
+    monkeypatch.setattr(store, "url", lambda key: "https://private.example/" + key + "?signed=yes")
+    response = TestClient(app).get(f"/api/sessions/{PROFILE['id']}/preview", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "https://private.example/previews/first.jpg?signed=yes"
+
+
+def test_preview_missing_returns_placeholder_compatible_not_found(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(store, "get", lambda kind, identifier: {"id": PROFILE["id"]})
+    assert TestClient(app).get(f"/api/sessions/{PROFILE['id']}/preview").status_code == 404
+
+
+def test_height_edit_rescales_saved_stature_but_preserves_known_distance(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    old = {
+        "metersPerPixel": 0.0045,
+        "ground": 940,
+        "source": "athlete_height_manual",
+        "heightCm": 180,
+        "bodyHeightPixels": 400,
+        "frameTime": 1.2,
+    }
+    sessions = [
+        {"id": "height", "profileId": PROFILE["id"], "status": "complete", "calibration": old},
+        {
+            "id": "distance",
+            "profileId": PROFILE["id"],
+            "status": "complete",
+            "calibration": {"metersPerPixel": 0.003, "ground": 940, "source": "known_distance"},
+        },
+    ]
+    saved = []
+    monkeypatch.setattr(store, "get", lambda kind, identifier: deepcopy(PROFILE))
+    monkeypatch.setattr(store, "patch", lambda kind, identifier, changes: {**PROFILE, **changes})
+    monkeypatch.setattr(store, "records", lambda kind: deepcopy(sessions))
+    monkeypatch.setattr(
+        store,
+        "save_height_calibration",
+        lambda identifier, changed, expected: saved.append((identifier, changed, expected)),
+    )
+    response = TestClient(app).patch(f"/api/profiles/{PROFILE['id']}", json={"heightCm": 178})
+    assert response.status_code == 200
+    assert len(saved) == 1
+    assert saved[0][0] == "height"
+    assert saved[0][1]["metersPerPixel"] == pytest.approx(0.00445)
+    assert saved[0][2] == old
+
+
+def test_session_patch_roundtrips_height_provenance(monkeypatch: pytest.MonkeyPatch):
+    session = {"id": PROFILE["id"], "duration": 10, "status": "complete"}
+    monkeypatch.setattr(store, "get", lambda kind, identifier: session)
+    monkeypatch.setattr(store, "patch", lambda kind, identifier, changes: {**session, **changes})
+    metadata = {
+        "metersPerPixel": 0.00445,
+        "ground": 940,
+        "source": "athlete_height_manual",
+        "heightCm": 178,
+        "bodyHeightPixels": 400,
+        "frameTime": 1.2,
+    }
+    response = TestClient(app).patch(
+        f"/api/sessions/{PROFILE['id']}", json={"calibration": metadata}
+    )
+    assert response.status_code == 200
+    assert response.json()["calibration"] == metadata

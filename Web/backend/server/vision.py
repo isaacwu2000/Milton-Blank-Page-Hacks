@@ -12,11 +12,12 @@ import numpy as np
 from PIL import Image
 from scipy.signal import savgol_filter
 
-from server import config
+from server import calibration, config
 from server.types import (
     Analysis,
     Box,
     Frame,
+    HeightObservation,
     JointPoint,
     ModelBundle,
     PosePrediction,
@@ -211,6 +212,7 @@ def analyze(path: str | Path, record_id: str, interval: float, progress: Progres
     previous_center = None
     ground: float | None = None
     ground_time: float | None = None
+    height_observations: list[HeightObservation] = []
     try:
         for index, t in enumerate(requested):
             if progress(0.05 + 0.90 * index / len(requested), "Tracking body joints") is False:
@@ -317,6 +319,16 @@ def analyze(path: str | Path, record_id: str, interval: float, progress: Progres
                 )
                 if ground is not None:
                     ground_time = round(timestamp, 6)
+            if len(boxes):
+                observation = calibration.standing_height(
+                    Box(*(float(value) / ratio for value in boxes[0])),
+                    joints,
+                    width,
+                    height,
+                    round(timestamp, 6),
+                )
+                if observation is not None:
+                    height_observations.append(observation)
             small = cv2.resize(
                 bgr,
                 (
@@ -342,7 +354,7 @@ def analyze(path: str | Path, record_id: str, interval: float, progress: Progres
         raise ValueError(
             "The shoe bottoms are not clear. Include the full shoes without cropping the bottom of the video."
         )
-    return {
+    result: Analysis = {
         "id": record_id,
         "width": width,
         "height": height,
@@ -355,3 +367,26 @@ def analyze(path: str | Path, record_id: str, interval: float, progress: Progres
         "source": "video",
         "model": config.POSE_MODEL,
     }
+
+    reference = calibration.select_height_reference(height_observations, interval)
+    if reference is not None:
+        result["heightReference"] = reference
+    return result
+
+
+def first_frame_preview(path: str | Path) -> bytes:
+    """Decode the actual first displayed frame once and encode a compact private preview."""
+    cap = cv2.VideoCapture(str(path))
+    try:
+        ok, frame = cap.read()
+        if not ok or frame is None:
+            raise ValueError("The first video frame could not be read.")
+        height, width = frame.shape[:2]
+        scale = min(1, 512 / max(width, height))
+        small = cv2.resize(frame, (max(1, round(width * scale)), max(1, round(height * scale))))
+        encoded, data = cv2.imencode(".jpg", small, [cv2.IMWRITE_JPEG_QUALITY, 82])
+        if not encoded:
+            raise ValueError("The video preview could not be prepared.")
+        return data.tobytes()
+    finally:
+        cap.release()

@@ -199,3 +199,20 @@ def test_analysis_waits_for_earliest_clear_shoe_boundary(monkeypatch: pytest.Mon
     assert result["groundTime"] == 0.2
     assert result["groundSource"] == "person_boundary"
     assert len(result["frames"]) == 3
+
+
+def test_preview_is_first_displayed_frame_and_small_jpeg(tmp_path):
+    path = tmp_path / "preview.avi"
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter.fourcc(*"MJPG"), 10, (640, 360))
+    first = np.zeros((360, 640, 3), dtype=np.uint8)
+    first[:, :, 2] = 255
+    writer.write(first)
+    writer.write(np.zeros_like(first))
+    writer.release()
+    encoded = vision.first_frame_preview(path)
+    decoded = cv2.imdecode(np.frombuffer(encoded, dtype=np.uint8), cv2.IMREAD_COLOR)
+    assert encoded[:2] == b"\xff\xd8"
+    assert decoded is not None
+    assert decoded.shape[:2] == (288, 512)
+    assert decoded[:, :, 2].mean() > 240
+    assert decoded[:, :, 0].mean() < 15

@@ -8,16 +8,17 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, cast
+from typing import Annotated, Literal, Self, cast
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel, Field, model_validator
 
-from server import config, store, vision
+from server import calibration, config, store, vision
 from server.types import (
     Analysis,
+    Calibration,
     HomeData,
     ProfileRecord,
     Record,
@@ -123,6 +124,53 @@ async def profile(data: ProfileInput) -> ProfileRecord:
     return cast(ProfileRecord, await asyncio.to_thread(store.save, "profiles", value))
 
 
+async def recalibrate_profile_sessions(profile_id: str, height_cm: float | None) -> None:
+    """Rescale saved height references while preserving known-distance and user edits."""
+    if height_cm is None:
+        return
+    for session in await asyncio.to_thread(store.records, "sessions"):
+        if session["profileId"] != profile_id or session["status"] != "complete":
+            continue
+        existing = session.get("calibration")
+        if (
+            existing is not None
+            and existing.get("source") in ("athlete_height_auto", "athlete_height_manual")
+            and "bodyHeightPixels" in existing
+            and "frameTime" in existing
+        ):
+            changed: Calibration = {
+                **existing,
+                "heightCm": height_cm,
+                "metersPerPixel": height_cm / 100 / existing["bodyHeightPixels"],
+            }
+            await asyncio.to_thread(store.save_height_calibration, session["id"], changed, existing)
+        elif existing is None:
+            reference = session.get("heightReference")
+            if reference is not None:
+                changed = calibration.from_height(height_cm, reference, session["detectedGround"])
+                await asyncio.to_thread(store.save_height_calibration, session["id"], changed)
+
+
+class ProfileUpdate(BaseModel):
+    model_config = {"extra": "forbid"}
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    heightCm: float | None = Field(default=None, ge=30, le=300, allow_inf_nan=False)
+
+
+@app.patch("/api/profiles/{profile_id}")
+async def update_profile(profile_id: str, data: ProfileUpdate) -> ProfileRecord:
+    """Save only edited profile fields; preserve identity, history, and other measurements."""
+    await asyncio.to_thread(record, "profiles", profile_id)
+    changes = data.model_dump(exclude_unset=True)
+    if any(value is None for value in changes.values()):
+        raise HTTPException(422, "Enter a name and an athlete height between 30 and 300 cm.")
+    async with session_lock:
+        saved = await asyncio.to_thread(store.patch, "profiles", profile_id, changes)
+        if "heightCm" in changes:
+            await recalibrate_profile_sessions(profile_id, data.heightCm)
+    return cast(ProfileRecord, saved)
+
+
 @app.post("/api/tools")
 async def save_tool(request: Request) -> ToolRecord:
     # Only the loopback agent service can publish a reviewed configuration.
@@ -181,7 +229,9 @@ async def upload(
             info = await asyncio.to_thread(vision.inspect_video, path)
         except ValueError as e:
             raise HTTPException(422, str(e))
+        preview_data = await asyncio.to_thread(vision.first_frame_preview, path)
         session_id = str(uuid4())
+        preview_key = f"previews/{session_id}.jpg"
         key = f"videos/{session_id}{suffix}"
         await asyncio.to_thread(
             lambda: store.put(key, path.read_bytes(), file.content_type or "video/mp4")
@@ -197,13 +247,16 @@ async def upload(
             "duration": info.duration,
             "interval": interval,
             "sourceKey": key,
+            "previewKey": preview_key,
             "reference": reference,
             "completedDrills": [],
         }
         try:
+            await asyncio.to_thread(store.put, preview_key, preview_data, "image/jpeg")
             await asyncio.to_thread(store.save, "sessions", value)
         except Exception:
             await asyncio.to_thread(store.remove, key)
+            await asyncio.to_thread(store.remove, preview_key)
             raise
         return cast(SessionRecord, value)
     finally:
@@ -250,12 +303,24 @@ async def work(session_id: str) -> None:
             await asyncio.to_thread(
                 store.put, key, json.dumps(analysis, allow_nan=False).encode(), "application/json"
             )
-            await asyncio.to_thread(
-                store.patch,
-                "sessions",
-                session_id,
-                {"status": "complete", "progress": 1, "analysisKey": key, "stage": "Ready"},
-            )
+            reference = analysis.get("heightReference")
+            async with session_lock:
+                if reference is not None and session.get("profileId"):
+                    athlete = await asyncio.to_thread(record, "profiles", session["profileId"])
+                    height_cm = athlete.get("heightCm")
+                    if height_cm is not None:
+                        scale = calibration.from_height(height_cm, reference, analysis["ground"])
+                        await asyncio.to_thread(store.save_height_calibration, session_id, scale)
+                job_fields: Record = {
+                    "status": "complete",
+                    "progress": 1,
+                    "analysisKey": key,
+                    "stage": "Ready",
+                }
+                if reference is not None:
+                    job_fields["heightReference"] = reference
+                    job_fields["detectedGround"] = analysis["ground"]
+                await asyncio.to_thread(store.patch, "sessions", session_id, job_fields)
             cache[session_id] = analysis
             if len(cache) > 8:
                 cache.pop(next(iter(cache)))
@@ -308,6 +373,16 @@ async def session_get(session_id: str) -> SessionRecord:
     return cast(SessionRecord, await asyncio.to_thread(record, "sessions", session_id))
 
 
+@app.get("/api/sessions/{session_id}/preview")
+async def preview(session_id: str) -> RedirectResponse:
+    """Redirect directly to the private first-frame object, without loading analysis."""
+    session = await asyncio.to_thread(record, "sessions", session_id)
+    key = session.get("previewKey")
+    if not key:
+        raise HTTPException(404, "Video preview is not available yet.")
+    return RedirectResponse(await asyncio.to_thread(store.url, key), status_code=307)
+
+
 @app.get("/api/sessions/{session_id}/video")
 async def video(session_id: str) -> dict[str, str]:
     session = await asyncio.to_thread(record, "sessions", session_id)
@@ -330,8 +405,26 @@ async def analysis_get(session_id: str, images: bool = False) -> Analysis:
 
 class CalibrationInput(BaseModel):
     model_config = {"extra": "forbid"}
+    source: Literal["athlete_height_auto", "athlete_height_manual", "known_distance"] | None = None
+    heightCm: float | None = Field(default=None, ge=30, le=300, allow_inf_nan=False)
+    bodyHeightPixels: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    frameTime: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     metersPerPixel: float = Field(gt=0, allow_inf_nan=False, strict=True)
     ground: float = Field(ge=0, le=config.MAX_VIDEO_DIMENSION, allow_inf_nan=False, strict=True)
+
+    @model_validator(mode="after")
+    def validate_height_scale(self) -> Self:
+        if self.source in ("athlete_height_auto", "athlete_height_manual"):
+            if self.heightCm is None or self.bodyHeightPixels is None or self.frameTime is None:
+                raise ValueError(
+                    "Height calibration needs the saved height, full-body span, and frame time."
+                )
+            expected = self.heightCm / 100 / self.bodyHeightPixels
+            if not math.isclose(self.metersPerPixel, expected, rel_tol=1e-6):
+                raise ValueError(
+                    "The scale must match the athlete height divided by the selected body span."
+                )
+        return self
 
 
 class AlignmentInput(BaseModel):
@@ -359,6 +452,12 @@ async def update_session(session_id: str, update: SessionUpdate) -> SessionRecor
         height = (await asyncio.to_thread(load_analysis, value))["height"]
     if update.ground is not None and update.ground > height:
         raise HTTPException(422, "Ground must be inside the video frame.")
+    if (
+        update.calibration is not None
+        and update.calibration.frameTime is not None
+        and update.calibration.frameTime > value["duration"]
+    ):
+        raise HTTPException(422, "Choose a calibration frame inside the clip.")
     if update.calibration is not None and update.calibration.ground > height:
         raise HTTPException(422, "Ground must be inside the video frame.")
     if update.alignment is not None:
@@ -388,7 +487,7 @@ async def delete_session(session_id: str) -> dict[str, bool]:
                 raise HTTPException(
                     409, "This video is a saved tool’s reference and cannot be deleted."
                 )
-        for key in [value.get("analysisKey"), value.get("sourceKey")]:
+        for key in [value.get("analysisKey"), value.get("sourceKey"), value.get("previewKey")]:
             if key:
                 await asyncio.to_thread(store.remove, key)
         await asyncio.to_thread(store.delete, "sessions", session_id)

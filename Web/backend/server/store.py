@@ -17,7 +17,7 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
 from server import config
-from server.types import Record, RecordKind
+from server.types import Calibration, Record, RecordKind
 
 ROOT = config.ROOT
 load_dotenv(ROOT / ".env.local")
@@ -124,3 +124,26 @@ def url(key: str) -> str:
 
 def remove(key: str) -> None:
     s3().delete_object(Bucket=BUCKET, Key=key)
+
+
+def save_height_calibration(
+    record_id: str, calibration: Calibration, expected: Calibration | None = None
+) -> bool:
+    """Set an automatic scale without replacing manual calibration or concurrent edits.
+
+    Profile edits may rescale an existing height-based calibration only when its
+    complete previous value still matches. A later user edit always wins.
+    """
+    if expected is None:
+        condition = "(payload->'calibration' IS NULL OR payload->'calibration'='null'::jsonb OR payload#>>'{calibration,source}'='athlete_height_auto')"
+        parameters = (Jsonb(calibration), record_id)
+    else:
+        condition = "payload->'calibration'=%s"
+        parameters = (Jsonb(calibration), record_id, Jsonb(expected))
+    from psycopg import sql
+
+    query = sql.SQL(
+        "UPDATE sportsbuilder_records SET payload=jsonb_set(payload,'{{calibration}}',%s) WHERE kind='sessions' AND id=%s AND {} RETURNING id"
+    ).format(sql.SQL(condition))
+    with pool().connection() as con:
+        return con.execute(query, parameters).fetchone() is not None

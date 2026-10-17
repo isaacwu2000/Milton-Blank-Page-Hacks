@@ -59,6 +59,7 @@ class Analysis(TypedDict):
     ground: float
     groundTime: NotRequired[float | None]
     groundSource: NotRequired[Literal["person_boundary"]]
+    heightReference: NotRequired[HeightReference]
     frames: list[Frame]
     source: Literal["video"]
     model: str
@@ -67,6 +68,10 @@ class Analysis(TypedDict):
 class Calibration(TypedDict):
     metersPerPixel: float
     ground: float
+    source: NotRequired[Literal["athlete_height_auto", "athlete_height_manual", "known_distance"]]
+    heightCm: NotRequired[float]
+    bodyHeightPixels: NotRequired[float]
+    frameTime: NotRequired[float]
 
 
 class Alignment(TypedDict):
@@ -75,6 +80,7 @@ class Alignment(TypedDict):
 
 
 class Record(TypedDict, total=False):
+    heightCm: float | None
     id: str
     name: str
     createdAt: str
@@ -90,6 +96,9 @@ class Record(TypedDict, total=False):
     interval: float
     sourceKey: str
     analysisKey: str
+    previewKey: str
+    heightReference: HeightReference
+    detectedGround: float
     ground: float | None
     calibration: Calibration | None
     alignment: Alignment | None
@@ -177,6 +186,9 @@ class SessionRecord(TypedDict):
     sourceKey: str
     reference: NotRequired[bool]
     analysisKey: NotRequired[str]
+    previewKey: NotRequired[str]
+    heightReference: NotRequired[HeightReference]
+    detectedGround: NotRequired[float]
     ground: NotRequired[float | None]
     calibration: NotRequired[Calibration | None]
     alignment: NotRequired[Alignment | None]
@@ -189,3 +201,13 @@ class HomeData(TypedDict):
     profiles: list[ProfileRecord]
     tools: list[ToolRecord]
     sessions: list[SessionRecord]
+
+
+class HeightReference(TypedDict):
+    bodyHeightPixels: float
+    frameTime: float
+
+
+class HeightObservation(NamedTuple):
+    body_height_pixels: float
+    frame_time: float
