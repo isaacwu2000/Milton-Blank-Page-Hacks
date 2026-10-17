@@ -54,6 +54,7 @@ export function Builder({
     job,
     () => {
       setJob(null);
+      setBusy(false);
       onBuilt();
     },
     (e) => {

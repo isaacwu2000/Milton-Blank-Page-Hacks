@@ -277,7 +277,7 @@ export function Product() {
                   {view === "profile"
                     ? "A little context for measurements that make sense."
                     : view === "builder"
-                      ? "A few questions. A coach built around what matters to you."
+                      ? "Describe your sport and what you want to improve."
                       : "Look closer at your movement. Find one thing to practise."}
                 </p>
               </div>
