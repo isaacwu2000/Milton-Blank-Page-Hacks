@@ -21,7 +21,7 @@ import {
   type Session,
   type ToolConfig,
 } from "../../../../../shared";
-import { IconButton, DropdownSelect, NumberInput } from "../../../components";
+import { Input, IconButton, DropdownSelect, NumberInput } from "../../../components";
 import { api, post } from "../services/api";
 import { type HomeData } from "../types";
 import { Logo, ErrorNote, Empty, LoadingStatus } from "./common";
@@ -531,7 +531,13 @@ function ProfileSetup({
     const form = event.currentTarget;
     if (!form.reportValidity()) return;
     const fields = new FormData(form);
-    const payload = { heightCm: Number(fields.get("heightCm")) };
+    const weight = String(fields.get("weightKg") ?? "").trim();
+    const payload = {
+      heightCm: Number(fields.get("heightCm")),
+      weightKg: weight ? Number(weight) : null,
+      gender: String(fields.get("gender") ?? "").trim(),
+      notes: String(fields.get("notes") ?? "").trim(),
+    };
     if (
       !Number.isFinite(payload.heightCm) ||
       payload.heightCm < 30 ||
@@ -558,10 +564,10 @@ function ProfileSetup({
   }
   return (
     <form className="inline-form" onSubmit={save}>
-      <h2>{editing ? "Your height" : "Before your first video"}</h2>
+      <h2>{editing ? "Athlete details" : "Before your first video"}</h2>
       <p className="small muted">
-        Your height helps estimate a scale for movement measurements. You can
-        adjust it later.
+        Your height helps scale movement measurements. Add optional details to
+        personalize your coaching. You can update them anytime.
       </p>
       <div className="form-pair">
         <label htmlFor="profile-height">
@@ -579,7 +585,37 @@ function ProfileSetup({
             disabled={busy}
           />
         </label>
+        <label htmlFor="profile-weight">
+          Weight (kg, optional)
+          <NumberInput
+            id="profile-weight"
+            name="weightKg"
+            min={1}
+            max={600}
+            step="any"
+            suffix="kg"
+            defaultValue={profile?.weightKg ?? ""}
+            placeholder="72"
+            disabled={busy}
+          />
+        </label>
       </div>
+      <label htmlFor="profile-gender">
+        Gender (optional)
+        <Input id="profile-gender" name="gender" maxLength={100}
+          defaultValue={profile?.gender ?? ""} disabled={busy}
+          placeholder="Describe in your own words" />
+      </label>
+      <label htmlFor="profile-notes">
+        General notes (optional)
+        <textarea id="profile-notes" name="notes" rows={4} maxLength={1000}
+          defaultValue={profile?.notes ?? ""} disabled={busy}
+          aria-describedby="profile-notes-help"
+          placeholder="Goals, experience, preferences, or anything your coach should know" />
+      </label>
+      <p id="profile-notes-help" className="small muted">
+        These details are included when you ask your AI coach for feedback.
+      </p>
       {error && <ErrorNote message={error} />}
       <button className="button" disabled={busy}>
         {busy ? <LoadingStatus>Saving your profile…</LoadingStatus> : editing ? "Save profile" : "Save and continue"}
