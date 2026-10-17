@@ -404,7 +404,7 @@ function UploadPanel({
       <div className="upload-icon">
         <CloudUpload size={28} strokeWidth={1.5} />
       </div>
-      <h1>A little footage. A clearer picture.</h1>
+      <h1>Your Athletic Dreams Will Become a reality</h1>
       <p>Drop your video here, or choose one to get started.</p>
       <div className="upload-selects">
         <div className="flex min-w-0 flex-1 flex-col gap-2 text-[12px] text-(--neutral-dark-400)">

@@ -123,7 +123,7 @@ describe("saved workspace loading", () => {
     fireEvent.change(height, { target: { value: "178" } });
     fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
     await screen.findByRole("heading", {
-      name: "A little footage. A clearer picture.",
+      name: "Your Athletic Dreams Will Become a reality",
     });
     expect(post).toHaveBeenCalledWith("/api/profiles", {
       name: "Athlete",
@@ -166,7 +166,7 @@ describe("saved workspace loading", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
     await screen.findByRole("heading", {
-      name: "A little footage. A clearer picture.",
+      name: "Your Athletic Dreams Will Become a reality",
     });
     expect(api).toHaveBeenCalledWith("/api/profiles/canonical", {
       method: "PATCH",
