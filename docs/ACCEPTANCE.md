@@ -237,3 +237,24 @@ Beginner Running Knee-Angle Coach — Draft (`caae461b-fad6-4c8a-a26a-921d43e669
 Its provisional assumptions remain explicit. Reviewed draft screenshots and
 acceptance data live in `output/builds/f6479c79-8351-451a-ab7f-ec2c438399a0/`.
 The current TypeScript suite passes 65 tests. All refinement evidence is local, with no deployment.
+
+## One-command local setup
+
+Revision `0691488` adds `bash install.sh`. A real macOS install-only run reused
+existing credentials, installed/reused managed runtimes, synced both dependency
+sets, prepared Neon Postgres, checked the private video bucket, and built the app.
+The repeat run passed; transcript: `output/setup-validation.log`.
+
+Seven isolated bootstrap cases cover absent runtimes, an older Bun, checksum
+failure, missing downloader, unsupported OS, help, and bad arguments. Five isolated
+assistant cases cover preserved environment files, missing credentials, failed
+installs, literal JSON credentials, and default startup/shutdown. These use local
+fixtures rather than claiming a fresh-machine Linux installation.
+
+Provider checks cover Codex-present/absent selection, explicit overrides, and
+production OpenRouter. Request failures do not switch providers. JSON credential
+checks cover punctuation, existing-value precedence, and sanitized errors in
+Python and TypeScript. A new live OpenRouter request and a cold Node download were
+not performed; their existing transport and installer paths have deterministic
+coverage/inspection only. Final gates: 74 Vitest tests, 85 pytest tests, build,
+TypeScript, ty, Ruff lint/format, and agent-guidance links passed. No deployment.
