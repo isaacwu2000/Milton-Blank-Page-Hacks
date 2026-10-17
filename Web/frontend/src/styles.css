@@ -564,6 +564,27 @@ dd {
   min-width: 0;
   padding: 0;
 }
+.prompt-bar .prompt-bar-tools .builder-build {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  height: 32px;
+  margin-left: auto;
+  margin-right: 12px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--accent-700);
+  color: var(--neutral-light-100);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.prompt-bar .prompt-bar-tools .builder-build:hover:not(:disabled) {
+  background: var(--accent-900);
+}
+.builder-stage {
+  margin-top: 8px;
+}
 .step-label {
   @apply inline-flex items-center gap-3;
   font-size: 12px;

@@ -207,6 +207,17 @@ export function Builder({
                 >
                   <Plus size={18} aria-hidden="true" />
                 </IconButton>
+                <button
+                  type="button"
+                  className="button builder-build"
+                  disabled={busy}
+                  onClick={() =>
+                    ready && !text.trim() ? build() : setConfirmEarlyBuild(true)
+                  }
+                >
+                  {job && <LoaderCircle className="spin" size={16} />}
+                  {job ? "Building your tool…" : "Build my tool"}
+                </button>
               </>
             }
             attachment={
@@ -219,6 +230,11 @@ export function Builder({
               ) : undefined
             }
           />
+          {job && (
+            <p className="small muted builder-stage" role="status">
+              {stage}
+            </p>
+          )}
         </div>
         <aside className="brief-panel">
           <h2>Your tool, taking shape</h2>
@@ -265,21 +281,6 @@ export function Builder({
             <p className="muted">
               As we talk, your sport, goals, metrics, and form rubric will
               appear here.
-            </p>
-          )}
-          <button
-            className="button"
-            disabled={busy}
-            onClick={() =>
-              ready && !text.trim() ? build() : setConfirmEarlyBuild(true)
-            }
-          >
-            {job && <LoaderCircle className="spin" size={16} />}{" "}
-            {job ? "Building your tool…" : "Build my tool"}
-          </button>
-          {job && (
-            <p className="small muted" role="status">
-              {stage}
             </p>
           )}
         </aside>

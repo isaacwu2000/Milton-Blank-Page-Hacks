@@ -12,6 +12,7 @@ import {
   UserRound,
   LoaderCircle,
   Menu,
+  Plus,
   Target,
 } from "lucide-react";
 import {
@@ -235,7 +236,6 @@ export function Product() {
               className={`nav-item ${view === id ? "active" : ""} ${id === "profile" ? "mt-auto" : ""}`}
               onClick={() => {
                 setView(id);
-                if (id === "builder") setBuilder(true);
                 if (isMobile) toggleSidebar();
               }}
             >
@@ -254,17 +254,30 @@ export function Product() {
                   {view === "profile"
                     ? "Your profile"
                     : view === "builder"
-                      ? "Build your coach"
+                      ? builder
+                        ? "Build your coach"
+                        : "Your coaches"
                       : "See your next move."}
                 </h1>
                 <p>
                   {view === "profile"
                     ? "A little context for measurements that make sense."
                     : view === "builder"
-                      ? "A few questions. A coach built around what matters to you."
+                      ? builder
+                        ? "A few questions. A coach built around what matters to you."
+                        : "Coaches built around what matters to you."
                       : "Look closer at your movement. Find one thing to practise."}
                 </p>
               </div>
+              {view === "builder" && !builder && (
+                <IconButton
+                  label="Create a new coach"
+                  disabled={!loaded || !workspaceAvailable}
+                  onClick={() => setBuilder(true)}
+                >
+                  <Plus size={18} />
+                </IconButton>
+              )}
             </div>
           )}
           {!loaded && (
@@ -297,24 +310,30 @@ export function Product() {
           {builder && (
             <div hidden={view !== "builder"}>
               <Builder
-                onClose={() => setView("coached")}
+                onClose={() => setBuilder(false)}
                 onBuilt={() => {
-                  setView("coached");
+                  setBuilder(false);
+                  setView("builder");
                   reload();
                 }}
               />
-              {data.tools.length > 0 && (
-                <section className="mt-8">
-                  <h2>Your coaches</h2>
-                  <div className="tool-grid">
-                    {data.tools.map((tool) => (
-                      <ToolSummary key={tool.id} tool={tool} />
-                    ))}
-                  </div>
-                </section>
-              )}
             </div>
           )}
+          <div hidden={view !== "builder" || builder}>
+            {loaded && workspaceAvailable && (
+              data.tools.length > 0 ? (
+                <div className="tool-grid">
+                  {data.tools.map((tool) => (
+                    <ToolSummary key={tool.id} tool={tool} />
+                  ))}
+                </div>
+              ) : (
+                <Empty title="No coaches yet">
+                  Use the + button to create your first coach.
+                </Empty>
+              )
+            )}
+          </div>
           <div hidden={view !== "coached" || (loaded && !workspaceAvailable)}>
             <UploadPanel
               data={data}

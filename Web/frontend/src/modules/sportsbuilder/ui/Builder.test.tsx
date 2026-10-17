@@ -30,6 +30,9 @@ it("warns before an early build and includes an unsent idea when continuing", as
     screen.getByRole("textbox", { name: "Answer the builder" }),
     { target: { value: "A beginner tennis coach" } },
   );
+  expect(screen.getByRole("button", { name: "Build my tool" }).closest("form")).toBe(
+    screen.getByRole("textbox", { name: "Answer the builder" }).closest("form"),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Build my tool" }));
   expect(post).not.toHaveBeenCalled();
   expect(

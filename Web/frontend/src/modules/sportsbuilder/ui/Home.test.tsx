@@ -34,6 +34,24 @@ const saved = {
 };
 
 describe("saved workspace loading", () => {
+  it("opens the coach library first and starts a new coach only from the plus action", async () => {
+    vi.mocked(api).mockResolvedValue(saved);
+    render(<Product />);
+    await screen.findAllByText(sampleTool.name);
+    fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
+    expect(screen.getByRole("heading", { name: "Your coaches" })).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "Answer the builder" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Create a new coach" }));
+    const draft = screen.getByRole("textbox", { name: "Answer the builder" });
+    fireEvent.change(draft, { target: { value: "A jump coach" } });
+    fireEvent.click(screen.getByRole("button", { name: "Get coached" }));
+    fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
+    expect((screen.getByRole("textbox", { name: "Answer the builder" }) as HTMLTextAreaElement).value).toBe("A jump coach");
+    fireEvent.click(screen.getByRole("button", { name: "Close tool builder" }));
+    expect(screen.getByRole("heading", { name: "Your coaches" })).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "Answer the builder" })).toBeNull();
+    expect(post).not.toHaveBeenCalled();
+  });
   it("withholds empty-workspace prerequisites until the saved records arrive", async () => {
     let finish!: (data: unknown) => void;
     vi.mocked(api).mockReturnValueOnce(
@@ -228,7 +246,7 @@ describe("saved workspace loading", () => {
     fireEvent.change(height, { target: { value: "179.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Build your coach" }));
     expect(
-      screen.getByRole("heading", { name: "Build your coach" }),
+      screen.getByRole("heading", { name: "Your coaches" }),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Save profile" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Your profile" }));
