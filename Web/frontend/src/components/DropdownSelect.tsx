@@ -167,7 +167,7 @@ export function DropdownSelect<Value extends string>({
                 aria-expanded={isOpen}
                 aria-haspopup="listbox"
                 aria-label={label}
-                className={`inline-flex min-h-[44px] w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-lg border-0 bg-(--neutral-light-500) py-1.5 pr-2 pl-2.5 text-[12px] text-(--neutral-dark-150) shadow-(--shadow-inner) transition-colors duration-150 hover:bg-(--neutral-light-400) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-700) disabled:cursor-not-allowed disabled:text-(--neutral-dark-500) aria-expanded:bg-(--neutral-light-400) motion-reduce:transition-none ${triggerClassName ?? ""}`}
+                className={`inline-flex min-h-[44px] w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-lg border-0 bg-(--neutral-light-100) py-1.5 pr-2 pl-2.5 text-[12px] text-(--neutral-dark-150) shadow-(--shadow-md) transition-colors duration-150 hover:bg-(--neutral-light-400) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-700) disabled:cursor-not-allowed disabled:text-(--neutral-dark-500) aria-expanded:bg-(--neutral-light-400) motion-reduce:transition-none ${triggerClassName ?? ""}`}
                 disabled={disabled || options.length === 0}
                 onClick={() => isOpen ? setIsOpen(false) : open()}
                 onKeyDown={handleKeyDown}

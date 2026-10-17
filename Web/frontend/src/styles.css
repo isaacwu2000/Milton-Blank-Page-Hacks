@@ -1500,17 +1500,6 @@ progress {
   width: 100%;
   margin-top: 32px;
 }
-.sample-entry {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 24px;
-}
-.sample-entry p {
-  font-size: 11px;
-}
-
 /* LearnUnlock shell: header hamburger, full collapse, floating top-left reopen. */
 .sidebar[hidden] {
   display: none;
@@ -1588,11 +1577,6 @@ html,
 .sidebar-header .brand-mark svg {
   width: 16px;
   height: 16px;
-}
-.early-build-warning {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 .early-build-actions {
   display: flex;

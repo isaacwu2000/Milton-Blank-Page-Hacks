@@ -188,7 +188,7 @@ export function Builder({
             actions={
               <>
                 <input
-                  className="sr-only"
+                  hidden
                   ref={ref}
                   type="file"
                   aria-label="Upload optional good form reference"
