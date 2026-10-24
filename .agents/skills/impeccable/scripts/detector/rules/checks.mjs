@@ -456,9 +456,8 @@ function checkHeroEyebrow(opts) {
   }];
 }
 
-// Outright ban: one kicker is one too many, so every collected candidate is
-// a finding. The judgment lives in the candidate gate (isKickerCandidate) and
-// the collector's context skips, not in a repetition count.
+// Collect candidate labels for contextual review. Findings are advisory:
+// syntax cannot distinguish decorative copy from necessary domain labels.
 function checkKickerAboveHeading(opts) {
   const { candidates } = opts;
   if (!Array.isArray(candidates)) return [];

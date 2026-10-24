@@ -9,9 +9,9 @@ TDD is the red → green loop. This skill is the reference that makes that loop 
 
 When exploring the codebase, read `.agents/context/CONTEXT.md` (if it exists) so test names and interface vocabulary match the project's domain language, and respect ADRs in the area you're touching.
 
-For LearnUnlock, read [`.agents/context/TESTING.md`](../../../context/TESTING.md)
-before selecting or running a test workflow. It is the single source of truth for
-commands, lanes, shared state, ports, and when each workflow should be used.
+Read the repository's testing guidance before selecting or running a test workflow.
+Resolve it through the [repository context contract](../references/repository-context.md);
+the repository owns commands, lanes, shared state, ports, and workflow selection.
 
 ## What a good test is
 

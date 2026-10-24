@@ -1,5 +1,10 @@
 # SportsBuilder agent guidance
 
+- Shared workflow files are versioned by [.agents/harness.json](.agents/harness.json).
+  For explicit adoption or sync, use the [coding-harness adapter](.agents/skills/coding-harness/SKILL.md).
+  Read [local workflow extensions](.agents/context/WORKFLOW.md) alongside shared workflows.
+  Keep repo-owned context and local skills out of shared-file updates.
+
 - Follow the [development router](.agents/skills/development/SKILL.md) for software work and [Impeccable](.agents/skills/impeccable/SKILL.md) for UI work.
 - Read [the specification](docs/SPEC.md), [coding standards](.agents/context/CODING_STANDARDS.md), and [local verification](.agents/context/TESTING.md) for implementation.
 - Frontend code belongs in `Web/frontend/`; backend code belongs in `Web/backend/`. Copied agent guidance and harness sources belong in `.agents/`. Shared numerical code lives in `Web/shared/`; Python video services live in `Web/backend/server/`.

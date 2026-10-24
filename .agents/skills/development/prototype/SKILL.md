@@ -11,6 +11,8 @@ Before building, tell the user: “I’m prototyping <question>.” At handoff, 
 what the prototype established, what remains unverified, and whether its evidence
 comes from a standalone preview or the actual app.
 
+For UI prototypes, load the receiving repository's design skill and sources before building variants.
+
 ## Pick a branch
 
 Identify which question is being answered — from the user's prompt, the surrounding code, or by asking if the user is around:
@@ -23,7 +25,7 @@ The two branches produce very different artifacts — getting this wrong wastes 
 ## Rules that apply to both
 
 1. **Throwaway from day one, and clearly marked as such.** Locate the prototype code close to where it will actually be used (next to the module or page it's prototyping for) so context is obvious — but name it so a casual reader can see it's a prototype, not production. For throwaway UI routes, obey whatever routing convention the project already uses; don't invent a new top-level structure.
-2. **Trivial to run.** A UI prototype starts from one Bun task-runner command. A logic demo is one self-contained HTML file the user can open directly. Either way, it needs no setup thinking.
+2. **Trivial to run.** A UI prototype starts from one command using the repository's existing task runner. A logic demo is one self-contained HTML file the user can open directly. Either way, it needs no setup thinking.
 3. **No persistence by default.** State lives in memory. Persistence is the thing the prototype is _checking_, not something it should depend on. If the question explicitly involves a database, hit a scratch DB or a local file with a clear "PROTOTYPE — wipe me" name.
 4. **Skip the polish.** No tests, no error handling beyond what makes the prototype _runnable_, no abstractions. The point is to learn something fast.
 5. **Surface the state.** After every action (logic) or on every variant switch (UI), print or render the full relevant state so the user can see what changed.

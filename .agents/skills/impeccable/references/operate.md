@@ -8,6 +8,21 @@ Familiarity is often a feature here. The test is whether a category-fluent user 
 
 Product UI's failure mode isn't flatness, it's strangeness without purpose: over-decorated buttons, mismatched form controls, gratuitous motion, display fonts where labels should be, invented affordances for standard tasks. The bar is earned familiarity. The tool should disappear into the task.
 
+## Let the task govern the structure
+
+A visual theme can influence typography, palette, density, and a distinctive
+detail when it helps the task. It does not determine navigation, work areas, or
+controls. Start with the product's actual jobs, information, states, and familiar
+platform behavior; fit the visual language around them. Preserve the repo's
+established interaction contract.
+
+For example, a transit-inspired service dashboard may borrow a route diagram for
+service relationships without turning navigation into a ticket machine. The
+distinctive detail is optional: a precise, quiet interface need not invent a
+motif to demonstrate craft. Judge the result with realistic content and ask
+whether users can recognize the task, current state, and next action before
+noticing the theme.
+
 ## Typography
 
 - **One family is often right.** Product UIs don't need display/body pairing. A well-tuned sans carries headings, buttons, labels, body, data.

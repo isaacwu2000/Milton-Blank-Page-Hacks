@@ -1,6 +1,6 @@
 # Triage Labels
 
-Map the canonical Matt Pocock triage states directly to these GitHub labels:
+Use the repository's configured mapping when present. Otherwise, preserve the extracted GitHub defaults below:
 
 | Canonical state | GitHub label | Meaning |
 | --- | --- | --- |

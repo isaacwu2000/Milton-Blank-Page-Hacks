@@ -5,9 +5,11 @@ description: Route software-development work to the smallest applicable reposito
 
 # Development
 
+Before selecting a workflow, read the [repository context contract](references/repository-context.md). Repository-specific instructions and skills extend these shared workflows.
+
 Select the smallest skill that fully covers the request. Read that skill's `SKILL.md` completely before acting, then follow it as the active workflow. Combine skills only when the work genuinely spans distinct workflows.
 
-Child skills are explicit-only to keep their metadata out of baseline context. Route through the file links below rather than depending on implicit child invocation.
+Use the file links below to load child workflows. The extracted children retain their explicit-only Codex metadata; other tools control discovery through their own entrypoints.
 
 ## Core flow
 
@@ -18,6 +20,7 @@ For an idea that needs to become shipped work, use only the unsettled portion of
 - Start with [grilling](grilling/SKILL.md) when the idea or decision needs pressure-testing.
 - Use [to-spec](to-spec/SKILL.md) to synthesize an already-settled discussion into a specification.
 - Use [to-tickets](to-tickets/SKILL.md) when the work needs ordered, independently executable tickets.
+- Use [implement-spec](implement-spec/SKILL.md) to coordinate an entire spec across a dependency graph of tickets.
 - Use [implement](implement/SKILL.md) for a specification or ticket. It applies [TDD](tdd/SKILL.md) and finishes with [code review](code-review/SKILL.md).
 
 Skip phases whose outputs already exist. Keep discovery through ticket creation in one context when practical; start each implementation ticket with fresh context.
@@ -29,6 +32,8 @@ Skip phases whose outputs already exist. Keep discovery through ticket creation 
 | Stress-test an idea or decision | [grilling](grilling/SKILL.md) |
 | Convert the current discussion into a specification | [to-spec](to-spec/SKILL.md) |
 | Split a plan into ordered tickets | [to-tickets](to-tickets/SKILL.md) |
+| Coordinate a complete spec across dependent tickets | [implement-spec](implement-spec/SKILL.md) |
+| Build or sharpen domain language and record architectural decisions | [domain-modeling](domain-modeling/SKILL.md) |
 | Implement a specification or ticket | [implement](implement/SKILL.md) |
 | Build or fix behavior test-first | [tdd](tdd/SKILL.md) |
 | Diagnose a hard bug, regression, flake, or performance problem | [diagnosing-bugs](diagnosing-bugs/SKILL.md) |
@@ -36,6 +41,7 @@ Skip phases whose outputs already exist. Keep discovery through ticket creation 
 | Explain code or a diff as an interactive HTML artifact | [explain-code](explain-code/SKILL.md) |
 | Design a deep module or interface boundary | [codebase-design](codebase-design/SKILL.md) |
 | Survey the codebase for architecture improvements | [improve-codebase-architecture](improve-codebase-architecture/SKILL.md) |
+| Design, simplify, inspect, or refine UI | [impeccable](../impeccable/SKILL.md), using repo-owned design sources |
 | Prototype one uncertain design decision | [prototype](prototype/SKILL.md) |
 | Research primary sources and preserve findings | [research](research/SKILL.md) |
 | Resolve an active merge or rebase conflict | [resolving-merge-conflicts](resolving-merge-conflicts/SKILL.md) |
@@ -44,11 +50,9 @@ Skip phases whose outputs already exist. Keep discovery through ticket creation 
 | Map a large, uncertain, multi-session effort | [wayfinder](wayfinder/SKILL.md) |
 | Preserve context for a fresh session | [handoff](handoff/SKILL.md) |
 | Re-explain a message that did not land | [wait-what](wait-what/SKILL.md) |
-| Review an integrated Tutor teaching artifact | [expanded-learning-experience-review](../expanded-learning-experience-review/SKILL.md) |
-| Run approved student simulations | [agentic-evaluations](../agentic-evaluations/SKILL.md) (manual invocation and case approval required) |
 | Create or edit a skill or other agent-facing instruction | [writing-for-agents](../writing-for-agents/SKILL.md) |
 
-Use `wayfinder → to-spec → to-tickets → implement` when an effort is too large or uncertain to specify directly. Use `triage → implement` for raw incoming work; tickets created by `to-tickets` are already implementation-ready.
+Use `wayfinder → to-spec → to-tickets → implement-spec` when an effort is too large or uncertain to specify directly. Use `triage → implement` for raw incoming work; tickets created by `to-tickets` are already implementation-ready.
 
 ## Apply the route
 

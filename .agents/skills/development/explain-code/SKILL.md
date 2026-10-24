@@ -9,7 +9,7 @@ Make a rich, interactive explanation of the specified code or code change.
 
 ## Explanation discipline
 
-Apply LearnUnlock's Tutor principles to the explanation:
+Apply these explanation principles:
 
 - Determine the single core idea before writing. State it in one simple sentence near the top.
 - Teach one concept per paragraph or diagram. Each diagram should clarify one relationship, sequence, or state change.
@@ -19,7 +19,7 @@ Apply LearnUnlock's Tutor principles to the explanation:
 - Keep each paragraph under 100 words. Prefer a direct sentence, small diagram, or short code block over another paragraph.
 - Use at most five unexplained technical terms in any section. Define the terms that the reader must retain.
 
-The output remains a long-form HTML page; do not copy the Tutor prompt's three-paragraph response limit. Apply its simplicity locally so every section is easy to absorb.
+Apply this simplicity within each section of the long-form HTML page.
 
 It should have these sections:
 

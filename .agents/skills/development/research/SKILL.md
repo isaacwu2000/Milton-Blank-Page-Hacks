@@ -3,9 +3,9 @@ name: research
 description: Research a question using high-trust primary sources.
 ---
 
-Spin up a **background agent** to do the research, so you keep working while it reads.
+Use a **background agent** when delegation is supported and authorized, so other work can continue while it reads. Otherwise research directly.
 
-Its job:
+The research task:
 
 1. Investigate the question against **primary sources** — official docs, source code, specs, first-party APIs — not a secondary write-up of them. Follow every claim back to the source that owns it.
 2. Return the findings in chat, citing each claim's source.

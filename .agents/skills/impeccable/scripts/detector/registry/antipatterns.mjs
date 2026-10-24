@@ -189,6 +189,8 @@ const ANTIPATTERNS = [
   },
   {
     id: 'hero-eyebrow-chip',
+    advisory: true,
+    severity: 'advisory',
     category: 'slop',
     scopes: ['type'],
     name: 'Hero eyebrow / pill chip',
@@ -199,11 +201,13 @@ const ANTIPATTERNS = [
   },
   {
     id: 'kicker-above-heading',
+    advisory: true,
+    severity: 'advisory',
     category: 'slop',
     scopes: ['type'],
     name: 'Kicker / eyebrow label above heading',
     description:
-      'A tiny tracked uppercase or small-caps label sitting as its own block directly above a heading is banned outright, repeated or not. Generated kickers never earn their place: the heading carries its own weight. Delete the label and let the heading speak; if the words matter, work them into the heading or the body.',
+      'Review small tracked labels above headings for redundant decoration. Remove copy that restates the heading; preserve domain labels, breadcrumbs, and information needed for orientation or decisions. This pattern is advisory because syntax alone cannot establish whether a label is necessary.',
     skillSection: 'Typography',
     skillGuideline: 'kicker or eyebrow labels above headings',
   },

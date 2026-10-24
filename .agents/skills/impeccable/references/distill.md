@@ -1,3 +1,5 @@
+Apply the shared skill's principles and the repo's design contract. The techniques below are options, not universal limits on palettes, type scales, sidebars, or information density. Preserve relationships the task requires users to see together.
+
 Strip a design to its essence. Remove anything that doesn't earn its place: redundant elements, repeated information, decorative noise, cosmetic complexity.
 
 

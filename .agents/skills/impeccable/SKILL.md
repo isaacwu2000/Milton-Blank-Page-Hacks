@@ -3,18 +3,72 @@ name: impeccable
 description: Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or otherwise improve a frontend interface. Covers websites, landing pages, dashboards, product UI, app shells, components, forms, settings, onboarding, and empty states. Handles UX review, visual hierarchy, information architecture, cognitive load, accessibility, performance, responsive behavior, theming, anti-patterns, typography, fonts, spacing, layout, alignment, color, motion, micro-interactions, UX copy, error states, edge cases, i18n, reusable design systems or tokens, and ambitious visual effects. Not for backend-only or non-UI tasks.
 ---
 
-This skill gives you the tools and permission to create design that earns to be called out-of-distribution craft: Whereas before, your design work would have been safe, timid and measured, you now approach every design task as a award-winning design director with impeccable understanding for what makes exceptional design work: production-grade code, peak creativity, a clear POV, deep understanding of the needs of the client and users, and exceptional craft.
+Design interfaces around the user's task, with craft appropriate to the surface
+and brief. Quiet, familiar product UI can be the right result; expressive work
+belongs where it serves the product. This is shared workflow, not a shared brand.
 
-Core principles:
-- Go all out. No hedging, no shortcuts. The deliverable must be complete (except assets the user must provide).
-- Dream big and bold. Distinct, beautiful, outstanding and highly inspiring work.
-- Verify in bounded passes, not a loop, and the ceiling covers the whole cycle: screenshots, defect scans, micro-edits, and rebuilds alike. Build fully, inspect once with a batched round (desktop and mobile together), fix everything it shows in one batch, confirm with at most one more round, and stop polishing. Open-ended self-QA burns the user's money doing worse what the finish handoffs do better.
+## Shared principles
+
+- **Make the task clear.** Give the primary action and important state a clear
+  hierarchy. Remove repeated summaries, redundant headings, decorative labels,
+  persistent helper copy, and chrome that does not help the user act.
+- **Preserve meaning.** Keep domain labels, accessible names, useful instructions,
+  recovery actions, and information the user needs to decide. Simplicity removes
+  obstacles, not necessary capability or relationships.
+- **Disclose secondary complexity.** Keep information users need simultaneously
+  visible together. Let the agent handle mechanical orchestration where the
+  product supports it; expose meaningful progress, outcomes, intervention, and
+  recovery without making the user manage internal tools or execution steps.
+- **Reuse behavior.** Match established save, navigation, selection, disclosure,
+  loading, and recovery behavior, not just component names and styling.
+- **The repo owns the product.** Load its product/design contract and actual
+  tokens, components, and behavior. Colors, type, layout, terminology, supported
+  platforms, input methods, and stop/cancel semantics stay repo-specific.
+- **The task owns acceptance.** Follow the user's current requirements over stale
+  project guidance within governing instructions. Reconcile superseded guidance
+  in scope instead of appending contradictory rules. A new requirement is not
+  evidence that earlier work ignored instructions.
+- **Inspect the real result.** Use realistic content inside the actual surface,
+  including relevant narrow panes, long content, empty/error/pending states, and
+  interaction paths. Inspect captures; a screenshot existing is not acceptance.
+- **Bound polish, resolve defects.** Batch inspection and fixes. Stop optional
+  aesthetic exploration when the agreed bar is met. A pass count never closes a
+  known acceptance failure: fix and recheck it, or report the exact blocker or
+  unverified gap. Rerun checks when changes invalidate their evidence.
+
+Use [implement's acceptance workflow](../development/implement/SKILL.md#acceptance-evidence)
+for correction tracking, revision-aware evidence, real input paths, and scoped
+platform parity. Keep these completion rules in that one place.
 
 ## Setup
 
-1. Run `node .agents/skills/impeccable/scripts/context.mjs` once per session (if the runtime shows this skill's loaded base directory, run `node <skill-base-dir>/scripts/context.mjs`; keep cwd at the user's project). Pass a named source file or route as `--target <path>`. It loads PRODUCT.md, DESIGN.md, and native-platform guidance when applicable; follow its directives and do not rerun it.
+1. Run `node .agents/skills/impeccable/scripts/context.mjs` when first resolving the active project (if the runtime shows this skill's loaded base directory, run `node <skill-base-dir>/scripts/context.mjs`; keep cwd at the user's project). Pass a named source file or route as `--target <path>`. It loads PRODUCT.md, DESIGN.md, and native-platform guidance when applicable; follow the resolved context within governing instructions. Reuse it until the target, product/design sources, or platform changes; then refresh it.
 2. Before acting, load the one playbook that owns the request: the Commands table's reference for an explicit or clearly implied sub-command, or [references/new-work.md](references/new-work.md) for a new surface or replacement visual world. Then inspect the target and at least one representative source of incumbent visual truth (tokens, theme, CSS, component, or asset) before editing.
 3. After analysis and direction are resolved, load [references/craft-floor.md](references/craft-floor.md) immediately before editing UI. It carries the quality floor, the absolute bans, and the reflexes no detector catches. Do not load it for planning-only work.
+
+**Context helper unavailable:** Tell the user that context loading did not run,
+then read the receiving repo's existing product/design sources directly. Inspect
+the target, tokens, components, and assets and follow the applicable playbook and
+craft floor. Keep missing context explicitly unknown; a helper failure alone
+does not block work that the brief and available evidence already establish.
+
+**App unavailable:** Start with committed visual-regression goldens or screenshot
+fixtures when available. Establish which route, theme, variant, state, revision,
+and viewport each capture represents. Check freshness against current tokens,
+styles, components, and assets; resolve conflicts before using a capture as
+visual authority. Label fixture-based conclusions separately from live evidence.
+A historical screenshot cannot prove current interaction or integration behavior.
+
+## Guidance scope
+
+Read [the repository context contract](../development/references/repository-context.md).
+The user's current brief and repo-owned product/design contract govern the
+reusable playbooks below. Layout and visual recipes in a playbook are techniques
+to evaluate, not permission to replace the repo's identity. For a new or stale
+contract, use [the project contract guide](references/project-contract.md).
+Existing named design sources remain authoritative; do not create a competing
+copy. Helpers run from the receiving repository, using this skill's actual path
+when it is stored centrally rather than installed under `.agents/skills/`.
 
 ## How to design
 

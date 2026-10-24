@@ -1,6 +1,6 @@
 # Craft floor
 
-Load this after the direction is settled, and build without announcing the checklist. A pinned brief or the committed visual world overrides anything here; your own habit does not. Run the bundled detector once after the UI is finished; use this reference for the judgment that mechanical checks cannot supply.
+Load this after the direction is settled, and build without announcing the checklist. A pinned brief or the committed visual world overrides anything here; your own habit does not. Run the bundled detector after the changed UI is ready; rerun affected checks when fixes invalidate their evidence; use this reference for the judgment that mechanical checks cannot supply.
 
 ## Verify
 
@@ -10,7 +10,7 @@ Each of these is a check on the built result, not an intention. Run them togethe
 - **Depth:** shadows carry an offset and a soft blur. A zero-offset colored halo is decoration.
 - **Spacing:** tight groups, generous separation, more space above a heading than below it. Read the computed values.
 - **Type:** body measure 65–75ch, display max 6rem, tracking floor -0.04em, balanced headings, obvious scale and weight steps. Run the real copy at every breakpoint and fix what overflows.
-- **Motion:** one authored moment, not scattered effects and not one identical entrance on every section. Exponential ease-out from an already-visible default. Reach past transform and opacity: blur, backdrop-filter, clip-path, mask, and shadow belong to the palette when they stay smooth.
+- **Motion:** follow the surface mode and project contract. Product UI uses motion for state and feedback; expressive moments belong where the brief calls for them. Keep content visible by default and honor reduced motion.
 - **States:** hover, disabled, loading, error, empty. Plus real content, working controls, responsive composition, keyboard focus.
 - **Copy:** the product's own language. Controls name their action; errors name the problem and the recovery.
 - **Coverage:** every brief requirement present and findable within seconds.
@@ -23,7 +23,7 @@ Page scaffolds:
 
 - Same-size cards of icon plus heading plus text as the page structure. Cards are the lazy container; nested cards are always wrong.
 - The hero-metric template: big number, small label, supporting stats, accent.
-- A kicker or eyebrow above a heading. This one is a ban, not a default: no brief earns it back. The heading carries its own weight; delete the label and let the heading speak.
+- Decorative kickers, eyebrows, repeated section labels, and helper text that restate the heading or action. Delete them; preserve meaningful domain labels, accessible names, and information needed for orientation or decisions.
 - Section numbers (01 / 02 / 03) unless the sequence itself carries information the reader needs.
 - A modal for a task that needs neither interruption nor protected focus.
 

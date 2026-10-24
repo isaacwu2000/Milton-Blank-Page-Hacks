@@ -19,7 +19,18 @@ Fix the cause at the narrowest correct level. Ask when a binding system principl
 
 ## 2. Gather the evidence
 
-Use the feature yourself at representative desktop and mobile sizes. Determine:
+Use the feature yourself on the surfaces and device classes required by the repo
+and task. For web, use representative viewports and input methods. For native
+`ios`, `android`, or `adaptive` work, use the shipped device classes on a simulator,
+emulator, or physical device and follow the matching platform reference:
+[iOS](ios.md), [Android](android.md). Record the device/runtime and actual capture
+conditions. Mobile web is still web; resizing a browser does not verify native
+behavior, and simulation does not establish hardware-dependent behavior.
+
+If the app cannot run, use the [skill's visual-fixture fallback](../SKILL.md#setup)
+for the visual questions it can answer and keep live acceptance gaps explicit.
+
+Determine:
 
 - whether the path is functionally complete;
 - the intended quality bar and time available;
@@ -53,7 +64,7 @@ Do not perfect one corner while leaving the rest below the same quality bar.
 - Align to the project's grid and spacing scale; fix optical as well as mathematical alignment.
 - Group related content tightly and separate distinct groups generously.
 - Keep same-role typography consistent; test measure, wrapping, localization expansion, zoom, and font loading.
-- Verify every supported viewport rather than correcting only the current screenshot.
+- Verify the viewports required for the changed journey and repository acceptance scope; do not imply coverage of viewports not checked.
 
 ### Color, imagery, and icons
 
@@ -78,7 +89,13 @@ Do not perfect one corner while leaving the rest below the same quality bar.
 
 ## 5. Verify and finish
 
-Walk the complete path again with mouse, keyboard, and touch where applicable. Check:
+Walk the complete path again with its real input methods: mouse, keyboard, touch,
+gestures, or other supported input as applicable. Verify native navigation, safe
+areas, keyboard/IME behavior, text scaling, and relevant lifecycle transitions
+on the agreed device classes. Verify microphone, speaker, and other hardware
+claims on physical hardware when required; otherwise report the gap.
+
+Check within the changed scope:
 
 - mobile, intermediate, and wide layouts;
 - loading, empty, error, success, disabled, long-content, and missing-content states;
@@ -86,6 +103,11 @@ Walk the complete path again with mouse, keyboard, and touch where applicable. C
 - console errors, layout shift, interaction latency, image loading, and supported browsers;
 - agreement with DESIGN.md, neighboring features, and the user's scope.
 
-Follow the quality guidance supplied by `context.mjs`, including its single manual detector pass, then run any other relevant QA commands. Fix real defects and document only narrow intentional exceptions. A clean scan does not replace visual judgment.
+For web, follow the quality guidance supplied by `context.mjs`, including the
+mechanical detector pass and focused rechecks when fixes invalidate prior
+evidence. For native work, use platform-specific checks instead of the web
+detector. Run the repo's other relevant QA commands. Fix real defects and
+document only narrow intentional exceptions. A clean scan does not replace
+visual judgment.
 
 Finish with a source diff: remove accidental churn, orphaned code, redundant values, and temporary artifacts. Ship only when the feature is functionally complete and consistently finished across the path.

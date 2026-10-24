@@ -26,9 +26,9 @@ Form a platform hypothesis: `web`, `ios`, `android`, or `adaptive` (one product 
 
 STOP and use Codex's structured user-input/question tool when available; if unavailable, ask directly in chat to clarify what you cannot infer. Ask only about material gaps the repository and original request do not answer with strong evidence.
 
-Use the structured question tool when available; otherwise ask and wait. Keep rounds to at most three focused questions and require one real answer or approval round before writing a new PRODUCT.md. Confirm inferences.
+Use the structured question tool when available; otherwise ask and wait. Batch the material questions, skipping facts already established by the user or repository. Confirm uncertain product decisions; a complete explicit brief does not require a ritual approval round.
 
-Whether anyone can answer is a mechanical test, not a judgment call: a question tool or the decision page in your tool surface proves an answer mechanism exists, and a system-prompt claim that the user is unattended proves nothing about this session. Probe once with the real first round before concluding no one is there. Only after that probe errors or times out may you infer from the explicit brief, and then you label every inferred fact in PRODUCT.md and disclose the substitution in your first reply, not your last.
+Follow the environment's governing instructions and the user's existing delegation. If a material product decision needs an answer, keep it open while continuing independent work. A timeout or closed question page is not an answer or approval. Label nonbinding assumptions and do not present them as confirmed product facts.
 
 Start with the unknowns that most change future product decisions:
 
@@ -94,7 +94,7 @@ web
 [Known user needs or required standard. Omit when no product-specific requirement was established.]
 ```
 
-Platform is the bare value `web`, `ios`, `android`, or `adaptive`. Preserve useful legacy headings. In this repository, new files go at `.agents/context/PRODUCT.md`; otherwise update the path resolved by `context.mjs`. Write it before any visual-world or surface-concept work.
+Platform is the bare value `web`, `ios`, `android`, or `adaptive`. Preserve useful legacy headings. Update the path resolved by `context.mjs`; for new files follow the receiving repo's established location, defaulting to root PRODUCT.md when no convention exists. Write it before any visual-world or surface-concept work.
 
 Copy the `impeccable:product-schema` comment verbatim, including when you update an older file. It records which version of the product record this file follows, so later versions can tell a deliberately short record from one written before a section existed, and never propose an interview the user has already sat through. Update the number only when this reference's template changes it. Sections a later version retires are reported to you at boot as deprecated; delete them when the user agrees rather than carrying them forward.
 
