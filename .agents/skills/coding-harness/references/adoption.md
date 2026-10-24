@@ -59,11 +59,24 @@ policy local, and review reusable changes for the central harness. There is no
 force-overwrite mode. File-write failures roll back writes that still match the
 sync's own output, preserving any subsequent concurrent edit.
 
-## Optional global Codex entrypoint
+## Install for local Codex
 
 Codex discovers user skills in `~/.agents/skills` and supports symlinked skill
-folders. To use this clone globally, link only its `coding-harness` folder there
-under that same name, preserving any existing destination. This entrypoint routes
+folders. For a request to install the harness for local Codex, register this
+entrypoint after cloning; the installation request covers that registration.
+Link only its `coding-harness` folder under that same name:
+
+```sh
+mkdir -p ~/.agents/skills
+ln -s /absolute/path/to/Coding-Agent-Harness/.agents/skills/coding-harness ~/.agents/skills/coding-harness
+```
+
+Check the destination first. Keep an existing matching symlink; preserve and
+report an existing different folder or link instead of replacing it. Verify the
+link resolves to the clone and its SKILL.md is readable. Invoke `$coding-harness`
+on a subsequent turn; restart Codex if the skill has not appeared.
+
+This entrypoint routes
 to adopted repo copies or the clone-backed fallback. Do not also globally install
 all shared skill folders: same-name global and repo skills can both appear rather
 than merging. Other tools need their own supported discovery path; keep one source

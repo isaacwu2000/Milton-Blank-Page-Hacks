@@ -73,7 +73,7 @@ Use `bun` and `bun run` commands, not `npm` or `npx`.
 - Follow the Impeccable skill at `.agents/skills/impeccable/SKILL.md` for every
   design or UI task. It owns the design, accessibility, responsive behavior,
   interaction, motion, and visual-verification standards.
-- Treat `.agents/context/DESIGN.md`, `Web/src/app/globals.css`, and
-  `Web/src/components/README.md` as LearnUnlock's project-specific design sources.
+- Treat `.agents/context/DESIGN.md`, `Web/frontend/src/styles.css`, and
+  `Web/frontend/src/components/README.md` as SportsBuilder's project-specific design sources.
 - Ensure to test all changes thoroughly in the browser
 - Give screenshots and screenrecordings as evidence for successes and failures.

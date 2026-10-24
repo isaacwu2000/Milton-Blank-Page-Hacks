@@ -6,11 +6,11 @@
     },
     ".agents/skills/coding-harness/SKILL.md": {
       "executable": false,
-      "sha256": "12698a81c143cf212eedd08e24bc5108a2e43f2bf50950f5b72fb6193202d102"
+      "sha256": "79f9788405f03e2fc4e005e18f7e09834a4c10cf56e2df6729236c729714a29c"
     },
     ".agents/skills/coding-harness/references/adoption.md": {
       "executable": false,
-      "sha256": "cca3a385a5698bb0098f3cb8e4d9260928add94b6c0d1c5778007bd20efd29bf"
+      "sha256": "a5046a7d2a0a1bfd49425f2238dd6daa1438c34a4acdd8fdc6253b8fb8c1b9e4"
     },
     ".agents/skills/coding-harness/scripts/sync.py": {
       "executable": false,
@@ -541,5 +541,5 @@
   ],
   "schemaVersion": 1,
   "sourceRepository": "https://github.com/isaacwu2000/Coding-Agent-Harness.git",
-  "sourceRevision": "1e36fd80d73f50eff209560afc6e52c49a720b83"
+  "sourceRevision": "4b90b5fc126cfb4427308b0d7542f0690756e32c"
 }
