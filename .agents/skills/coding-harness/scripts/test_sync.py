@@ -200,6 +200,48 @@ class SyncTests(unittest.TestCase):
                 f"# {package}\n",
             )
 
+    def test_automatic_refresh_updates_shared_and_preserves_local_overrides(self):
+        self.install()
+        sync.enable_automatic(self.source, self.target)
+        local = self.write(self.target, self.name, "Project override\n")
+        incoming = ".agents/skills/impeccable/SKILL.md"
+        self.write(self.source, self.name, "General improvement\n")
+        self.write(self.source, incoming, "Updated design workflow\n")
+        self.commit_source()
+        result = sync.refresh_automatic(self.target)
+        self.assertEqual(local.read_text(), "Project override\n")
+        self.assertEqual(
+            (self.target / incoming).read_text(), "Updated design workflow\n"
+        )
+        self.assertEqual(result["localOverrides"], [self.name])
+        self.assertEqual(sync.refresh_automatic(self.target)["updated"], [])
+        self.assertEqual(local.read_text(), "Project override\n")
+
+    def test_local_override_survives_matching_upstream_then_newer_revision(self):
+        self.install()
+        sync.enable_automatic(self.source, self.target)
+        self.write(self.target, self.name, "Local preference\n")
+        self.write(self.source, self.name, "Local preference\n")
+        self.commit_source()
+        self.assertIn(self.name, sync.refresh_automatic(self.target)["localOverrides"])
+        self.write(self.source, self.name, "New general preference\n")
+        self.commit_source()
+        sync.refresh_automatic(self.target)
+        self.assertEqual((self.target / self.name).read_text(), "Local preference\n")
+
+    def test_automatic_refresh_preserves_local_deletion(self):
+        self.install()
+        sync.enable_automatic(self.source, self.target)
+        (self.target / self.name).unlink()
+        result = sync.refresh_automatic(self.target)
+        self.assertIn(self.name, result["localOverrides"])
+        self.assertFalse((self.target / self.name).exists())
+
+    def test_automatic_refresh_is_opt_in_and_requires_adoption(self):
+        self.assertIsNone(sync.refresh_automatic(self.target))
+        with self.assertRaises(sync.SyncError):
+            sync.enable_automatic(self.source, self.target)
+
     def test_global_adapter_selects_adopted_local_copy(self):
         directory = self.source / ".agents/skills/coding-harness"
         self.assertEqual(sync.resolve_library(self.target, directory), directory.parent)

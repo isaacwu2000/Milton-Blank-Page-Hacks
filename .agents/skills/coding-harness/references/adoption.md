@@ -46,7 +46,36 @@ The helper manages `coding-harness`, `development`, `impeccable`,
 fingerprints. AGENTS.md, `.agents/context/`, unrelated files, and other skills are
 never sync targets. Local-only files in a managed folder are also preserved.
 
-## Subsequent syncs
+## Automatic refresh with local priority
+
+When requested, enable automatic updates after adoption:
+
+```sh
+python3 <harness>/.agents/skills/coding-harness/scripts/sync.py enable-auto --source <harness> --target <repo>
+```
+
+This stores the source path in this checkout's local Git configuration, keeping
+machine paths out of tracked files. Add a short instruction to the receiving
+repo's AGENTS.md to run its installed adapter's `scripts/sync.py resolve --target .`
+at the start of coding/design tasks, before loading shared skills. The global
+adapter follows the same entry step. Verify by resolving once and inspecting its
+`refresh` result. Each developer enables their own checkout; cloning an adopted
+repo does not inherit another machine's settings.
+
+Automatic refresh takes committed changes from the configured local clone.
+Unchanged shared files update, while local edits, deletions, and colliding files
+remain local overrides. Other updates can proceed alongside those overrides.
+Repo-owned context and unrelated skills stay local. The result lists overrides
+and updated files. A missing, dirty, or invalid source reports an update error;
+the agent uses the existing local copy. No network pull or background watcher is
+installed. To receive GitHub changes, update the central local clone first.
+Instructions already loaded in a running task must be reread to use new content.
+
+General improvements belong in the central clone; project-specific improvements
+belong in local context/skills. Use local guidance whenever it differs from shared
+defaults. Disable automatic refresh with `git config --local --unset harness.source`.
+
+## Manual syncs
 
 Update the local source clone explicitly, preserving its changes, then run `plan`
 and `apply --expect-plan <planDigest>` without an adoption baseline. Source shared
@@ -55,7 +84,7 @@ files must be committed and clean so every sync identifies an exact revision.
 Unchanged managed files update; upstream removals delete only unchanged managed
 files. Local edits/deletions conflict rather than getting overwritten. A conflict
 prevents the entire apply. Reconcile local improvements separately: keep project
-policy local, and review reusable changes for the central harness. There is no
+policy local, and review reusable changes for the central harness. Manual sync remains strict even when automatic refresh is enabled. There is no
 force-overwrite mode. File-write failures roll back writes that still match the
 sync's own output, preserving any subsequent concurrent edit.
 

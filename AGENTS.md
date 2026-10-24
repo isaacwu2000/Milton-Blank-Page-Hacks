@@ -1,7 +1,13 @@
 # SportsBuilder agent guidance
 
 - Shared workflow files are versioned by [.agents/harness.json](.agents/harness.json).
-  For explicit adoption or sync, use the [coding-harness adapter](.agents/skills/coding-harness/SKILL.md).
+  At the start of every coding/design task, before reading shared skills, run
+  `python3 .agents/skills/coding-harness/scripts/sync.py resolve --target .`.
+  This checkout refreshes shared files from the central local clone automatically;
+  use local overrides and context whenever they differ. Report refresh errors and
+  continue with the existing local copy. General improvements belong in the
+  central clone; project-specific improvements belong here.
+  For adoption or manual sync, use the [coding-harness adapter](.agents/skills/coding-harness/SKILL.md).
   Read [local workflow extensions](.agents/context/WORKFLOW.md) alongside shared workflows.
   Keep repo-owned context and local skills out of shared-file updates.
 

@@ -320,6 +320,62 @@ def apply_plan(plan, expected_digest):
         raise
 
 
+def enable_automatic(source, target):
+    """Remember a machine-local source without putting absolute paths in Git."""
+    source, target = repository(source), repository(target)
+    if not (target / MANIFEST).is_file():
+        raise SyncError("Adopt the project before enabling automatic updates")
+    build_plan(
+        source, target
+    )  # Validate source identity and paths before configuration.
+    git(target, "config", "--local", "harness.source", str(source))
+
+
+def refresh_automatic(project):
+    """Refresh unchanged shared files; retain every locally changed file."""
+    project = Path(project).resolve()
+    probe = subprocess.run(
+        ["git", "-C", str(project), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if probe.returncode:
+        return None
+    root = Path(probe.stdout.strip()).resolve()
+    source = subprocess.run(
+        ["git", "-C", str(root), "config", "--local", "--get", "harness.source"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if source.returncode:
+        return None
+    plan = build_plan(source.stdout.strip(), root)
+    # Local overrides retain the previous baseline. Otherwise a user edit that
+    # happens to match an incoming version could be mistaken for managed content.
+    old = read_json(root / MANIFEST)["files"]
+    overrides = sorted(
+        name
+        for name, current in plan["_before"].items()
+        if (name in old and current != old[name])
+        or (name not in old and current is not None)
+    )
+    for name in overrides:
+        if name in old:
+            plan["_manifest"]["files"][name] = old[name]
+        else:
+            plan["_manifest"]["files"].pop(name, None)
+    plan["actions"] = [x for x in plan["actions"] if x["path"] not in overrides]
+    plan["conflicts"] = []
+    apply_plan(plan, plan["planDigest"])
+    return {
+        "sourceRevision": plan["sourceRevision"],
+        "localOverrides": overrides,
+        "updated": [x["path"] for x in plan["actions"] if x["action"] != "unchanged"],
+    }
+
+
 def resolve_library(project, skill_directory):
     """Prefer an adopted repo copy; otherwise use this adapter's local clone."""
     project = Path(project).resolve()
@@ -350,6 +406,11 @@ def main():
         "resolve", help="Resolve repo-local or clone-backed workflow paths"
     )
     resolver.add_argument("--target", required=True)
+    automatic = sub.add_parser(
+        "enable-auto", help="Refresh on resolve; local edits win"
+    )
+    automatic.add_argument("--source", required=True)
+    automatic.add_argument("--target", required=True)
     for name in ("plan", "apply"):
         command = sub.add_parser(name)
         command.add_argument("--source", required=True)
@@ -364,10 +425,24 @@ def main():
             print(
                 f"Captured {len(result['files'])} existing files for review: {args.out}"
             )
+        elif args.command == "enable-auto":
+            enable_automatic(args.source, args.target)
+            print(
+                "Automatic refresh enabled for this checkout; local edits take priority."
+            )
         elif args.command == "resolve":
+            try:
+                refresh = refresh_automatic(args.target)
+            except (SyncError, OSError) as error:
+                refresh = {"error": str(error), "usingExistingLocalCopy": True}
             directory = Path(__file__).resolve().parents[1]
             print(
-                json.dumps({"skillsPath": str(resolve_library(args.target, directory))})
+                json.dumps(
+                    {
+                        "skillsPath": str(resolve_library(args.target, directory)),
+                        "refresh": refresh,
+                    }
+                )
             )
         else:
             plan = build_plan(args.source, args.target, args.adopt_baseline)
