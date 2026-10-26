@@ -36,5 +36,5 @@
   changes using the actual app journey, distinguishing prototype, deterministic,
   local live, and production evidence.
 - For visual acceptance, follow the evidence procedure in the
-  [implementation skill](../../skills/development/implement/SKILL.md), including
+  [implementation skill](../../HARNESS.md), including
   representative desktop/mobile screenshots in a short PDF unless the task narrows scope.

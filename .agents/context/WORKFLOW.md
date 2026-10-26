@@ -13,11 +13,12 @@ sources supply SportsBuilder's behavior and delivery contract.
   proxy, Python services, and reviewed artifact flow as repo-owned concerns.
   Shared demonstration data does not establish real-video acceptance.
 - Preserve the existing [DESIGN.md](DESIGN.md), self-hosted Lexend, reusable
-  controls, and interaction rules. The new shared copy changes workflow, not the
-  product's visual identity.
+  controls, and interaction rules. The shared workflow retains the product's visual identity.
 - [Teaching-artifact review](../skills/expanded-learning-experience-review/SKILL.md)
   and [agentic evaluations](../skills/agentic-evaluations/SKILL.md) remain local
   extensions, used only when relevant and within their existing approval scope.
 
 The old LearnUnlock provenance snapshot and `.agents/learnunlock/` source files
 are separate from the shared harness and are not updated by its sync command.
+
+Use [shared workflow setup](../HARNESS.md) for live resolution and developer setup.

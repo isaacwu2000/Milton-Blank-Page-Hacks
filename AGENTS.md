@@ -1,15 +1,5 @@
 # SportsBuilder agent guidance
 
-- Shared workflow files are versioned by [.agents/harness.json](.agents/harness.json).
-  At the start of every coding/design task, before reading shared skills, run
-  `python3 .agents/skills/coding-harness/scripts/sync.py resolve --target .`.
-  This checkout refreshes shared files from the central local clone automatically;
-  use local overrides and context whenever they differ. Report refresh errors and
-  continue with the existing local copy. General improvements belong in the
-  central clone; project-specific improvements belong here.
-  For adoption or manual sync, use the [coding-harness adapter](.agents/skills/coding-harness/SKILL.md).
-  Read [local workflow extensions](.agents/context/WORKFLOW.md) alongside shared workflows.
-  Keep repo-owned context and local skills out of shared-file updates.
 
 - Follow the [development router](.agents/skills/development/SKILL.md) for software work and [Impeccable](.agents/skills/impeccable/SKILL.md) for UI work.
 - Read [the specification](docs/SPEC.md), [coding standards](.agents/context/CODING_STANDARDS.md), and [local verification](.agents/context/TESTING.md) for implementation.
@@ -22,3 +12,12 @@
 - Distinguish sample data from measured video evidence. AI configures and coaches; trusted code computes measurements.
 
 - Use uv for Python dependencies and execution; verify Python with pytest, ty, and Ruff. Use Vitest for TypeScript and meaningful behavior checks. Keep nonsecret defaults in typed config files.
+
+## Shared harness and local overrides
+
+Use [the shared harness](.agents/HARNESS.md) and [local workflow extensions](.agents/context/WORKFLOW.md).
+Resolve a workflow with `python3 .agents/harness.py --skill development` (or
+`impeccable`, `writing-for-agents`, `development/implement`, etc.) and read its
+`skillPath`. Local context and same-path local skills always take priority.
+General improvements belong in the central clone; project-specific guidance stays
+here. This uses live local files, without copied shared sets or automatic sync.
